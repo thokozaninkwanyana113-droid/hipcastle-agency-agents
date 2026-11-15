@@ -1,0 +1,69 @@
+// Business settings stored in the database and editable from the Command Centre.
+// Secrets (gateway keys, JWT secret) stay in environment variables, never here.
+import { db } from './db.js';
+
+export const DEFAULT_SETTINGS = {
+  business_name: 'Hipcastle Agency',
+  legal_name: 'Hipcastle Agency (Pty) Ltd',
+  tagline: 'Specialist teams for South African entrepreneurs',
+  website: 'https://www.hipcastle.agency',
+  email: 'hello@hipcastle.agency',           // public contact address & default "from"
+  notify_email: 'hello@hipcastle.agency',    // team inbox for new leads, orders, payments, reviews
+  billing_email: 'accounts@hipcastle.agency',// reply-to on invoices, receipts and reminders
+  emails_enabled: true,                      // master switch for customer emails
+  phone: '+27 10 000 0000',
+  whatsapp: '27100000000',              // international format, digits only
+  address_locality: 'Johannesburg',
+  address_region: 'Gauteng',
+  street_address: '',
+  postal_code: '',
+  company_reg_no: '',
+  vat_no: '',
+  vat_registered: false,
+  vat_rate: 15,
+  office_hours: 'Mon–Fri, 08:00–17:00 SAST',
+  announcement: '🇿🇦 Now booking — free 30-minute strategy session for SA founders.',
+  orders_enabled: true,
+  payfast_enabled: true,
+  ozow_enabled: true,
+  jobs_disabled: [],
+  social: {
+    facebook: 'https://www.facebook.com/hipcastleagency',
+    instagram: 'https://www.instagram.com/hipcastleagency',
+    linkedin: 'https://www.linkedin.com/company/hipcastle-agency',
+    x: 'https://x.com/hipcastleagency',
+    tiktok: 'https://www.tiktok.com/@hipcastleagency',
+    youtube: 'https://www.youtube.com/@hipcastleagency',
+  },
+  seo_default_description:
+    'South African digital agency for entrepreneurs: websites, design, SEO, marketing, ads & sales. Fixed packages in rand — pay via PayFast or Ozow.',
+};
+
+export function getSettings() {
+  const out = structuredClone(DEFAULT_SETTINGS);
+  for (const r of db.prepare('SELECT key, value FROM settings').all()) {
+    try { out[r.key] = JSON.parse(r.value); } catch { /* ignore corrupt value */ }
+  }
+  return out;
+}
+
+export function updateSettings(patch) {
+  const up = db.prepare(`INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`);
+  for (const [k, v] of Object.entries(patch)) {
+    if (!(k in DEFAULT_SETTINGS)) continue;
+    up.run(k, JSON.stringify(v));
+  }
+  return getSettings();
+}
+
+/** Settings safe to expose publicly. */
+export function publicSettings() {
+  const { jobs_disabled, notify_email, billing_email, emails_enabled, ...rest } = getSettings();
+  return rest;
+}
+
+/** Compute VAT on an amount in cents according to current settings. */
+export function vatFor(subtotalCents, s = getSettings()) {
+  return s.vat_registered ? Math.round((subtotalCents * Number(s.vat_rate || 0)) / 100) : 0;
+}

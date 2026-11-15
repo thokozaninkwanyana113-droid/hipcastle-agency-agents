@@ -1,0 +1,9 @@
+{
+  "name": "Hipcastle Agency",
+  "short_name": "Hipcastle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f3",
+  "theme_color": "#0b1530",
+  "icons": [{ "src": "/logo.png", "sizes": "512x512", "type": "image/png" }, { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

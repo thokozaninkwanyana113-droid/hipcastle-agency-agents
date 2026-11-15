@@ -1,0 +1,221 @@
+// Hipcastle Agency service catalog — priced in South African rand (ZAR), excl. VAT.
+// Each service maps to one or more agent divisions in this repository and
+// ships with exactly three tiers: Essential, Growth and Enterprise.
+// `billing` is 'once' (project) or 'monthly' (retainer).
+
+const t = (name, rand, billing, days, summary, features, popular = false) => ({
+  name, price_cents: rand * 100, billing, delivery_days: days, summary, features, is_popular: popular,
+});
+
+export const catalog = [
+  {
+    slug: 'engineering', name: 'Software Engineering', icon: '⚙️', divisions: ['engineering'],
+    tagline: 'Websites, apps, e-commerce and AI systems built to scale.',
+    description: 'Full-stack product engineering for South African businesses — websites, web apps, mobile apps, e-commerce with PayFast, Ozow and Yoco checkouts, and AI automation — delivered by frontend, backend, mobile, DevOps and security specialists working as one squad.',
+    outcomes: ['Launch faster', 'Local payment gateways built in', 'Secure, POPIA-aware architecture'],
+    tiers: [
+      t('Essential', 12500, 'once', 14, 'A fast, mobile-first business website or a single feature built properly.',
+        ['Up to 5-page website or 1 feature', 'Mobile-first & speed optimised', 'Contact & WhatsApp integration', 'Hosting & domain setup (.co.za)', '14 days post-launch support']),
+      t('Growth', 45000, 'once', 42, 'A complete web app, online store or MVP with a dedicated squad.',
+        ['Full-stack web or mobile MVP', 'PayFast / Ozow / Yoco checkout', 'Architecture & API design', 'CI/CD, backups & monitoring', 'Security & POPIA review', '60 days support'], true),
+      t('Enterprise', 95000, 'monthly', 30, 'A dedicated engineering pod embedded in your organisation.',
+        ['Dedicated multi-discipline pod', 'SRE, DevOps & security coverage', 'Load-shedding-resilient cloud hosting', 'Weekly releases & roadmap reviews', 'SLA-backed incident response', 'Named technical lead']),
+    ],
+  },
+  {
+    slug: 'design', name: 'Design & Brand', icon: '🎨', divisions: ['design'],
+    tagline: 'Brand identity, UI/UX and visual storytelling that converts.',
+    description: 'Logos, brand identity, UX research, interface design and inclusive visuals crafted for South African audiences by designers who obsess over both aesthetics and usability.',
+    outcomes: ['A brand customers remember', 'Higher-converting UX', 'Consistent, accessible design system'],
+    tiers: [
+      t('Essential', 6500, 'once', 10, 'Brand starter kit or a single-flow UI design.',
+        ['Logo design & colour palette', 'Typography & usage guide', 'Social media profile kit', 'Up to 5 UI screens', '2 revision rounds']),
+      t('Growth', 24000, 'once', 28, 'Full brand identity plus a complete product UI.',
+        ['Complete brand guidelines', 'UX research & personas', 'Up to 25 high-fidelity screens', 'Clickable prototype', 'Component library', 'Print & signage templates'], true),
+      t('Enterprise', 48000, 'monthly', 30, 'An ongoing design partner that owns your design system.',
+        ['Dedicated design lead', 'Design system governance', 'Continuous UX research', 'Accessibility audits (WCAG 2.2)', 'Unlimited requests (2 active)']),
+    ],
+  },
+  {
+    slug: 'marketing', name: 'Digital Marketing & SEO', icon: '📣', divisions: ['marketing'],
+    tagline: 'SEO, social media, content and WhatsApp marketing that grows sales.',
+    description: 'Social media management, SEO, AI-search (GEO) optimisation, content marketing and WhatsApp Business campaigns that win South African customers — from local Google visibility in your town to national reach.',
+    outcomes: ['Get found on Google & AI search', 'Consistent social presence', 'A predictable flow of enquiries'],
+    tiers: [
+      t('Essential', 4500, 'monthly', 30, 'Consistent presence on two channels plus local SEO.',
+        ['2 social channels managed', '12 posts per month', 'Google Business Profile optimisation', 'Monthly SEO health check', 'Monthly performance report']),
+      t('Growth', 14500, 'monthly', 30, 'A multi-channel growth engine with content, SEO and AI-search visibility.',
+        ['4 social channels managed', '4 long-form articles / month', 'Technical, on-page & local SEO', 'AI search (GEO/AEO) optimisation', 'WhatsApp Business & email campaigns', 'Bi-weekly growth sprints'], true),
+      t('Enterprise', 35000, 'monthly', 30, 'A full-funnel growth team with experimentation.',
+        ['Omnichannel strategy & execution', 'Dedicated growth lead', 'A/B experimentation programme', 'Multilingual content (incl. isiZulu & Afrikaans)', 'Executive dashboards']),
+    ],
+  },
+  {
+    slug: 'paid-media', name: 'Paid Advertising', icon: '💰', divisions: ['paid-media'],
+    tagline: 'Google, Meta, TikTok and LinkedIn ads that pay for themselves.',
+    description: 'Search, social and programmatic campaign management with rigorous conversion tracking, creative testing and monthly audits — so every rand of ad spend is accountable. Management fees exclude ad spend.',
+    outcomes: ['Lower cost per lead', 'Clean conversion tracking', 'Scalable return on ad spend'],
+    tiers: [
+      t('Essential', 3500, 'monthly', 30, 'One ad platform, set up and optimised.',
+        ['1 ad platform (Google or Meta)', 'Ad spend up to R20 000 / month', 'Conversion & WhatsApp-click tracking', 'Monthly optimisation report']),
+      t('Growth', 9500, 'monthly', 30, 'Multi-platform campaigns with creative testing.',
+        ['Up to 3 platforms incl. TikTok', 'Ad spend up to R100 000 / month', 'Ad creative & copy testing', 'Search query mining', 'Weekly optimisation'], true),
+      t('Enterprise', 25000, 'monthly', 30, 'A full paid-media department, including programmatic.',
+        ['Unlimited platforms incl. programmatic', 'Ad spend above R100 000 / month', 'Server-side tracking & attribution', 'Quarterly account audits', 'Dedicated media buyer']),
+    ],
+  },
+  {
+    slug: 'sales', name: 'Sales & Tenders', icon: '🤝', divisions: ['sales'],
+    tagline: 'Pipeline, proposals, tenders and coaching that close deals.',
+    description: 'Outbound strategy, discovery coaching, deal strategy, proposal and tender writing, and pipeline analytics to turn your sales effort into a repeatable revenue machine — for private and public-sector buyers.',
+    outcomes: ['A healthier pipeline', 'Higher win rates on bids', 'Repeatable sales playbooks'],
+    tiers: [
+      t('Essential', 7500, 'once', 14, 'A sales playbook and outbound kick-start.',
+        ['Ideal customer & persona definition', 'Outbound email & LinkedIn sequence', 'Discovery call script', 'Pipeline audit']),
+      t('Growth', 16500, 'monthly', 30, 'An outbound engine plus proposal and tender support.',
+        ['Multi-touch outbound programme', 'Proposal & tender response writing', 'CSD & eTender readiness checks', 'CRM setup & forecasting', 'Rep coaching sessions'], true),
+      t('Enterprise', 38000, 'monthly', 30, 'Fractional sales leadership and enablement.',
+        ['Fractional head of sales', 'Account-based strategy', 'Sales engineering support', 'Team coaching programme', 'Revenue analytics']),
+    ],
+  },
+  {
+    slug: 'product', name: 'Product Management', icon: '📊', divisions: ['product'],
+    tagline: 'Discovery, prioritisation and roadmaps grounded in evidence.',
+    description: 'Product managers, trend researchers and feedback synthesisers who turn customer insight into prioritised, shippable roadmaps — ideal before you invest in building.',
+    outcomes: ['Validated product direction', 'A prioritised roadmap', 'Data-informed decisions'],
+    tiers: [
+      t('Essential', 9500, 'once', 14, 'A product discovery sprint.',
+        ['Stakeholder & customer interviews', 'Problem framing', 'Opportunity backlog', 'Discovery read-out']),
+      t('Growth', 28000, 'once', 35, 'Discovery plus a prioritised two-quarter roadmap.',
+        ['Market & trend research', 'Customer feedback synthesis', 'Scored roadmap', 'Specs for top 3 initiatives', 'Success metrics framework'], true),
+      t('Enterprise', 42000, 'monthly', 30, 'Fractional product leadership.',
+        ['Fractional senior product manager', 'Sprint planning & prioritisation', 'Behavioural nudge design', 'Quarterly strategy reviews', 'Team mentoring']),
+    ],
+  },
+  {
+    slug: 'project-management', name: 'Project Management', icon: '🎬', divisions: ['project-management'],
+    tagline: 'Delivery leadership that keeps work shipping on time.',
+    description: 'Senior project managers, studio producers and workflow stewards who run delivery, remove blockers and keep stakeholders aligned.',
+    outcomes: ['On-time delivery', 'Transparent reporting', 'Fewer surprises'],
+    tiers: [
+      t('Essential', 6000, 'once', 14, 'Project setup and governance.',
+        ['Project charter & plan', 'Jira / Trello board setup', 'Roles & communication plan', 'Risk register']),
+      t('Growth', 14000, 'monthly', 30, 'A part-time project manager for active delivery.',
+        ['Dedicated PM (20 hrs / week)', 'Sprint ceremonies', 'Weekly status reports', 'Experiment tracking', 'Supplier coordination'], true),
+      t('Enterprise', 32000, 'monthly', 30, 'A full PMO for multi-project portfolios.',
+        ['Portfolio & PMO setup', 'Multiple senior PMs', 'Executive steering reports', 'Resource & capacity planning', 'Process optimisation']),
+    ],
+  },
+  {
+    slug: 'testing', name: 'Quality Assurance', icon: '🧪', divisions: ['testing'],
+    tagline: 'API, performance and accessibility testing with evidence.',
+    description: 'Evidence-driven QA: functional, API, performance and accessibility testing — including real-device checks on the budget Android phones most South Africans use — before anything reaches your customers.',
+    outcomes: ['Fewer production defects', 'Proven performance on real devices', 'Accessibility compliance'],
+    tiers: [
+      t('Essential', 5000, 'once', 7, 'A pre-launch QA sweep.',
+        ['Functional test pass', 'Cross-browser & budget-Android checks', 'Accessibility quick scan', 'Bug report with evidence']),
+      t('Growth', 16000, 'once', 21, 'Test automation and a performance baseline.',
+        ['Automated API & end-to-end suites', 'Performance on low-bandwidth networks', 'Full WCAG audit', 'CI integration', 'Results analysis'], true),
+      t('Enterprise', 30000, 'monthly', 30, 'An embedded QA function.',
+        ['Dedicated QA engineers', 'Continuous regression testing', 'Load & stress testing', 'Release sign-off gates', 'Quality dashboards']),
+    ],
+  },
+  {
+    slug: 'support', name: 'Business Operations', icon: '🛟', divisions: ['support'],
+    tagline: 'Customer support, finance admin, compliance and IT ops.',
+    description: 'Support desk, finance tracking, POPIA and compliance check-ups, reporting and infrastructure maintenance that keep your business running smoothly — so you can focus on growth.',
+    outcomes: ['Happier customers', 'Organised finances & compliance', 'Reliable systems'],
+    tiers: [
+      t('Essential', 3500, 'monthly', 30, 'Customer support coverage and monthly reporting.',
+        ['Business-hours email & WhatsApp support', 'Knowledge base setup', 'Monthly analytics report', 'Up to 300 tickets / month']),
+      t('Growth', 9800, 'monthly', 30, 'Support plus finance admin and compliance.',
+        ['Extended-hours support', 'Bookkeeping & invoicing admin', 'POPIA compliance check-ups', 'Executive summaries', 'Up to 1 500 tickets / month'], true),
+      t('Enterprise', 24000, 'monthly', 30, 'A fully managed back office.',
+        ['24/7 support desk', 'Finance & legal operations', 'Infrastructure maintenance & on-call', 'Custom KPIs & SLAs', 'Unlimited tickets']),
+    ],
+  },
+  {
+    slug: 'game-development', name: 'Game Development', icon: '🎮', divisions: ['game-development'],
+    tagline: 'Unity, Unreal, Godot, Roblox and Blender production.',
+    description: 'Game designers, level designers, narrative designers, technical artists and engine specialists across Unity, Unreal Engine, Godot, Roblox Studio and Blender — for studios, brands and gamified learning.',
+    outcomes: ['Playable prototypes fast', 'Engine-specific expertise', 'Polished player experiences'],
+    tiers: [
+      t('Essential', 15000, 'once', 21, 'A playable prototype of your core loop.',
+        ['Game design one-pager', 'Core-loop prototype', 'Placeholder art & audio', 'Playtest feedback session']),
+      t('Growth', 60000, 'once', 60, 'A vertical slice ready for pitching or funding.',
+        ['Full game design document', 'Polished vertical slice', 'Level & narrative design', 'Technical art pipeline', 'Original audio'], true),
+      t('Enterprise', 110000, 'monthly', 30, 'A co-development studio partnership.',
+        ['Dedicated co-dev team', 'Multi-engine support', 'Live-ops & content updates', 'Porting & optimisation', 'Producer-led milestones']),
+    ],
+  },
+  {
+    slug: 'spatial-computing', name: 'Spatial Computing & XR', icon: '🥽', divisions: ['spatial-computing'],
+    tagline: 'visionOS, WebXR and immersive brand experiences.',
+    description: 'visionOS, Metal, WebXR and XR interaction specialists building immersive experiences, virtual showrooms, training simulations and spatial interfaces.',
+    outcomes: ['Immersive brand experiences', 'Spatial-native UX', 'Cross-platform XR'],
+    tiers: [
+      t('Essential', 18000, 'once', 21, 'An XR concept and interactive proof of concept.',
+        ['Experience concept & storyboard', 'Single-scene prototype', 'Device testing (1 platform)', 'Feasibility report']),
+      t('Growth', 70000, 'once', 60, 'A production immersive app.',
+        ['Full spatial UX design', 'visionOS or WebXR app', 'Performance tuning', 'Store submission support', '60 days support'], true),
+      t('Enterprise', 120000, 'monthly', 30, 'A dedicated spatial computing lab.',
+        ['Multi-platform XR team', 'R&D and rapid prototyping', 'Training simulations (mining, health, manufacturing)', 'Hardware integration', 'Ongoing roadmap']),
+    ],
+  },
+  {
+    slug: 'academic', name: 'Research & Insights', icon: '📚', divisions: ['academic'],
+    tagline: 'Market, customer and cultural research you can act on.',
+    description: 'Research specialists who bring rigorous methods — cultural, psychological, historical and geographic — to market sizing, customer insight, township and rural market understanding, and strategy.',
+    outcomes: ['Deep customer understanding', 'Culturally grounded decisions', 'Credible, cited research'],
+    tiers: [
+      t('Essential', 4500, 'once', 10, 'A desk-research brief on one business question.',
+        ['Literature & desk review', 'Key findings brief', 'Cited sources', '1 read-out call']),
+      t('Growth', 15000, 'once', 28, 'A mixed-methods research study.',
+        ['Research design', 'Interviews or surveys', 'Psychological & cultural analysis', 'Insight report & personas', 'Workshop'], true),
+      t('Enterprise', 28000, 'monthly', 30, 'An embedded research advisory.',
+        ['Multi-disciplinary research panel', 'Continuous insight programme', 'Narrative & brand-world consulting', 'Quarterly strategic reports', 'Expert review on demand']),
+    ],
+  },
+  {
+    slug: 'specialized', name: 'Specialist Solutions', icon: '🎯', divisions: ['specialized'],
+    tagline: 'Compliance, automation, AI integrations and niche expertise.',
+    description: 'Niche experts for complex problems: POPIA and compliance audits, workflow automation, AI and MCP integrations, Salesforce architecture, blockchain security, recruitment and cross-border market entry.',
+    outcomes: ['Expert answers to hard problems', 'Reduced regulatory risk', 'Automation that sticks'],
+    tiers: [
+      t('Essential', 9500, 'once', 10, 'An expert assessment with recommendations.',
+        ['Specialist consultation (8 hrs)', 'Current-state assessment', 'POPIA & risk findings', 'Action plan']),
+      t('Growth', 35000, 'once', 35, 'A specialist-led implementation project.',
+        ['Solution design', 'Implementation (automation, AI, CRM)', 'Security & compliance review', 'Documentation & handover', '45 days support'], true),
+      t('Enterprise', 60000, 'monthly', 30, 'A retained specialist bench.',
+        ['Access to the full specialist bench', 'Governance & audit programme', 'Africa market-entry advisory', 'Priority response', 'Quarterly executive review']),
+    ],
+  },
+  {
+    slug: 'strategy', name: 'Strategy & Orchestration', icon: '🧭', divisions: ['strategy'],
+    agentSlugs: ['agents-orchestrator', 'specialized-workflow-architect', 'automation-governance-architect', 'project-manager-senior'],
+    tagline: 'Growth strategy and AI-powered business transformation.',
+    description: 'Our NEXUS method coordinates every division of the agency — discovery, strategy, build, launch and operate — with playbooks and runbooks for AI-augmented growth. Built for founders who want one accountable partner.',
+    outcomes: ['A clear growth roadmap', 'Coordinated multi-team execution', 'AI-augmented operations'],
+    tiers: [
+      t('Essential', 12000, 'once', 10, 'A strategy workshop and 90-day roadmap.',
+        ['Founder discovery workshop', 'Opportunity & AI-readiness assessment', '90-day growth roadmap', 'Executive brief']),
+      t('Growth', 42000, 'once', 45, 'A full NEXUS programme for one business unit.',
+        ['Phase 0–6 NEXUS programme', 'Cross-division agent orchestration', 'Playbooks & runbooks', 'KPI framework', 'Change management'], true),
+      t('Enterprise', 85000, 'monthly', 30, 'An ongoing transformation office.',
+        ['Transformation office leadership', 'Multi-unit orchestration', 'Governance & automation oversight', 'Board-level reporting', 'Continuous optimisation']),
+    ],
+  },
+];
+
+// Sample testimonials for a fresh install — replace with real client reviews
+// from the Command Centre (Testimonials) before launch.
+export const testimonials = [
+  { author: 'Lerato M.', role: 'Founder', company: 'Fintech start-up', location: 'Johannesburg', service: 'engineering', rating: 5, featured: 1,
+    quote: 'Hipcastle shipped our MVP in six weeks, with Ozow and PayFast checkout working from day one. It felt like our own in-house team.' },
+  { author: 'Sipho N.', role: 'Owner', company: 'Logistics SME', location: 'Durban', service: 'marketing', rating: 5, featured: 1,
+    quote: 'Our Google Business Profile and local SEO now bring in enquiries every week. The monthly report is clear enough to share with my partners.' },
+  { author: 'Anika v. d. M.', role: 'Head of Product', company: 'SaaS company', location: 'Cape Town', service: 'product', rating: 5, featured: 1,
+    quote: 'The discovery sprint gave us a roadmap the whole leadership team bought into. Evidence over opinions.' },
+  { author: 'Thabo K.', role: 'Co-founder', company: 'Retail brand', location: 'Pretoria', service: 'paid-media', rating: 4, featured: 0,
+    quote: 'Our cost per lead on Meta dropped noticeably within two months, and every rand is tracked.' },
+];
