@@ -1,0 +1,46 @@
+# Hipcastle Agency on your own Linux server (Docker + Caddy with automatic HTTPS).
+# Usage on the server, from the repository root:
+#   cp webapp/.env.example webapp/.env    # then edit it
+#   docker compose -f webapp/deploy/vps/docker-compose.yml up -d --build
+# Guide: webapp/deploy/DEPLOY.md
+name: hipcastle
+
+services:
+  app:
+    build:
+      context: ../../..
+      dockerfile: webapp/Dockerfile
+    image: hipcastle:latest
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      SITE_URL: https://www.hipcastle.agency
+      DATABASE_PATH: /data/hipcastle.db
+      TRUST_PROXY: "1"
+      # Caddy already redirects hipcastle.agency → www, so the app doesn't need to
+      DISABLE_HOST_REDIRECT: "true"
+    volumes:
+      - hipcastle-data:/data
+    expose:
+      - "4000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  hipcastle-data:
+  caddy-data:
+  caddy-config:

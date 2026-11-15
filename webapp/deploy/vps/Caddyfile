@@ -1,0 +1,21 @@
+# Caddy obtains and renews Let's Encrypt certificates for both names automatically.
+{
+	email hello@hipcastle.agency
+}
+
+# Bare domain → canonical www address (permanent redirect, path and query kept)
+hipcastle.agency {
+	redir https://www.hipcastle.agency{uri} permanent
+}
+
+www.hipcastle.agency {
+	encode zstd gzip
+	reverse_proxy app:4000
+	header {
+		-Server
+	}
+	log {
+		output stdout
+		format console
+	}
+}

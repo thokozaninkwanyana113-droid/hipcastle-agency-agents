@@ -175,6 +175,8 @@ npm run seed -- --sync-catalog
 
 ### Production
 
+**Step-by-step deployment to www.hipcastle.agency** (Fly.io Johannesburg, Render or your own VPS with automatic HTTPS) is in [`deploy/DEPLOY.md`](deploy/DEPLOY.md).
+
 ```bash
 docker build -f webapp/Dockerfile -t hipcastle .      # from the repository root
 docker run -p 4000:4000 -v hipcastle-data:/data --env-file webapp/.env hipcastle
