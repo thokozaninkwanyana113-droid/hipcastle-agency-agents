@@ -9,6 +9,12 @@
 
 ---
 
+## 🏰 Hipcastle Agency Web App
+
+This repository also contains a **full-stack services agency web app** in [`webapp/`](webapp/). It has a React frontend, an Express API and a SQLite database. The app turns every agent division into a service line with **three tiers** (Essential, Growth, Enterprise), and adds a client portal and an operations dashboard. See [`webapp/README.md`](webapp/README.md).
+
+---
+
 ## 🚀 What Is This?
 
 Born from a Reddit thread and months of iteration, **The Agency** is a growing collection of meticulously crafted AI agent personalities. Each agent is:

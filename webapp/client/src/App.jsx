@@ -1,0 +1,62 @@
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import Header from './components/Header.jsx';
+import Footer from './components/Footer.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+import Home from './pages/Home.jsx';
+import Services from './pages/Services.jsx';
+import ServiceDetail from './pages/ServiceDetail.jsx';
+import Pricing from './pages/Pricing.jsx';
+import Agents from './pages/Agents.jsx';
+import AgentDetail from './pages/AgentDetail.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
+import { Login, Register } from './pages/Auth.jsx';
+import Checkout from './pages/Checkout.jsx';
+import Portal from './pages/Portal.jsx';
+import OrderDetail from './pages/OrderDetail.jsx';
+import Account from './pages/Account.jsx';
+import Admin from './pages/Admin.jsx';
+import NotFound from './pages/NotFound.jsx';
+
+function RequireAuth({ children, staff = false }) {
+  const { user, ready, isStaff } = useAuth();
+  const loc = useLocation();
+  if (!ready) return <div className="page-loader"><span className="spinner" /></div>;
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
+  if (staff && !isStaff) return <Navigate to="/portal" replace />;
+  return children;
+}
+
+export default function App() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+
+  return (
+    <div className="app">
+      <a className="skip-link" href="#main">Skip to content</a>
+      <Header />
+      <main id="main">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services/:slug" element={<ServiceDetail />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/agents" element={<Agents />} />
+          <Route path="/agents/:slug" element={<AgentDetail />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/checkout/:tierId" element={<RequireAuth><Checkout /></RequireAuth>} />
+          <Route path="/portal" element={<RequireAuth><Portal /></RequireAuth>} />
+          <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+          <Route path="/admin/*" element={<RequireAuth staff><Admin /></RequireAuth>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
+  );
+}
