@@ -1,0 +1,59 @@
+# Render Blueprint — Hipcastle Agency web app (webapp/).
+# In Render: New → Blueprint → select this repository. Fill in the values marked "sync: false".
+# Guide: webapp/deploy/DEPLOY.md
+services:
+  - type: web
+    name: hipcastle
+    runtime: docker
+    dockerfilePath: ./webapp/Dockerfile
+    dockerContext: .
+    region: frankfurt          # closest Render region to South Africa
+    plan: starter              # persistent disks need a paid instance type
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    numInstances: 1            # SQLite: keep a single instance
+    disk:
+      name: hipcastle-data
+      mountPath: /data
+      sizeGB: 1
+    domains:
+      - www.hipcastle.agency
+      - hipcastle.agency
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SITE_URL
+        value: https://www.hipcastle.agency
+      - key: DATABASE_PATH
+        value: /data/hipcastle.db
+      - key: SEED_DEMO
+        value: "false"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: PAYMENTS_MODE
+        value: sandbox
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: hello@hipcastle.agency
+      - key: SMTP_PASS
+        sync: false
+      - key: PAYFAST_MERCHANT_ID
+        sync: false
+      - key: PAYFAST_MERCHANT_KEY
+        sync: false
+      - key: PAYFAST_PASSPHRASE
+        sync: false
+      - key: OZOW_SITE_CODE
+        sync: false
+      - key: OZOW_PRIVATE_KEY
+        sync: false
+      - key: OZOW_API_KEY
+        sync: false

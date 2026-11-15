@@ -2,3 +2,6 @@ node_modules/
 dist/
 server/data/
 .env
+
+# Commit lockfiles so deployments install exactly the tested dependency versions
+!package-lock.json

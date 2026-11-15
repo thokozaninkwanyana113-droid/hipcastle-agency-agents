@@ -1,0 +1,38 @@
+# Deploys the Hipcastle web app to Fly.io on every push to main that touches webapp/.
+# Opt-in: does nothing until you set the repository variable FLY_DEPLOY=true and the
+# secret FLY_API_TOKEN (Settings → Secrets and variables → Actions). See webapp/deploy/DEPLOY.md.
+name: Deploy Hipcastle to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths: ['webapp/**', '.github/workflows/deploy-fly.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-fly
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: vars.FLY_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix webapp/server ci
+      - run: npm --prefix webapp/server test
+      - run: npm --prefix webapp/client ci && npm --prefix webapp/client run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy . --config webapp/deploy/fly.toml --dockerfile webapp/Dockerfile --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -1,0 +1,53 @@
+# Fly.io — Hipcastle Agency in Johannesburg (jnb) with a persistent volume for SQLite.
+#
+# First deploy (run from the REPOSITORY ROOT):
+#   fly apps create hipcastle
+#   fly volumes create hipcastle_data --region jnb --size 1 --config webapp/deploy/fly.toml
+#   fly secrets set JWT_SECRET=$(openssl rand -hex 32) ADMIN_PASSWORD='…' --config webapp/deploy/fly.toml
+#   fly deploy . --config webapp/deploy/fly.toml --dockerfile webapp/Dockerfile
+#   fly certs add www.hipcastle.agency --config webapp/deploy/fly.toml
+#   fly certs add hipcastle.agency --config webapp/deploy/fly.toml
+# Full guide: webapp/deploy/DEPLOY.md
+
+app = "hipcastle"
+primary_region = "jnb"
+kill_signal = "SIGTERM"
+kill_timeout = "10s"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+  SITE_URL = "https://www.hipcastle.agency"
+  DATABASE_PATH = "/data/hipcastle.db"
+  SEED_DEMO = "false"
+  PAYMENTS_MODE = "sandbox"   # switch to "live" once live PayFast/Ozow credentials are set as secrets
+  TRUST_PROXY = "1"
+
+# SQLite needs one machine with a persistent volume (do not scale beyond 1 machine).
+[[mounts]]
+  source = "hipcastle_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # Keep the machine running: background jobs (email queue, payment expiry, backups) need it.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
