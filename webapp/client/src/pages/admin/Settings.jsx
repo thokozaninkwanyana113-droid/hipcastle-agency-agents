@@ -51,7 +51,8 @@ export default function Settings() {
         </fieldset>
         <fieldset className="card form">
           <legend>Contact & location (keep identical to Google Business Profile)</legend>
-          {text('email', 'Email', null, 'email')}
+          {text('website', 'Website', 'Canonical address: https://www.hipcastle.agency', 'url')}
+          {text('email', 'Public email & sender', 'Shown on the site; emails are sent from this address', 'email')}
           {text('phone', 'Phone', 'e.g. +27 11 123 4567')}
           {text('whatsapp', 'WhatsApp number', 'Digits only, international format: 27821234567')}
           {text('street_address', 'Street address')}
@@ -70,6 +71,13 @@ export default function Settings() {
             {text('vat_no', 'VAT number')}
           </div>
           <p className="muted small">Gateway credentials (merchant IDs, keys, passphrases) are set with environment variables for security — see System & processes.</p>
+        </fieldset>
+        <fieldset className="card form">
+          <legend>Email notifications</legend>
+          {toggle('emails_enabled', 'Send customer emails', 'Welcome, order confirmations, invoices, receipts, reminders and messages. Team alerts and password resets always send.')}
+          {text('notify_email', 'Team inbox', 'New leads, orders, payments, reviews and client messages go here', 'email')}
+          {text('billing_email', 'Billing reply-to', 'Replies to invoices, receipts and reminders go here', 'email')}
+          <p className="muted small">Preview every template and check delivery in <a href="/admin/emails">Emails</a>.</p>
         </fieldset>
         <fieldset className="card form">
           <legend>Website</legend>

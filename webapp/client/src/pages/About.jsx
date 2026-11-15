@@ -1,3 +1,4 @@
+import { siteUrl } from '../siteUrl.js';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/ui.jsx';
 import Seo, { breadcrumbSchema, faqSchema } from '../components/Seo.jsx';
@@ -31,7 +32,7 @@ export default function About() {
 
   const aboutSchema = {
     '@context': 'https://schema.org', '@type': 'AboutPage', name: `About ${site.business_name}`, inLanguage: 'en-ZA',
-    url: `${window.location.origin}/about`, mainEntity: { '@id': `${window.location.origin}/#organization` },
+    url: siteUrl('/about'), mainEntity: { '@id': siteUrl('/#organization') },
   };
 
   return (

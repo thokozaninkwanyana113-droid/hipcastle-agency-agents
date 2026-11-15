@@ -1,3 +1,4 @@
+import { siteUrl } from '../siteUrl.js';
 import { Link, useParams } from 'react-router-dom';
 import Markdown from '../components/Markdown.jsx';
 import PostCard from '../components/PostCard.jsx';
@@ -17,7 +18,7 @@ export default function BlogPost() {
   if (error?.status === 404) return <NotFound />;
   if (error) return <div className="container section"><ErrorBox error={error} /></div>;
 
-  const url = `${window.location.origin}/blog/${p.slug}`;
+  const url = siteUrl(`/blog/${p.slug}`);
   const share = [
     ['whatsapp', 'WhatsApp', `https://wa.me/?text=${encodeURIComponent(`${p.title} ${url}`)}`],
     ['linkedin', 'LinkedIn', `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`],
@@ -27,8 +28,8 @@ export default function BlogPost() {
   const article = {
     '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.title, description: p.meta_description || p.excerpt,
     datePublished: p.published_at, dateModified: p.updated_at, inLanguage: 'en-ZA', articleSection: p.category, keywords: p.tags.join(', '),
-    author: { '@type': 'Organization', name: p.author }, publisher: { '@id': `${window.location.origin}/#organization` }, mainEntityOfPage: url,
-    image: `${window.location.origin}/og-image.png`,
+    author: { '@type': 'Organization', name: p.author }, publisher: { '@id': siteUrl('/#organization') }, mainEntityOfPage: url,
+    image: siteUrl('/og-image.png'),
   };
 
   return (

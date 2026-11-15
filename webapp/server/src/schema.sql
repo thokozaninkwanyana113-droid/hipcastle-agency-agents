@@ -204,6 +204,39 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Outbound email queue (transactional + newsletter), processed with retries
+CREATE TABLE IF NOT EXISTS emails (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  template        TEXT NOT NULL,
+  to_email        TEXT NOT NULL,
+  to_name         TEXT,
+  reply_to        TEXT,
+  subject         TEXT NOT NULL,
+  html            TEXT NOT NULL,
+  text            TEXT NOT NULL,
+  headers         TEXT,                               -- JSON extra headers (e.g. List-Unsubscribe)
+  status          TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','failed','logged','cancelled')),
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT,
+  last_error      TEXT,
+  provider_id     TEXT,
+  ref             TEXT,                               -- related order/invoice/lead reference
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  sent_at         TEXT
+);
+
+-- Single-use password reset tokens (only a SHA-256 hash is stored)
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at    TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_emails_status ON emails(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_emails_created ON emails(created_at);
 CREATE INDEX IF NOT EXISTS idx_tiers_service   ON service_tiers(service_id);
 CREATE INDEX IF NOT EXISTS idx_agents_division ON agents(division);
 CREATE INDEX IF NOT EXISTS idx_orders_user     ON orders(user_id);

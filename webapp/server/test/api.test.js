@@ -86,7 +86,7 @@ test('testimonials are moderated before publishing', async () => {
   const sub = await call('POST', '/testimonials', { body: { author: 'Zanele D.', email: 'z@x.co.za', role: 'Owner', rating: 5, quote: 'Fantastic team, our new store converts brilliantly.', consent: true } });
   assert.equal(sub.status, 201);
   assert.equal((await call('GET', '/testimonials')).data.length, before);
-  const admin = await login('admin@hipcastle.co.za', 'ChangeMe123!');
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
   const pending = (await call('GET', '/admin/testimonials?status=pending', { token: admin })).data;
   assert.equal(pending.length, 1);
   await call('PATCH', `/admin/testimonials/${pending[0].id}`, { token: admin, body: { status: 'approved' } });
@@ -146,7 +146,7 @@ test('client journey with VAT, PayFast ITN and Ozow notification', async () => {
   assert.equal((await call('POST', '/payments/checkout', { token, body: { invoice_id: inv.id, gateway: 'payfast' } })).status, 409);
 
   // --- Ozow on a second invoice issued by staff
-  const admin = await login('admin@hipcastle.co.za', 'ChangeMe123!');
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
   const inv2 = (await call('POST', `/orders/${order.id}/invoices`, { token: admin, body: { amount_cents: 100000, description: 'Extra screens' } })).data;
   assert.equal(inv2.amount_cents, 115000);
   const oz = (await call('POST', '/payments/checkout', { token, body: { invoice_id: inv2.id, gateway: 'ozow' } })).data;
@@ -184,7 +184,7 @@ test('simulated gateway works for development', async () => {
 });
 
 test('command centre: system, events, payments, settings, jobs, exports, SEO', async () => {
-  const admin = await login('admin@hipcastle.co.za', 'ChangeMe123!');
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
   const sys = (await call('GET', '/admin/system', { token: admin })).data;
   assert.equal(sys.status, 'operational');
   assert.ok(sys.db.tables.agents >= 160);
@@ -231,8 +231,85 @@ test('SEO, AEO & GEO files are served', async () => {
   assert.match(resolvePage('/admin').robots, /noindex/);
 });
 
+test('domain: canonical URLs default to https://www.hipcastle.agency', async () => {
+  const urls = await import('../src/urls.js');
+  const saved = process.env.SITE_URL;
+  delete process.env.SITE_URL;
+  assert.equal(urls.canonicalUrl(), 'https://www.hipcastle.agency');
+  const { resolvePage, renderHead } = await import('../src/seo.js');
+  const head = renderHead(resolvePage('/about'));
+  assert.match(head, /<link rel="canonical" href="https:\/\/www\.hipcastle\.agency\/about"/);
+  assert.match(head, /hello@hipcastle\.agency|og:url" content="https:\/\/www\.hipcastle\.agency/);
+  process.env.SITE_URL = saved;
+  const site = (await call('GET', '/site')).data;
+  assert.equal(site.email, 'hello@hipcastle.agency');
+  assert.equal(site.social.linkedin, 'https://www.linkedin.com/company/hipcastle-agency');
+  assert.equal(site.social.instagram, 'https://www.instagram.com/hipcastleagency');
+  assert.equal(site.notify_email, undefined, 'internal inboxes are not public');
+});
+
+test('emails: transactional emails are queued, branded and logged', async () => {
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
+  await new Promise((r) => setTimeout(r, 50));
+  const list = (await call('GET', '/admin/emails', { token: admin })).data;
+  const templates = new Set(list.map((e) => e.template));
+  for (const t of ['lead.autoreply', 'lead.notify', 'user.welcome', 'order.confirmation', 'order.notify', 'payment.receipt', 'payment.notify', 'invoice.issued', 'testimonial.notify', 'testimonial.thanks']) {
+    assert.ok(templates.has(t), `expected a ${t} email`);
+  }
+  assert.ok(list.every((e) => e.status === 'logged'), 'without SMTP, emails are logged not sent');
+  const receipt = list.find((e) => e.template === 'payment.receipt' && e.to_email === 'sam@x.co.za');
+  assert.ok(receipt, 'Sam receives a receipt');
+  const full = (await call('GET', `/admin/emails/${receipt.id}`, { token: admin })).data;
+  assert.match(full.html, /www\.hipcastle\.agency/);
+  assert.match(full.html, /R\s?1 150,00|R\s?[\d ]+,\d\d/);
+  assert.equal(full.reply_to, 'accounts@hipcastle.agency');
+  assert.match(full.text, /Payment received/);
+  const leadNote = list.find((e) => e.template === 'lead.notify');
+  assert.equal(leadNote.to_email, 'hello@hipcastle.agency');
+  const status = (await call('GET', '/admin/emails/status', { token: admin })).data;
+  assert.equal(status.config.mode, 'log');
+  assert.match(status.config.from, /hello@hipcastle\.agency/);
+  const preview = (await call('GET', '/admin/email-templates/order.confirmation/preview', { token: admin })).data;
+  assert.match(preview.html, /Your order is confirmed/);
+  // XSS-safe: user content is escaped in emails
+  await call('POST', '/leads', { body: { name: '<script>x</script> Bob', email: 'bob@x.co.za', message: 'Hello <img src=x onerror=alert(1)>', consent: true } });
+  await new Promise((r) => setTimeout(r, 50));
+  const xss = (await call('GET', '/admin/emails?q=bob@x.co.za', { token: admin })).data[0];
+  const xssFull = (await call('GET', `/admin/emails/${xss.id}`, { token: admin })).data;
+  assert.doesNotMatch(xssFull.html, /<script>|<img src=x/);
+});
+
+test('emails: password reset flow', async () => {
+  const forgot = await call('POST', '/auth/forgot', { body: { email: 'client@example.com' } });
+  assert.equal(forgot.status, 200);
+  assert.equal((await call('POST', '/auth/forgot', { body: { email: 'nobody@example.com' } })).status, 200, 'no account enumeration');
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
+  const mail = (await call('GET', '/admin/emails?q=client@example.com', { token: admin })).data.find((e) => e.template === 'auth.reset');
+  const full = (await call('GET', `/admin/emails/${mail.id}`, { token: admin })).data;
+  const token = full.text.match(/reset-password\?token=([\w-]+)/)[1];
+  assert.equal((await call('POST', '/auth/reset', { body: { token: 'x'.repeat(30), password: 'newpass123' } })).status, 400);
+  const ok = await call('POST', '/auth/reset', { body: { token, password: 'NewPass123!' } });
+  assert.equal(ok.status, 200);
+  assert.ok(ok.data.token);
+  assert.equal((await call('POST', '/auth/reset', { body: { token, password: 'Again123!' } })).status, 400, 'single use');
+  assert.ok(await login('client@example.com', 'NewPass123!'));
+});
+
+test('emails: newsletter welcome + signed unsubscribe', async () => {
+  await call('POST', '/newsletter', { body: { email: 'reader@example.com' } });
+  const { unsubscribeToken } = await import('../src/email/mailer.js');
+  const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
+  const mail = (await call('GET', '/admin/emails?q=reader@example.com', { token: admin })).data[0];
+  const full = (await call('GET', `/admin/emails/${mail.id}`, { token: admin })).data;
+  assert.match(JSON.parse(full.headers)['List-Unsubscribe'], /unsubscribe\?email=reader%40example\.com/);
+  assert.equal((await call('GET', '/newsletter/unsubscribe?email=reader@example.com&token=bad')).status, 400);
+  const ok = await call('GET', `/newsletter/unsubscribe?email=reader@example.com&token=${unsubscribeToken('reader@example.com')}`);
+  assert.equal(ok.status, 200);
+  assert.ok(!(await call('GET', '/admin/subscribers', { token: admin })).data.some((s) => s.email === 'reader@example.com'));
+});
+
 test('auth rejects bad credentials and missing tokens', async () => {
-  assert.equal((await call('POST', '/auth/login', { body: { email: 'admin@hipcastle.co.za', password: 'wrong' } })).status, 401);
+  assert.equal((await call('POST', '/auth/login', { body: { email: 'admin@hipcastle.agency', password: 'wrong' } })).status, 401);
   assert.equal((await call('GET', '/orders')).status, 401);
   assert.equal((await call('GET', '/orders', { token: 'garbage' })).status, 401);
 });

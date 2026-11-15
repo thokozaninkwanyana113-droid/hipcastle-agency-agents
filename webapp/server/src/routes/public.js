@@ -8,6 +8,10 @@ import { logEvent } from '../events.js';
 import { publicSettings } from '../settings.js';
 import { generalFaqs, serviceFaqs, PROVINCES } from '../content.js';
 import { availableGateways } from '../payments/config.js';
+import { onLead, onSubscribe, onTestimonialSubmitted } from '../email/notify.js';
+import { verifyUnsubscribe } from '../email/mailer.js';
+import express from 'express';
+import { canonicalUrl } from '../urls.js';
 
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const r = Router();
@@ -89,11 +93,12 @@ r.post('/testimonials', body(z.object({
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now')) RETURNING id`)
     .get(b.author, b.email.toLowerCase(), b.role, b.company, b.location, svc?.id ?? null, b.quote, b.rating));
   logEvent('testimonial.submitted', `New ${b.rating}★ review from ${b.author} awaiting moderation`, { ref: String(t.id) });
+  onTestimonialSubmitted({ ...b, id: t.id });
   res.status(201).json({ ok: true });
 });
 
 // ---- Site-wide public data -----------------------------------------------------------
-r.get('/site', (_req, res) => res.json({ ...publicSettings(), payment_methods: availableGateways(), provinces: PROVINCES }));
+r.get('/site', (_req, res) => res.json({ ...publicSettings(), site_url: canonicalUrl(), payment_methods: availableGateways(), provinces: PROVINCES }));
 r.get('/faqs', (_req, res) => res.json(generalFaqs()));
 
 // ---- Blog ----------------------------------------------------------------------------
@@ -147,13 +152,29 @@ r.post('/leads', body(z.object({
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, created_at`)
     .get(b.name, b.email.toLowerCase(), b.company, b.phone, svc?.id ?? null, b.budget, b.province, b.preferred_contact, b.source, b.message));
   logEvent('lead.created', `New lead: ${b.name}${b.company ? ` (${b.company})` : ''}${svc ? ` — ${svc.name}` : ''}`, { ref: String(lead.id) });
+  onLead({ ...b, email: b.email.toLowerCase(), id: lead.id }, svc?.name);
   res.status(201).json({ ok: true, id: lead.id });
 });
 
 r.post('/newsletter', body(z.object({ email: z.string().trim().email().max(200) })), (req, res) => {
   const info = db.prepare('INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)').run(req.body.email.toLowerCase());
-  if (info.changes) logEvent('newsletter.subscribed', `New subscriber: ${req.body.email.toLowerCase()}`);
+  if (info.changes) {
+    logEvent('newsletter.subscribed', `New subscriber: ${req.body.email.toLowerCase()}`);
+    onSubscribe(req.body.email.toLowerCase());
+  }
   res.status(201).json({ ok: true });
 });
+
+// One-click unsubscribe (GET from the email link, POST from mail clients via List-Unsubscribe-Post)
+r.all('/newsletter/unsubscribe', express.urlencoded({ extended: false }), (req, res) => {
+  const email = String(req.query.email || '').toLowerCase();
+  if (!email || !verifyUnsubscribe(email, req.query.token)) return res.status(400).type('html').send(unsubPage('This unsubscribe link is invalid or has expired.'));
+  const info = db.prepare('DELETE FROM newsletter_subscribers WHERE email = ?').run(email);
+  if (info.changes) logEvent('newsletter.unsubscribed', `${email} unsubscribed`);
+  res.type('html').send(unsubPage(`${email} has been unsubscribed. You won’t receive our newsletter again.`));
+});
+const unsubPage = (msg) => `<!doctype html><html lang="en-ZA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Newsletter — Hipcastle Agency</title></head>
+<body style="font-family:system-ui,sans-serif;background:#faf8f3;color:#141a2e;display:grid;place-items:center;min-height:100vh;margin:0"><main style="max-width:460px;padding:32px;background:#fff;border:1px solid #e4e2dc;border-radius:14px;text-align:center">
+<h1 style="font-family:Georgia,serif;color:#0b1530">Hipcastle Agency</h1><p>${msg.replace(/[<>&]/g, '')}</p><p><a href="/" style="color:#22336a">Back to www.hipcastle.agency</a></p></main></body></html>`;
 
 export default r;

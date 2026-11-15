@@ -46,6 +46,73 @@ A full-stack web app for running a services agency, built for **South African en
 | **SEO, AEO & GEO** | Readiness score, per-page title, description and schema audit, links to crawler files |
 | **Settings** | Business details (kept consistent with Google Business Profile), WhatsApp, social profiles, VAT, payment gateway toggles, pause orders, announcement bar |
 
+## Domain: www.hipcastle.agency
+
+`https://www.hipcastle.agency` is the canonical address. It's set in [`server/src/urls.js`](server/src/urls.js) and can be overridden with `SITE_URL`. It's used for:
+- Canonical tags, Open Graph and Twitter URLs, and all JSON-LD `@id`/`url` values
+- `sitemap.xml`, `robots.txt`, `llms.txt`, `llms-full.txt` and the RSS feed
+- Every link and image in outgoing emails, and newsletter unsubscribe links
+- The website link in the footer and on the contact page, and the social sharing image
+
+In production, `hipcastle.agency` and `http://` requests get a **301 redirect** to `https://www.hipcastle.agency`, so only one version of each page is indexed. Payment gateway callbacks are never redirected.
+
+During development, SEO tags still point at the real domain, while payment returns use `http://localhost:4000`.
+
+**DNS checklist**
+- `www` → your server or host (A or CNAME record)
+- Apex `hipcastle.agency` → same server (the app redirects it to `www`)
+- A TLS certificate covering both names
+- Email records (see below)
+
+## Email
+
+Hipcastle sends branded, mobile-friendly emails from **hello@hipcastle.agency**. Each one has both HTML and plain-text parts.
+
+| Email | Sent to | When |
+|---|---|---|
+| Enquiry auto-reply · New lead alert | Lead · team inbox | Contact form submitted |
+| Welcome | Client | Account created |
+| Password reset (1-hour, single-use link) | Client | "Forgot password" |
+| Order confirmation (with pay link) · New order alert | Client · team | Order placed |
+| Engagement status (started / ready for review / completed with a review request / cancelled) | Client | Staff change the status |
+| New invoice · Overdue reminder | Client (replies go to accounts@) | Invoice issued · invoice past due |
+| Payment receipt · Payment alert · Payment failed | Client · team · client | PayFast or Ozow confirms or declines |
+| New message | Client or team | Message posted on an engagement |
+| Review awaiting moderation · Review published thank-you | Team · reviewer | Review submitted · approved |
+| Newsletter welcome (with one-click unsubscribe) | Subscriber | Footer sign-up |
+
+**How it works**
+- Emails go into an **outbox queue** and are delivered over SMTP (any provider) by a background job.
+- Failed sends retry with back-off: 2, 4, 8, then 16 minutes, up to 5 attempts. Permanent failures are flagged in the activity log and on the dashboard.
+- Without `SMTP_HOST`, emails are rendered and **logged** (not sent), so you can preview everything safely.
+- **Command Centre → Emails** shows:
+  - Delivery mode and an SMTP connection check
+  - A test-send button
+  - Previews of all 17 templates with sample data
+  - The outbox, with HTML and plain-text preview, status, retry and resend
+- **Command Centre → Settings** sets the team inbox (`notify_email`) and the billing reply-to (`billing_email`, default accounts@hipcastle.agency). It also has a master switch for customer emails.
+- Newsletter emails carry `List-Unsubscribe` and one-click headers (as Gmail and Yahoo require) with HMAC-signed links. All user content is HTML-escaped.
+
+**Inbox delivery checklist for hipcastle.agency**
+1. Create mailboxes, or aliases that forward to a real inbox: `hello@`, `accounts@` and `admin@hipcastle.agency`.
+2. Add your provider's **SPF** record, e.g. `v=spf1 include:_spf.google.com ~all` for Google Workspace.
+3. Enable **DKIM** in your provider and publish the TXT record it gives you.
+4. Add **DMARC**: `_dmarc.hipcastle.agency TXT "v=DMARC1; p=quarantine; rua=mailto:hello@hipcastle.agency"`.
+5. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and `SMTP_PASS`. Then use **Check SMTP connection** and **Send test** in Command Centre → Emails.
+
+## Social profiles
+
+The default profiles are the Hipcastle Agency handles below. You can change them in Command Centre → Settings. They power the footer and contact icons, email footers and the `sameAs` entity links in structured data.
+
+| Network | URL |
+|---|---|
+| Facebook | https://www.facebook.com/hipcastleagency |
+| Instagram | https://www.instagram.com/hipcastleagency |
+| LinkedIn | https://www.linkedin.com/company/hipcastle-agency |
+| X | https://x.com/hipcastleagency |
+| TikTok | https://www.tiktok.com/@hipcastleagency |
+| YouTube | https://www.youtube.com/@hipcastleagency |
+
 ## Payments: PayFast & Ozow
 
 | | PayFast | Ozow |
@@ -97,7 +164,7 @@ npm run build && SITE_URL=http://localhost:4000 npm start   # http://localhost:4
 
 | Account | Email | Password |
 |---|---|---|
-| Admin | `admin@hipcastle.co.za` | `ChangeMe123!` (set `ADMIN_PASSWORD` to override; the Command Centre warns until it is changed) |
+| Admin | `admin@hipcastle.agency` | `ChangeMe123!` (set `ADMIN_PASSWORD` to override; the Command Centre warns until it is changed) |
 | Demo client | `client@example.com` | `Client123!` |
 
 On every boot the app imports agents and inserts any missing catalog entries. Prices edited in the Command Centre are kept. To reset copy and prices from `server/src/catalog.js`, run:
@@ -121,7 +188,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 11 API integration test groups, run against an in-memory database. They cover:
+There are 15 API integration test groups, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -131,6 +198,10 @@ There are 11 API integration test groups, run against an in-memory database. The
 - Client isolation
 - The Command Centre: system, events, settings, pause orders, jobs, CSV export, blog, SEO audit
 - Sitemap, robots.txt, llms.txt and RSS
+- Canonical `www.hipcastle.agency` URLs and social handles
+- Email queueing, branding and HTML escaping
+- Password reset (no account enumeration, single-use tokens)
+- Signed newsletter unsubscribe
 
 ## Database schema
 
@@ -141,16 +212,19 @@ users ─┬─< orders >── service_tiers >── services >─< service_age
        │     ├─< milestones
        │     ├─< invoices ─< payments          (PayFast / Ozow attempts)
        │     └─< messages
-leads >── services     testimonials >── services     posts     settings     events (audit log)     newsletter_subscribers
+leads >── services     testimonials >── services     posts     settings     events (audit log)
+newsletter_subscribers     emails (outbox queue)     password_resets
 ```
 
 ## Before launch checklist
 
-- [ ] Set `JWT_SECRET`, `SITE_URL` and `ADMIN_PASSWORD`, and set `SEED_DEMO=false`.
+- [ ] Point `hipcastle.agency` and `www.hipcastle.agency` DNS at your host and enable HTTPS.
+- [ ] Set `JWT_SECRET` and `ADMIN_PASSWORD`, and set `SEED_DEMO=false`. `SITE_URL` defaults to `https://www.hipcastle.agency`.
+- [ ] Set up the `hello@`, `accounts@` and `admin@hipcastle.agency` mailboxes, SPF, DKIM and DMARC, and the SMTP variables. Send a test from Command Centre → Emails.
+- [ ] Claim the `hipcastleagency` / `hipcastle-agency` social handles listed above, or update the URLs in Settings.
 - [ ] Add live PayFast and Ozow credentials, then set `PAYMENTS_MODE=live`. Run one small live payment end to end.
 - [ ] In **Command Centre → Settings**:
   - [ ] Real phone, WhatsApp, street address, CIPC and VAT numbers.
-  - [ ] Social profile URLs.
   - [ ] VAT registration status.
 - [ ] Replace the four sample testimonials with real client reviews.
 - [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.

@@ -5,11 +5,21 @@ import { db, DB_PATH } from './db.js';
 import { logEvent } from './events.js';
 import { getSettings, updateSettings } from './settings.js';
 import { expireStalePayments } from './payments/service.js';
+import { processQueue } from './email/mailer.js';
+import { onInvoiceOverdue } from './email/notify.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 
 const definitions = [
+  {
+    id: 'email-queue', name: 'Email delivery', every: MIN,
+    description: 'Sends queued emails and retries failed deliveries with back-off (2, 4, 8, 16 min; up to 5 attempts).',
+    run: async () => {
+      const r = await processQueue(50);
+      return `${r.sent} sent, ${r.logged} logged, ${r.failed} failed`;
+    },
+  },
   {
     id: 'expire-payments', name: 'Expire abandoned payments', every: 15 * MIN,
     description: 'Marks checkout attempts that never received a gateway notification within 2 hours as abandoned.',
@@ -24,6 +34,7 @@ const definitions = [
         AND NOT EXISTS (SELECT 1 FROM events e WHERE e.type = 'invoice.overdue' AND e.ref = i.number)`).all();
       for (const i of overdue) {
         logEvent('invoice.overdue', `${i.number} for ${i.name} is overdue (R${(i.amount_cents / 100).toFixed(2)})`, { level: 'warn', ref: i.number });
+        onInvoiceOverdue(i.number);
       }
       const total = db.prepare("SELECT COUNT(*) n FROM invoices WHERE status = 'unpaid' AND due_at < date('now')").get().n;
       return `${total} overdue invoice(s), ${overdue.length} newly flagged`;
@@ -107,7 +118,7 @@ export function startScheduler() {
   }, MIN);
   timer.unref();
   // Run the quick housekeeping jobs shortly after boot so the Command Centre has fresh results.
-  setTimeout(() => { for (const id of ['expire-payments', 'overdue-invoices']) if (!(getSettings().jobs_disabled || []).includes(id)) runJob(id); }, 5000).unref();
+  setTimeout(() => { for (const id of ['email-queue', 'expire-payments', 'overdue-invoices']) if (!(getSettings().jobs_disabled || []).includes(id)) runJob(id); }, 5000).unref();
 }
 
 export const backupDirExists = () => DB_PATH !== ':memory:' && existsSync(join(dirname(DB_PATH), 'backups'));

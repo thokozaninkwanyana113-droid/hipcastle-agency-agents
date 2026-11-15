@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { db, row, rows } from './db.js';
 import { getSettings } from './settings.js';
 import { generalFaqs, serviceFaqs, rand, billingText } from './content.js';
-import { siteUrl } from './payments/config.js';
+import { canonicalUrl as siteUrl } from './urls.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const DIST = resolve(here, '../../client/dist');
@@ -127,7 +127,7 @@ function offer(base, service, t) {
 const faqHtml = (faqs, heading = 'Frequently asked questions') =>
   `<section><h2>${esc(heading)}</h2>${faqs.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</section>`;
 const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">Specialists</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a></nav>`;
-const footer = (s) => `<footer><p>${esc(s.business_name)} — ${esc(s.tagline)}. ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa. Email ${esc(s.email)} · Phone ${esc(s.phone)} · ${esc(s.office_hours)}.</p><p>Secure payments by PayFast and Ozow. Prices in South African rand (ZAR).</p></footer>`;
+const footer = (s) => `<footer><p><a href="${esc(siteUrl())}/">${esc(siteUrl().replace(/^https?:\/\//, ''))}</a> · ${esc(s.business_name)} — ${esc(s.tagline)}. ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa. Email ${esc(s.email)} · Phone ${esc(s.phone)} · ${esc(s.office_hours)}.</p><p>Secure payments by PayFast and Ozow. Prices in South African rand (ZAR).</p></footer>`;
 const tierList = (svc, tiers) => `<ul>${tiers.map((t) => `<li><strong>${esc(t.name)}</strong> — ${esc(rand(t.price_cents))} ${billingText(t.billing)}: ${esc(t.summary)} Includes ${esc(t.features.join(', '))}.</li>`).join('')}</ul>`;
 
 // ---------------------------------------------------------------- route resolution
@@ -233,7 +233,7 @@ export function resolvePage(pathname) {
       title: titled('Contact Us | Free Strategy Session'),
       description: `Contact ${brand} for a free 30-minute strategy session. Email ${s.email}, call ${s.phone} or WhatsApp us. We reply within one business day.`,
       schema: [org, breadcrumbs(base, [{ name: 'Contact', path: '/contact' }]), { '@context': 'https://schema.org', '@type': 'ContactPage', url: `${base}/contact`, mainEntity: { '@id': `${base}/#organization` } }],
-      body: `<h1>Contact ${esc(brand)}</h1><p>Email: ${esc(s.email)}. Phone: ${esc(s.phone)}. WhatsApp: +${esc(s.whatsapp)}. Hours: ${esc(s.office_hours)}. Location: ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa.</p>`,
+      body: `<h1>Contact ${esc(brand)}</h1><p>Website: ${esc(base)}. Email: ${esc(s.email)}. Phone: ${esc(s.phone)}. WhatsApp: +${esc(s.whatsapp)}. Hours: ${esc(s.office_hours)}. Location: ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa.</p>`,
     });
   } else if (parts[0] === 'testimonials') {
     const ts = approvedTestimonials();
@@ -384,7 +384,7 @@ export function llmsTxt({ full = false } = {}) {
     `# ${s.business_name}`, '',
     `> ${s.seo_default_description}`, '',
     `${s.business_name} is based in ${s.address_locality}, ${s.address_region}, South Africa and serves clients nationwide. All prices are in South African rand (ZAR)${s.vat_registered ? `, excluding ${s.vat_rate}% VAT` : ''}. Every service has three tiers — Essential, Growth and Enterprise. Projects require a 50% deposit; retainers are billed monthly. Clients pay online by card or instant EFT via PayFast or Ozow.`, '',
-    `Contact: ${s.email} · ${s.phone} · WhatsApp https://wa.me/${s.whatsapp} · ${s.office_hours}`, '',
+    `Website: ${base} · Email: ${s.email} · Phone: ${s.phone} · WhatsApp: https://wa.me/${s.whatsapp} · ${s.office_hours}`, '',
     '## Services', '',
   ];
   for (const v of svcs) {
@@ -460,7 +460,7 @@ export function seoAudit() {
     };
   });
   const checks = [
-    { ok: Boolean(process.env.SITE_URL), label: 'SITE_URL configured (canonical URLs & sitemap use your real domain)' },
+    { ok: /^https:\/\//.test(siteUrl()), label: `Canonical domain is HTTPS (${siteUrl()})` },
     { ok: existsSync(resolve(DIST, 'og-image.png')), label: 'Social sharing image (og-image.png) present' },
     { ok: realSocials(s).length > 0, label: 'Social profile URLs set (used as sameAs entity signals)' },
     { ok: s.phone !== '+27 10 000 0000', label: 'Real business phone number set (NAP consistency)' },

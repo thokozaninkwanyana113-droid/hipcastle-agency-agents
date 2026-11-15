@@ -12,9 +12,10 @@ import { BlogAdmin, Subscribers, TestimonialsAdmin } from './Content.jsx';
 import Catalog from './Catalog.jsx';
 import Settings from './Settings.jsx';
 import SeoCentre from './SeoCentre.jsx';
+import Emails from './Emails.jsx';
 
 const NAV = [
-  ['Monitor', [['', 'Overview', '📊'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳']]],
+  ['Monitor', [['', 'Overview', '📊'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️']]],
   ['Operate', [['engagements', 'Engagements', '📁'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
   ['Configure', [['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
@@ -49,6 +50,7 @@ export default function CommandCentre() {
           <Route path="system" element={<System />} />
           <Route path="activity" element={<Activity />} />
           <Route path="payments" element={<Payments />} />
+          <Route path="emails" element={<Emails />} />
           <Route path="engagements" element={<Engagements />} />
           <Route path="orders" element={<Engagements />} />
           <Route path="leads" element={<Leads />} />

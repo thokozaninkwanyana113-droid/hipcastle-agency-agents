@@ -10,6 +10,7 @@ import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payments.js';
 import { metricsMiddleware, recordError } from './events.js';
+import { canonicalHostRedirect } from './urls.js';
 import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml } from './seo.js';
 
 export function createApp() {
@@ -31,6 +32,7 @@ export function createApp() {
     },
     crossOriginEmbedderPolicy: false,
   }));
+  app.use(canonicalHostRedirect);
   app.use(compression());
   app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || true }));
   app.use(metricsMiddleware);
@@ -40,6 +42,8 @@ export function createApp() {
   if (process.env.NODE_ENV !== 'test') {
     app.use('/api/auth/login', limiter(20));
     app.use('/api/auth/register', limiter(20));
+    app.use('/api/auth/forgot', limiter(10));
+    app.use('/api/auth/reset', limiter(20));
     app.use('/api/leads', limiter(30));
     app.use('/api/testimonials', (req, res, next) => (req.method === 'POST' ? limiter(10)(req, res, next) : next()));
     app.use('/api/payments/checkout', limiter(40));

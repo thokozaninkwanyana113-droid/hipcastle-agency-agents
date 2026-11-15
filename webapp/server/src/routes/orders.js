@@ -5,6 +5,7 @@ import { body, id, z } from '../validate.js';
 import { authenticate, isStaff, requireRole } from '../auth.js';
 import { logEvent } from '../events.js';
 import { getSettings, vatFor } from '../settings.js';
+import { onInvoiceIssued, onMessage, onOrderCreated, onOrderStatus } from '../email/notify.js';
 
 const r = Router();
 r.use(authenticate);
@@ -64,6 +65,7 @@ r.post('/', body(z.object({
     return o;
   });
   logEvent('order.created', `${req.user.name} ordered ${tier.service_name} — ${tier.name} (${order.reference})`, { actor: req.user.id, ref: order.reference });
+  onOrderCreated(order.id);
   res.status(201).json(order);
 });
 
@@ -93,6 +95,7 @@ r.post('/:id/messages', body(z.object({ body: z.string().trim().min(1).max(5000)
   if (!o) return;
   const m = row(db.prepare(`INSERT INTO messages (order_id, author_id, body) VALUES (?, ?, ?) RETURNING *`)
     .get(o.id, req.user.id, req.body.body));
+  onMessage(o.id, req.user, req.body.body);
   res.status(201).json({ ...m, author_name: req.user.name, author_role: req.user.role });
 });
 
@@ -126,6 +129,7 @@ r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
   db.prepare(`UPDATE orders SET status = ?, progress = ?, assigned_to = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(b.status ?? o.status, progress, b.assigned_to !== undefined ? b.assigned_to : o.assigned_to,
       b.due_date !== undefined ? b.due_date : o.due_date, o.id);
+  if (b.status && b.status !== o.status) onOrderStatus(o.id, b.status);
   res.json(row(db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(o.id)));
 });
 
@@ -153,6 +157,7 @@ r.post('/:id/invoices', requireRole('admin', 'staff'), body(z.object({
     VALUES (?, ?, ?, ?, ?, ?, date('now', ?)) RETURNING *`)
     .get(ref('INV'), o.id, req.body.amount_cents, vat, req.body.amount_cents + vat, req.body.description || null, `+${req.body.due_in_days} days`));
   logEvent('invoice.issued', `${inv.number} issued on ${o.reference}`, { actor: req.user.id, ref: inv.number });
+  onInvoiceIssued(inv.id);
   res.status(201).json(inv);
 });
 

@@ -1,3 +1,4 @@
+import { siteUrl } from '../siteUrl.js';
 // Client-side head manager. The server already renders these tags for the first page view
 // (for crawlers); this keeps them correct as users navigate inside the single-page app.
 import { useEffect } from 'react';
@@ -17,7 +18,7 @@ export default function Seo({ title, description, schema = [], noindex = false, 
     const branded = title && `${title} | ${site.business_name}`;
     const full = !title ? `${site.business_name} | Digital Agency for SA Entrepreneurs` : title.includes(site.business_name) || branded.length > 60 ? title : branded;
     const desc = description || site.seo_default_description || '';
-    const url = `${window.location.origin}${pathname}`;
+    const url = siteUrl(`${pathname}`);
     document.title = full;
     setMeta('name', 'description', desc);
     setMeta('name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large');
@@ -50,5 +51,5 @@ export const faqSchema = (faqs) => faqs?.length ? ({
 
 export const breadcrumbSchema = (items) => ({
   '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-  itemListElement: [{ name: 'Home', path: '/' }, ...items].map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: `${window.location.origin}${it.path}` })),
+  itemListElement: [{ name: 'Home', path: '/' }, ...items].map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: siteUrl(`${it.path}`) })),
 });

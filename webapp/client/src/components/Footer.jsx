@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { useFetch } from '../useFetch.js';
 import { useSite } from '../context/SiteContext.jsx';
 import { Icon, PaymentBadges, SocialLinks } from './icons.jsx';
+import { siteHost } from '../siteUrl.js';
 
 export default function Footer() {
   const site = useSite();
@@ -48,7 +49,7 @@ export default function Footer() {
           <form className="newsletter" onSubmit={subscribe}>
             <label htmlFor="nl-email">Monthly growth tips for SA founders</label>
             <div className="newsletter__row">
-              <input id="nl-email" type="email" required placeholder="you@company.co.za" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input id="nl-email" type="email" required placeholder="you@yourbusiness.co.za" value={email} onChange={(e) => setEmail(e.target.value)} />
               <button className="btn btn--primary btn--sm" disabled={state.status === 'loading'}>Subscribe</button>
             </div>
             {state.msg && <small className={state.status === 'error' ? 'text-error' : 'text-success'} role="status">{state.msg}</small>}
@@ -74,6 +75,7 @@ export default function Footer() {
           </ul>
           <h2 className="footer__h mt">Get in touch</h2>
           <address className="footer__contact">
+            <a href="/"><Icon name="globe" size={15} /> {siteHost()}</a>
             <a href={`mailto:${site.email}`}><Icon name="mail" size={15} /> {site.email}</a>
             {site.phone && <a href={`tel:${site.phone.replace(/\s/g, '')}`}><Icon name="phone" size={15} /> {site.phone}</a>}
             <span><Icon name="pin" size={15} /> {site.address_locality}, {site.address_region}</span>

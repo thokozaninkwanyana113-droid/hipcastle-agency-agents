@@ -2,6 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { db, row, tx } from '../db.js';
 import { logEvent } from '../events.js';
+import { onPayment } from '../email/notify.js';
 
 export const newReference = () => `HCP-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
@@ -32,6 +33,7 @@ export function applyPaymentStatus(payment, status, { txnId = null, message = nu
       logEvent(`payment.${status}`, `${current.gateway} payment ${current.reference} ${status}${message ? `: ${message}` : ''}`,
         { level: status === 'failed' ? 'warn' : 'info', actor: current.user_id, ref: current.reference });
     }
+    if (status === 'complete' || status === 'failed') onPayment(current.reference, status);
     return findPayment(current.reference);
   });
 }

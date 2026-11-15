@@ -11,7 +11,7 @@ import Agents from './pages/Agents.jsx';
 import AgentDetail from './pages/AgentDetail.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
-import { Login, Register } from './pages/Auth.jsx';
+import { ForgotPassword, Login, Register, ResetPassword } from './pages/Auth.jsx';
 import Checkout from './pages/Checkout.jsx';
 import Portal from './pages/Portal.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
@@ -62,6 +62,8 @@ export default function App() {
           <Route path="/payment/simulate" element={<RequireAuth><PaymentSimulate /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/checkout/:tierId" element={<RequireAuth><Checkout /></RequireAuth>} />
           <Route path="/portal" element={<RequireAuth><Portal /></RequireAuth>} />
           <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />

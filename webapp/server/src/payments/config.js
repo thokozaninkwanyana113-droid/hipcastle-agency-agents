@@ -4,8 +4,10 @@ import { getSettings } from '../settings.js';
 export const MODE = process.env.PAYMENTS_MODE === 'live' ? 'live' : 'sandbox';
 export const isLive = MODE === 'live';
 
-/** Public base URL of the site (used for return URLs). */
-export const siteUrl = () => (process.env.SITE_URL || `http://localhost:${process.env.PORT || 4000}`).replace(/\/$/, '');
+import { appUrl } from '../urls.js';
+
+/** Base URL customers return to after paying (this running instance). */
+export const siteUrl = appUrl;
 /** Public base URL the gateways can reach for notifications (defaults to SITE_URL). */
 export const notifyBase = () => (process.env.PAYMENTS_NOTIFY_URL || siteUrl()).replace(/\/$/, '');
 

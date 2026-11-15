@@ -137,7 +137,7 @@ function PostEditor() {
             <Field label="SEO title" hint="Optional, ≤ 65 chars" error={errors.meta_title}><input className="input" value={p.meta_title} onChange={set('meta_title')} /></Field>
             <Field label="Meta description" hint="Optional, 120–160 chars" error={errors.meta_description}><textarea className="input" rows={3} value={p.meta_description} onChange={set('meta_description')} /></Field>
             <div className="serp" aria-label="Google preview">
-              <small>hipcastle.co.za › blog › {p.slug}</small>
+              <small>www.hipcastle.agency › blog › {p.slug}</small>
               <strong>{(p.meta_title || p.title || 'Article title').slice(0, 65)}</strong>
               <span>{metaDesc.slice(0, 160) || 'Meta description…'}</span>
             </div>

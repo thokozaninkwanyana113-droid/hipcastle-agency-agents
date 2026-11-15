@@ -6,7 +6,11 @@ export const DEFAULT_SETTINGS = {
   business_name: 'Hipcastle Agency',
   legal_name: 'Hipcastle Agency (Pty) Ltd',
   tagline: 'Specialist teams for South African entrepreneurs',
-  email: 'hello@hipcastle.co.za',
+  website: 'https://www.hipcastle.agency',
+  email: 'hello@hipcastle.agency',           // public contact address & default "from"
+  notify_email: 'hello@hipcastle.agency',    // team inbox for new leads, orders, payments, reviews
+  billing_email: 'accounts@hipcastle.agency',// reply-to on invoices, receipts and reminders
+  emails_enabled: true,                      // master switch for customer emails
   phone: '+27 10 000 0000',
   whatsapp: '27100000000',              // international format, digits only
   address_locality: 'Johannesburg',
@@ -24,12 +28,12 @@ export const DEFAULT_SETTINGS = {
   ozow_enabled: true,
   jobs_disabled: [],
   social: {
-    facebook: 'https://www.facebook.com/',
-    instagram: 'https://www.instagram.com/',
-    linkedin: 'https://www.linkedin.com/',
-    x: 'https://x.com/',
-    tiktok: 'https://www.tiktok.com/',
-    youtube: 'https://www.youtube.com/',
+    facebook: 'https://www.facebook.com/hipcastleagency',
+    instagram: 'https://www.instagram.com/hipcastleagency',
+    linkedin: 'https://www.linkedin.com/company/hipcastle-agency',
+    x: 'https://x.com/hipcastleagency',
+    tiktok: 'https://www.tiktok.com/@hipcastleagency',
+    youtube: 'https://www.youtube.com/@hipcastleagency',
   },
   seo_default_description:
     'South African digital agency for entrepreneurs: websites, design, SEO, marketing, ads & sales. Fixed packages in rand — pay via PayFast or Ozow.',
@@ -55,9 +59,8 @@ export function updateSettings(patch) {
 
 /** Settings safe to expose publicly. */
 export function publicSettings() {
-  const s = getSettings();
-  const { seo_default_description, ...rest } = s;
-  return { ...rest, seo_default_description };
+  const { jobs_disabled, notify_email, billing_email, emails_enabled, ...rest } = getSettings();
+  return rest;
 }
 
 /** Compute VAT on an amount in cents according to current settings. */

@@ -1,3 +1,4 @@
+import { siteHost, siteUrl } from '../siteUrl.js';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -35,7 +36,7 @@ export default function Contact() {
     }
   };
 
-  const contactSchema = { '@context': 'https://schema.org', '@type': 'ContactPage', url: `${window.location.origin}/contact`, mainEntity: { '@id': `${window.location.origin}/#organization` } };
+  const contactSchema = { '@context': 'https://schema.org', '@type': 'ContactPage', url: siteUrl('/contact'), mainEntity: { '@id': siteUrl('/#organization') } };
 
   return (
     <>
@@ -56,7 +57,7 @@ export default function Contact() {
             )}
             <a className="contact-card" href={`mailto:${site.email}`}><Icon name="mail" size={26} /><strong>Email</strong><span>{site.email}</span></a>
             {site.phone && <a className="contact-card" href={`tel:${site.phone.replace(/\s/g, '')}`}><Icon name="phone" size={26} /><strong>Call</strong><span>{site.phone}</span></a>}
-            <div className="contact-card"><Icon name="clock" size={26} /><strong>Hours</strong><span>{site.office_hours}</span></div>
+            <a className="contact-card" href="/"><Icon name="globe" size={26} /><strong>Website</strong><span>{siteHost()}</span></a>
           </div>
         </div>
         <div className="container layout-sidebar layout-sidebar--left mt-lg">
@@ -64,6 +65,7 @@ export default function Contact() {
             <div className="card contact-info">
               <h2 className="h3">Where we are</h2>
               <p><Icon name="pin" size={16} /> {site.street_address ? `${site.street_address}, ` : ''}{site.address_locality}, {site.address_region}{site.postal_code ? `, ${site.postal_code}` : ''}, South Africa</p>
+              <p><Icon name="clock" size={16} /> {site.office_hours}</p>
               <p className="muted small">We work remotely with clients in all nine provinces, and meet in person in {site.address_locality} by appointment.</p>
               <hr />
               <h2 className="h3">What happens next?</h2>

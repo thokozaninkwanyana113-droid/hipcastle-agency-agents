@@ -63,6 +63,23 @@ export function loadAgents() {
  *                                    (otherwise only missing services/tiers are inserted, so
  *                                    edits made in the Command Centre survive restarts)
  */
+function migrateDomain(log) {
+  const oldAdmin = db.prepare("SELECT id FROM users WHERE email = 'admin@hipcastle.co.za'").get();
+  if (oldAdmin && !db.prepare("SELECT 1 FROM users WHERE email = 'admin@hipcastle.agency'").get()) {
+    db.prepare("UPDATE users SET email = 'admin@hipcastle.agency' WHERE id = ?").run(oldAdmin.id);
+    log('Migrated admin login to admin@hipcastle.agency');
+  }
+  const emailRow = db.prepare("SELECT value FROM settings WHERE key = 'email'").get();
+  if (emailRow && /hipcastle\.co\.za/.test(emailRow.value)) db.prepare("DELETE FROM settings WHERE key = 'email'").run();
+  const social = db.prepare("SELECT value FROM settings WHERE key = 'social'").get();
+  if (social) {
+    // Replace generic platform home pages saved by earlier versions with the Hipcastle Agency profiles.
+    const v = JSON.parse(social.value);
+    const generic = Object.values(v).filter((u) => u && !/^https?:\/\/[^/]+\/.+/.test(u)).length;
+    if (generic) db.prepare("DELETE FROM settings WHERE key = 'social'").run();
+  }
+}
+
 export function seed({ demo = true, syncCatalog = false, log = console.log } = {}) {
   tx(() => {
     const upsertService = db.prepare(`
@@ -112,7 +129,10 @@ export function seed({ demo = true, syncCatalog = false, log = console.log } = {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', datetime('now', ?))`);
     seedPosts.forEach((p, i) => insPost.run(p.slug, p.title, p.excerpt, p.body, p.category, JSON.stringify(p.tags), p.cover_emoji, p.meta_title || null, p.meta_description, `-${i * 4} days`));
 
-    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hipcastle.co.za').toLowerCase();
+    // One-off upgrade from the earlier hipcastle.co.za placeholders to the hipcastle.agency domain.
+    migrateDomain(log);
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hipcastle.agency').toLowerCase();
     if (!db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail)) {
       const pw = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
       db.prepare(`INSERT INTO users (name, email, password_hash, company, role) VALUES (?, ?, ?, 'Hipcastle Agency', 'admin')`)

@@ -757,3 +757,18 @@ html, body { overflow-x: clip; }
 @media (min-width: 1081px) {
   .cc { background: linear-gradient(to right, var(--navy-900) 250px, var(--bg) 250px); }
 }
+.right { text-align: right; } .auth .right { margin: -.5rem 0 0; }
+/* Emails */
+.modal__card--wide { width: min(100%, 760px); }
+.email-frame { width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 10px; background: #f3efe6; }
+.code-block--light { background: var(--alt); color: var(--ink); white-space: pre-wrap; max-height: 70vh; }
+.tpl-list { list-style: none; padding: 0; margin: 0; max-height: 330px; overflow-y: auto; }
+.tpl-list li { padding: .5rem 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
+.tpl-list strong { font-weight: 600; color: var(--navy-600); }
+.tpl-list small { color: var(--muted); }
+.inline-form { display: flex; gap: .5rem; }
+.inline-form .input { flex: 1; width: auto; }
+.cc__link { padding: .42rem .6rem; }
+.cc__group { margin-bottom: .7rem; }
+.cc__brand { padding-bottom: .9rem; margin-bottom: .7rem; }
+.cc__side { padding-top: 1.1rem; }

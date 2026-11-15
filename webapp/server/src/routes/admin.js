@@ -10,6 +10,10 @@ import { listJobs, runJob, setJobEnabled } from '../jobs.js';
 import { MODE, notifyBase, ozowConfig, payfastConfig, simulatedAllowed, siteUrl } from '../payments/config.js';
 import { applyPaymentStatus, findPayment } from '../payments/service.js';
 import { seoAudit } from '../seo.js';
+import { canonicalUrl } from '../urls.js';
+import { onTestimonialApproved } from '../email/notify.js';
+import { emailConfig, processQueue, renderTemplate, retryEmail, sendEmail, verifyTransport } from '../email/mailer.js';
+import { TEMPLATES } from '../email/templates.js';
 
 const r = Router();
 r.use(authenticate, requireRole('admin', 'staff'));
@@ -126,7 +130,7 @@ r.get('/staff', (_req, res) =>
 // ======================= Command Centre =======================
 
 const tableCounts = () => Object.fromEntries(
-  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'events']
+  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'emails', 'events']
     .map((t) => [t, db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n]));
 
 function dbSize() {
@@ -138,12 +142,15 @@ function warnings() {
   const w = [];
   const s = getSettings();
   if (!process.env.JWT_SECRET) w.push({ level: 'error', message: 'JWT_SECRET is not set — sessions use an insecure development secret.' });
-  if (!process.env.SITE_URL) w.push({ level: 'warn', message: 'SITE_URL is not set — canonical URLs, sitemap and payment return URLs use localhost.' });
+  if (process.env.NODE_ENV !== 'production' && !process.env.SITE_URL) w.push({ level: 'info', message: `Development mode: SEO tags point to ${canonicalUrl()}, payment returns use ${siteUrl()}.` });
   if (MODE !== 'live') w.push({ level: 'warn', message: 'Payments are in SANDBOX mode. Set PAYMENTS_MODE=live with real merchant credentials to accept money.' });
   if (payfastConfig().sandboxDefaults) w.push({ level: 'warn', message: 'PayFast is using the shared public sandbox account: checkout works but its notifications cannot be verified, so payments will not auto-complete. Set PAYFAST_MERCHANT_ID / KEY / PASSPHRASE from your own sandbox account.' });
   if (!payfastConfig().sandboxDefaults && !payfastConfig().passphrase) w.push({ level: 'warn', message: 'PAYFAST_PASSPHRASE is empty — set a passphrase in your PayFast dashboard for signed requests.' });
   if (!ozowConfig().configured) w.push({ level: 'info', message: 'Ozow is not configured (set OZOW_SITE_CODE and OZOW_PRIVATE_KEY).' });
   if (simulatedAllowed()) w.push({ level: 'info', message: 'Simulated test payments are enabled (development only).' });
+  if (emailConfig().mode !== 'smtp') w.push({ level: 'warn', message: 'Email is in LOG mode — emails are stored in the Command Centre but not delivered. Set SMTP_HOST, SMTP_USER and SMTP_PASS for your @hipcastle.agency mailbox.' });
+  const failedEmails = db.prepare("SELECT COUNT(*) n FROM emails WHERE status = 'failed' AND created_at > datetime('now','-7 days')").get().n;
+  if (failedEmails) w.push({ level: 'error', message: `${failedEmails} email(s) failed to send in the last 7 days — see Emails.` });
   if (!s.orders_enabled) w.push({ level: 'warn', message: 'New online orders are paused.' });
   if (/^\+27 10 000 0000$/.test(s.phone) || s.whatsapp === '27100000000') w.push({ level: 'warn', message: 'Business phone/WhatsApp are still placeholders — update them in Settings.' });
   const admins = db.prepare("SELECT password_hash FROM users WHERE role = 'admin'").all();
@@ -162,7 +169,8 @@ r.get('/system', (_req, res) => {
     env: process.env.NODE_ENV || 'development',
     memory_mb: { rss: +(mem.rss / 1e6).toFixed(1), heap: +(mem.heapUsed / 1e6).toFixed(1) },
     db: { path: DB_PATH === ':memory:' ? 'in-memory' : DB_PATH.split(/[\\/]/).slice(-2).join('/'), size_kb: Math.round(dbSize() / 1024), tables: tableCounts() },
-    site_url: siteUrl(),
+    site_url: canonicalUrl(),
+    app_url: siteUrl(),
     gateways: {
       mode: MODE,
       notify_base: notifyBase(),
@@ -236,6 +244,10 @@ r.put('/settings', requireRole('admin'), body(z.object({
   payfast_enabled: z.boolean(),
   ozow_enabled: z.boolean(),
   social: z.object({ facebook: url, instagram: url, linkedin: url, x: url, tiktok: url, youtube: url }),
+  website: z.string().trim().url().max(120),
+  notify_email: z.string().trim().email(),
+  billing_email: z.string().trim().email(),
+  emails_enabled: z.boolean(),
   seo_default_description: z.string().trim().min(50).max(300),
 }).partial()), (req, res) => {
   const before = getSettings();
@@ -340,6 +352,7 @@ r.patch('/testimonials/:id', body(z.object({
   const out = row(db.prepare('UPDATE testimonials SET status = ?, is_featured = ? WHERE id = ? RETURNING *')
     .get(req.body.status ?? t.status, (req.body.is_featured ?? !!t.is_featured) ? 1 : 0, t.id));
   logEvent('testimonial.moderated', `Review by ${t.author}: ${out.status}${out.is_featured ? ' (featured)' : ''}`, { actor: req.user.id, ref: String(t.id) });
+  if (t.status !== 'approved' && out.status === 'approved') onTestimonialApproved(out);
   res.json(out);
 });
 r.delete('/testimonials/:id', requireRole('admin'), (req, res) => {
@@ -381,6 +394,52 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="hipcastle-${req.params.kind}-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send('﻿' + csv);
+});
+
+// Emails
+r.get('/emails', (req, res) => {
+  const { status = '', q = '' } = req.query;
+  res.json(rows(db.prepare(`SELECT id, template, to_email, to_name, subject, status, attempts, last_error, ref, created_at, sent_at, next_attempt_at
+    FROM emails WHERE (? = '' OR status = ?) AND (? = '' OR to_email LIKE ? OR subject LIKE ?) ORDER BY id DESC LIMIT 300`)
+    .all(status, status, q, `%${q}%`, `%${q}%`)));
+});
+r.get('/emails/status', (_req, res) => {
+  const count = (sql) => db.prepare(sql).get().n;
+  res.json({
+    config: emailConfig(),
+    settings: (({ email, notify_email, billing_email, emails_enabled }) => ({ email, notify_email, billing_email, emails_enabled }))(getSettings()),
+    stats: {
+      sent_24h: count("SELECT COUNT(*) n FROM emails WHERE status = 'sent' AND sent_at > datetime('now','-1 day')"),
+      logged_24h: count("SELECT COUNT(*) n FROM emails WHERE status = 'logged' AND created_at > datetime('now','-1 day')"),
+      queued: count("SELECT COUNT(*) n FROM emails WHERE status = 'queued'"),
+      failed_7d: count("SELECT COUNT(*) n FROM emails WHERE status = 'failed' AND created_at > datetime('now','-7 days')"),
+    },
+    templates: Object.entries(TEMPLATES).map(([id, t]) => ({ id, audience: t.audience, description: t.description })),
+  });
+});
+r.get('/emails/:id', (req, res) => {
+  const e = row(db.prepare('SELECT * FROM emails WHERE id = ?').get(id(req.params.id)));
+  return e ? res.json(e) : res.status(404).json({ error: 'Email not found' });
+});
+r.post('/emails/:id/retry', requireRole('admin'), async (req, res) => {
+  const e = retryEmail(id(req.params.id));
+  if (!e) return res.status(404).json({ error: 'Email not found' });
+  await processQueue();
+  logEvent('email.resent', `Email #${e.id} re-queued`, { actor: req.user.id });
+  res.json(row(db.prepare('SELECT id, status, last_error FROM emails WHERE id = ?').get(e.id)));
+});
+r.post('/emails/verify', requireRole('admin'), async (_req, res) => res.json(await verifyTransport()));
+r.post('/emails/test', requireRole('admin'), body(z.object({ to: z.string().trim().email() })), async (req, res) => {
+  const eid = sendEmail('system.test', req.body.to, {}, { team: true });
+  await processQueue();
+  logEvent('email.test', `Test email sent to ${req.body.to}`, { actor: req.user.id });
+  res.json(row(db.prepare('SELECT id, status, last_error FROM emails WHERE id = ?').get(eid)));
+});
+r.get('/email-templates/:tpl/preview', (req, res) => {
+  const tpl = TEMPLATES[req.params.tpl];
+  if (!tpl) return res.status(404).json({ error: 'Template not found' });
+  const out = renderTemplate(req.params.tpl, { ...tpl.sample, to: 'preview@example.com' });
+  res.json({ subject: out.subject, preheader: out.preheader, html: out.html, text: out.text });
 });
 
 // SEO health

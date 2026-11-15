@@ -1,3 +1,4 @@
+import { siteUrl } from '../siteUrl.js';
 import { Link, useParams } from 'react-router-dom';
 import TierCard from '../components/TierCard.jsx';
 import { ErrorBox, Loader } from '../components/ui.jsx';
@@ -18,7 +19,7 @@ export default function ServiceDetail() {
   const from = money(s.tiers[0].price_cents);
   const serviceSchema = {
     '@context': 'https://schema.org', '@type': 'Service', name: s.name, serviceType: s.name, description: s.description,
-    areaServed: { '@type': 'Country', name: 'South Africa' }, provider: { '@id': `${window.location.origin}/#organization` },
+    areaServed: { '@type': 'Country', name: 'South Africa' }, provider: { '@id': siteUrl('/#organization') },
     hasOfferCatalog: { '@type': 'OfferCatalog', name: `${s.name} packages`, itemListElement: s.tiers.map((t) => ({
       '@type': 'Offer', name: `${s.name} — ${t.name}`, price: (t.price_cents / 100).toFixed(2), priceCurrency: 'ZAR', description: t.summary })) },
   };
