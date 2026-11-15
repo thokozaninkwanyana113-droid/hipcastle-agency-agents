@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field } from '../components/ui.jsx';
+import Seo from '../components/Seo.jsx';
 
 function useAfterAuth() {
   const [params] = useSearchParams();
@@ -27,6 +28,7 @@ export function Login() {
 
   return (
     <section className="auth">
+      <Seo title="Sign in" noindex />
       <form className="card auth__card form" onSubmit={submit}>
         <h1>Welcome back</h1>
         <p className="muted">Sign in to your Hipcastle client portal.</p>
@@ -57,6 +59,7 @@ export function Register() {
 
   return (
     <section className="auth">
+      <Seo title="Create an account" noindex />
       <form className="card auth__card form" onSubmit={submit} noValidate>
         <h1>Create your account</h1>
         <p className="muted">Order services, track progress and pay invoices in one place.</p>

@@ -3,6 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { db, row, rows, tx } from '../db.js';
 import { body, id, z } from '../validate.js';
 import { authenticate, isStaff, requireRole } from '../auth.js';
+import { logEvent } from '../events.js';
+import { getSettings, vatFor } from '../settings.js';
 
 const r = Router();
 r.use(authenticate);
@@ -41,7 +43,10 @@ r.post('/', body(z.object({
   tier_id: z.number().int().positive(),
   brief: z.string().trim().min(20, 'Please describe your project in at least 20 characters').max(5000),
 })), (req, res) => {
-  const tier = row(db.prepare('SELECT * FROM service_tiers WHERE id = ?').get(req.body.tier_id));
+  const settings = getSettings();
+  if (!settings.orders_enabled) return res.status(503).json({ error: 'We are not taking new online orders right now — please contact us.' });
+  const tier = row(db.prepare(`SELECT st.*, s.name AS service_name FROM service_tiers st JOIN services s ON s.id = st.service_id
+    WHERE st.id = ? AND s.is_active = 1`).get(req.body.tier_id));
   if (!tier) return res.status(404).json({ error: 'Service tier not found' });
 
   const order = tx(() => {
@@ -51,11 +56,14 @@ r.post('/', body(z.object({
     const ms = db.prepare('INSERT INTO milestones (order_id, title, position) VALUES (?, ?, ?)');
     MILESTONES[tier.tier].forEach((t, i) => ms.run(o.id, t, i));
     // Projects: 50% deposit up front. Retainers: first month up front.
-    const amount = tier.billing === 'once' ? Math.round(tier.price_cents / 2) : tier.price_cents;
-    db.prepare(`INSERT INTO invoices (number, order_id, amount_cents, due_at) VALUES (?, ?, ?, date('now', '+7 days'))`)
-      .run(ref('INV'), o.id, amount);
+    const subtotal = tier.billing === 'once' ? Math.round(tier.price_cents / 2) : tier.price_cents;
+    const vat = vatFor(subtotal, settings);
+    db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, due_at)
+      VALUES (?, ?, ?, ?, ?, ?, date('now', '+7 days'))`)
+      .run(ref('INV'), o.id, subtotal, vat, subtotal + vat, tier.billing === 'once' ? 'Deposit (50%)' : 'First month (in advance)');
     return o;
   });
+  logEvent('order.created', `${req.user.name} ordered ${tier.service_name} — ${tier.name} (${order.reference})`, { actor: req.user.id, ref: order.reference });
   res.status(201).json(order);
 });
 
@@ -73,6 +81,8 @@ r.get('/:id', (req, res) => {
   if (!o) return;
   o.milestones = rows(db.prepare('SELECT * FROM milestones WHERE order_id = ? ORDER BY position').all(o.id));
   o.invoices = rows(db.prepare('SELECT * FROM invoices WHERE order_id = ? ORDER BY issued_at, id').all(o.id));
+  o.payments = rows(db.prepare(`SELECT p.reference, p.gateway, p.status, p.amount_cents, p.status_message, p.created_at, i.number AS invoice_number
+    FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.order_id = ? ORDER BY p.created_at DESC, p.id DESC`).all(o.id));
   o.messages = rows(db.prepare(`SELECT m.*, u.name AS author_name, u.role AS author_role
     FROM messages m JOIN users u ON u.id = m.author_id WHERE m.order_id = ? ORDER BY m.created_at, m.id`).all(o.id));
   res.json(o);
@@ -94,22 +104,7 @@ r.post('/:id/cancel', (req, res) => {
     db.prepare("UPDATE orders SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?").run(o.id);
     db.prepare("UPDATE invoices SET status = 'void' WHERE order_id = ? AND status = 'unpaid'").run(o.id);
   });
-  res.json({ ok: true });
-});
-
-// Simulated checkout. Swap for Stripe/PayFast/Paystack in production.
-r.post('/:id/invoices/:invoiceId/pay', (req, res) => {
-  const o = loadOrder(req, res);
-  if (!o) return;
-  const inv = row(db.prepare('SELECT * FROM invoices WHERE id = ? AND order_id = ?').get(id(req.params.invoiceId), o.id));
-  if (!inv) return res.status(404).json({ error: 'Invoice not found' });
-  if (inv.status !== 'unpaid') return res.status(409).json({ error: `Invoice is already ${inv.status}` });
-  tx(() => {
-    db.prepare("UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(inv.id);
-    if (o.status === 'pending') {
-      db.prepare("UPDATE orders SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(o.id);
-    }
-  });
+  logEvent('order.cancelled', `${o.reference} cancelled by ${req.user.name}`, { actor: req.user.id, ref: o.reference });
   res.json({ ok: true });
 });
 
@@ -127,6 +122,7 @@ r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
     return res.status(400).json({ error: 'Assignee must be a staff member' });
   }
   const progress = b.status === 'completed' ? 100 : (b.progress ?? o.progress);
+  if (b.status && b.status !== o.status) logEvent('order.status', `${o.reference}: ${o.status} → ${b.status}`, { actor: req.user.id, ref: o.reference });
   db.prepare(`UPDATE orders SET status = ?, progress = ?, assigned_to = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(b.status ?? o.status, progress, b.assigned_to !== undefined ? b.assigned_to : o.assigned_to,
       b.due_date !== undefined ? b.due_date : o.due_date, o.id);
@@ -146,13 +142,17 @@ r.patch('/:id/milestones/:mid', requireRole('admin', 'staff'), body(z.object({ i
 });
 
 r.post('/:id/invoices', requireRole('admin', 'staff'), body(z.object({
-  amount_cents: z.number().int().positive(),
+  amount_cents: z.number().int().positive(),            // excl. VAT
+  description: z.string().trim().max(200).optional().default(''),
   due_in_days: z.number().int().min(0).max(120).default(14),
 })), (req, res) => {
   const o = loadOrder(req, res);
   if (!o) return;
-  const inv = row(db.prepare(`INSERT INTO invoices (number, order_id, amount_cents, due_at)
-    VALUES (?, ?, ?, date('now', ?)) RETURNING *`).get(ref('INV'), o.id, req.body.amount_cents, `+${req.body.due_in_days} days`));
+  const vat = vatFor(req.body.amount_cents);
+  const inv = row(db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, due_at)
+    VALUES (?, ?, ?, ?, ?, ?, date('now', ?)) RETURNING *`)
+    .get(ref('INV'), o.id, req.body.amount_cents, vat, req.body.amount_cents + vat, req.body.description || null, `+${req.body.due_in_days} days`));
+  logEvent('invoice.issued', `${inv.number} issued on ${o.reference}`, { actor: req.user.id, ref: inv.number });
   res.status(201).json(inv);
 });
 

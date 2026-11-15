@@ -3,9 +3,11 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorBox, Loader, Progress, Status } from '../components/ui.jsx';
-import { billingLabel, date, money } from '../format.js';
+import { billingLabel, date, dateTime, money, moneyExact } from '../format.js';
 import { useFetch } from '../useFetch.js';
 import NotFound from './NotFound.jsx';
+import Seo from '../components/Seo.jsx';
+import PayButton from '../components/PayButton.jsx';
 
 const STATUSES = ['pending', 'active', 'in_review', 'completed', 'cancelled'];
 
@@ -26,7 +28,6 @@ export default function OrderDetail() {
     setBusy(true); setActionError(null);
     try { await fn(); reload(); } catch (e) { setActionError(e); } finally { setBusy(false); }
   };
-  const pay = (inv) => run(() => api(`/orders/${o.id}/invoices/${inv.id}/pay`, { method: 'POST' }));
   const send = (e) => { e.preventDefault(); if (msg.trim()) run(async () => { await api(`/orders/${o.id}/messages`, { method: 'POST', body: { body: msg } }); setMsg(''); }); };
   const update = (body) => run(() => api(`/orders/${o.id}`, { method: 'PATCH', body }));
   const toggle = (m) => run(() => api(`/orders/${o.id}/milestones/${m.id}`, { method: 'PATCH', body: { is_done: !m.is_done } }));
@@ -36,10 +37,11 @@ export default function OrderDetail() {
 
   return (
     <section className="section portal">
+      <Seo title={`Engagement ${o.reference}`} noindex />
       <div className="container">
         <nav className="breadcrumb breadcrumb--dark"><Link to={isStaff && o.user_id !== user.id ? '/admin/orders' : '/portal'}>Engagements</Link> / <span>{o.reference}</span></nav>
         {params.get('new') && o.status === 'pending' && (
-          <div className="alert alert--success">🎉 Order placed! Pay the first invoice below to kick things off.</div>
+          <div className="alert alert--success">🎉 Order placed! Pay the first invoice below by card or instant EFT to kick things off.</div>
         )}
         <ErrorBox error={actionError} />
         <div className="order-head card">
@@ -70,9 +72,10 @@ export default function OrderDetail() {
                 <input type="date" className="input" value={o.due_date || ''} onChange={(e) => update({ due_date: e.target.value || null })} disabled={busy} />
               </label>
               <button className="btn btn--outline btn--sm" disabled={busy} onClick={() => {
-                const v = window.prompt('Invoice amount (in dollars)');
-                const cents = Math.round(Number(v) * 100);
-                if (cents > 0) run(() => api(`/orders/${o.id}/invoices`, { method: 'POST', body: { amount_cents: cents, due_in_days: 14 } }));
+                const v = window.prompt('Invoice amount in rand (excl. VAT)');
+                const cents = Math.round(Number(String(v).replace(/[^\d.]/g, '')) * 100);
+                const description = cents > 0 ? window.prompt('Description (e.g. Balance on delivery)', 'Balance on delivery') : null;
+                if (cents > 0) run(() => api(`/orders/${o.id}/invoices`, { method: 'POST', body: { amount_cents: cents, description: description || '', due_in_days: 14 } }));
               }}>+ Issue invoice</button>
             </div>
           </div>
@@ -101,16 +104,27 @@ export default function OrderDetail() {
             <ul className="invoices">
               {o.invoices.map((inv) => (
                 <li key={inv.id}>
-                  <div><strong>{inv.number}</strong><small>Issued {date(inv.issued_at)} · due {date(inv.due_at)}</small></div>
-                  <div className="invoices__side">
-                    <span>{money(inv.amount_cents)}</span>
-                    <Status value={inv.status} />
-                    {inv.status === 'unpaid' && o.user_id === user.id && <button className="btn btn--primary btn--sm" onClick={() => pay(inv)} disabled={busy}>Pay now</button>}
+                  <div>
+                    <strong>{inv.number}</strong>{inv.description && <span className="muted"> · {inv.description}</span>}
+                    <small>Issued {date(inv.issued_at)} · due {date(inv.due_at)}{inv.vat_cents > 0 && ` · incl. VAT ${moneyExact(inv.vat_cents)}`}</small>
                   </div>
+                  <div className="invoices__side">
+                    <span>{moneyExact(inv.amount_cents)}</span>
+                    <Status value={inv.status} />
+                  </div>
+                  {inv.status === 'unpaid' && o.user_id === user.id && <div className="invoices__pay"><PayButton invoice={inv} onError={setActionError} /></div>}
                 </li>
               ))}
             </ul>
-            <p className="muted small">Payments are simulated in this build — connect Stripe, PayFast or Paystack in production.</p>
+            {o.payments?.length > 0 && (
+              <details className="payments-log">
+                <summary>Payment history ({o.payments.length})</summary>
+                <ul>{o.payments.map((p) => (
+                  <li key={p.reference}><span>{dateTime(p.created_at)} · {p.gateway} · {p.invoice_number}</span><span>{moneyExact(p.amount_cents)} <Status value={p.status} /></span></li>
+                ))}</ul>
+              </details>
+            )}
+            <p className="muted small">🔒 Secure payments by PayFast & Ozow. We never see your card or banking details.</p>
           </div>
         </div>
 

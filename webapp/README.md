@@ -1,58 +1,83 @@
 # 🏰 Hipcastle Agency — Web App
 
-A full-stack web app for running a services agency. It is built on the agent roster in this repository: each agent division becomes a **service line**, and each service line is sold in **three tiers**.
+A full-stack web app for running a services agency, built for **South African entrepreneurs**. It is based on the agent roster in this repository: each agent division becomes a **service line**, sold in **three tiers** priced in **rand (ZAR)**. Clients pay through **PayFast** and **Ozow**, and staff manage everything from a back-office **Command Centre**.
 
 | Layer     | Stack |
 |-----------|-------|
-| Frontend  | React 19, React Router 7, Vite. Plain CSS design system, responsive, accessible |
-| Backend   | Node.js 22 and Express REST API, JWT auth, bcrypt, zod validation, helmet, rate limiting |
-| Database  | SQLite through Node's built-in `node:sqlite` (no native builds). The schema works on PostgreSQL too |
+| Frontend  | React 19, React Router 7, Vite. Plain CSS design system, responsive and accessible |
+| Backend   | Node.js 22 and Express. JWT auth, bcrypt, zod validation, helmet (CSP), compression, rate limiting |
+| Database  | SQLite through Node's built-in `node:sqlite`. Automatic column migrations; portable to PostgreSQL |
+| Payments  | PayFast (card, instant EFT, SnapScan, Zapper) and Ozow (instant EFT), both verified server-side |
+| SEO       | Server-rendered meta and JSON-LD, pre-rendered page content, sitemap, robots.txt, llms.txt, RSS |
 
-## What's inside
+## Features
 
-**Public site**
-- **Header**: announcement bar, logo, Services mega-menu (all 14 services), Pricing, Specialists, About, Contact, sign-in and CTA buttons, mobile menu.
-- **Hero**: headline, two CTAs, live stats from the API (services, tiers, specialists) and an animated "NEXUS" orbit of agents.
-- **Footer**: CTA band, newsletter sign-up (saved to the database), service and company links, contact details, legal links.
-- **Home page**: services grid, three-tier explainer, process steps, featured specialists, testimonials, FAQ.
-- **Service pages**: description, outcomes, the **3 tier cards**, a feature comparison table, and the specialists who staff the service.
-- **Pricing**: all 42 packages, filterable by service.
-- **Specialists**: searchable directory of the 162 agents, imported from the markdown files in this repo. Each has a full profile page.
-- **Contact / consultation form**: creates a lead in the CRM.
+### Public website
+- **Header**: announcement bar, services mega-menu, Pricing, Specialists, Blog, About, Contact.
+- **Hero**: written for the SA market, with live stats and a "from R…" price.
+- **Footer**: social icons, newsletter, contact details, payment badges, legal links, CIPC and VAT numbers.
+- **Floating WhatsApp button** on every public page.
+- **Services**: 14 lines × 3 tiers in rand. Each service page has a comparison table, specialists, client reviews and question-led FAQs ("How much does X cost in South Africa?").
+- **About us**: story, operating model, values, sectors served, reviews and FAQ, with AboutPage and FAQPage structured data.
+- **Contact**: WhatsApp, email, phone and hours cards. The strategy-session form captures province, budget and preferred channel, and requires POPIA consent.
+- **Testimonials**: approved reviews with an average rating and service filter. Clients can submit a review, which waits for moderation.
+- **Blog**: categories, search, featured article, reading time, share buttons (WhatsApp, LinkedIn, Facebook, X), related posts and RSS. It ships with 6 starter guides for SA founders.
+- **Legal**: Privacy policy (POPIA) and Terms of service pages.
 
-**Client portal** (`/portal`)
-- Register or sign in, choose a tier, submit a brief, and the order is placed.
-- Placing an order creates milestones and an invoice automatically: a 50% deposit for projects, or the first month for retainers.
-- Pay invoices (simulated checkout), follow progress and milestones, and message the agency team.
+### Client portal
+- Register, choose a tier and submit a brief. The order then gets milestones and an invoice automatically.
+- **Pay invoices online** with PayFast or Ozow. The return page waits for the gateway's confirmation before showing the result.
+- Track progress, see payment history and message the team.
+- **VAT support**: when the business is VAT registered, invoices show subtotal, VAT and total.
 
-**Admin and operations dashboard** (`/admin`, for staff and admins)
-- **Overview**: revenue collected, amount outstanding, overdue invoices, active engagements, new leads, pipeline value by service and by tier.
-- **Engagements**: filter by status. Each engagement has staff controls to change status and due date, tick off milestones (progress updates automatically) and issue invoices.
-- **Leads**: a small CRM pipeline (new → contacted → qualified → won/lost).
-- **Users**: clients with their lifetime value. Admins can change roles (client, staff, admin).
-- **Invoices**: mark invoices paid, unpaid or void, and see which are overdue.
-- **Catalog**: edit tier name, price, delivery time, features and the "most popular" flag.
+### Command Centre (`/admin`, for staff and admins)
 
-## Services and tiers
+| Section | What you can monitor and manage |
+|---|---|
+| **Overview** | Live KPIs: 30-day revenue, outstanding and overdue invoices, active engagements, leads and win rate, payments, ratings. Also a revenue chart, pipeline by service and tier, a live activity feed and configuration alerts |
+| **System & processes** | Uptime, memory, API request rates and p95 latency, busiest routes and recent errors. PayFast and Ozow status with notify URLs, database table sizes, config checks, and **background jobs** you can run or pause (expire abandoned payments, overdue invoice watch, daily database backup, log retention) |
+| **Activity log** | Searchable audit trail: orders, payments, rejected gateway notifications, sign-ins and failed sign-ins, admin changes, exports |
+| **Payments** | Every transaction, its raw gateway notification and manual reconciliation (with an audit note). CSV export |
+| **Engagements / Leads / Users / Invoices** | Order pipeline, CRM with WhatsApp/call/email shortcuts, role management, invoice status. CSV exports |
+| **Blog** | Markdown editor with preview, Google result preview and an SEO/AEO checklist; draft or publish |
+| **Testimonials** | Approve, reject, feature or delete reviews |
+| **Services & pricing** | Turn service lines on or off; edit tier prices, scope and features |
+| **Subscribers** | Newsletter list (remove on request for POPIA), CSV export |
+| **SEO, AEO & GEO** | Readiness score, per-page title, description and schema audit, links to crawler files |
+| **Settings** | Business details (kept consistent with Google Business Profile), WhatsApp, social profiles, VAT, payment gateway toggles, pause orders, announcement bar |
 
-Every service has **Essential**, **Growth** (marked most popular) and **Enterprise** tiers. They are defined in [`server/src/catalog.js`](server/src/catalog.js) and can be edited from the admin catalog.
+## Payments: PayFast & Ozow
 
-| Service | Agent division | Essential | Growth | Enterprise |
-|---|---|---|---|---|
-| ⚙️ Software Engineering | engineering | $2,500 | $8,500 | $24,000/mo |
-| 🎨 Design & Brand | design | $1,500 | $4,800 | $12,000/mo |
-| 📣 Growth Marketing | marketing | $1,200/mo | $3,900/mo | $9,500/mo |
-| 💰 Paid Media | paid-media | $900/mo | $2,800/mo | $7,500/mo |
-| 🤝 Sales Enablement | sales | $1,800 | $4,500/mo | $11,000/mo |
-| 📊 Product Management | product | $2,000 | $5,200 | $10,500/mo |
-| 🎬 Project Management | project-management | $1,400 | $3,600/mo | $8,800/mo |
-| 🧪 Quality Assurance | testing | $1,100 | $3,400 | $7,800/mo |
-| 🛟 Business Operations | support | $800/mo | $2,600/mo | $6,900/mo |
-| 🎮 Game Development | game-development | $3,000 | $12,000 | $28,000/mo |
-| 🥽 Spatial Computing & XR | spatial-computing | $3,500 | $14,000 | $30,000/mo |
-| 📚 Research & Insights | academic | $1,000 | $3,200 | $7,000/mo |
-| 🎯 Specialist Solutions | specialized | $2,200 | $7,500 | $16,000/mo |
-| 🧭 Strategy & Orchestration | strategy (NEXUS) | $2,800 | $9,000 | $22,000/mo |
+| | PayFast | Ozow |
+|---|---|---|
+| Checkout | Signed form POST (MD5 signature with passphrase) | Form POST with SHA-512 `HashCheck` |
+| Confirmation | ITN at `/api/payments/payfast/notify`. Checks signature, merchant ID and amount; validates remotely with PayFast; optional source-IP check | Notification at `/api/payments/ozow/notify`. Checks hash, site code and amount; rejects test transactions in live mode; optional API status double-check |
+| Customer return | `/api/payments/return` redirects to `/payment/return`, which polls for the confirmed status | Same |
+
+Invoices are marked paid **only** after a verified server-to-server notification, never because the customer was redirected back. Each step is idempotent and written to the activity log.
+
+**Testing locally**
+- With no credentials set, PayFast uses its shared public sandbox account. Checkout works (verified against the real sandbox), but that account's passphrase is not published, so its notifications cannot be verified. Create your own free sandbox account at sandbox.payfast.co.za, set `PAYFAST_MERCHANT_ID`, `PAYFAST_MERCHANT_KEY` and `PAYFAST_PASSPHRASE`, and point `PAYMENTS_NOTIFY_URL` at a public tunnel to test the full loop.
+- Outside production there is also a **Test payment** option that simulates a gateway.
+- For production, set `PAYMENTS_MODE=live` with live credentials.
+
+## SEO, AEO & GEO
+
+- **Server-side rendering of the head** for every public URL: title, description, canonical, hreflang `en-ZA`, Open Graph, Twitter card, geo tags and robots rules (portal, admin and checkout are `noindex`). Unknown URLs return a real 404.
+- **Pre-rendered content** inside `#root`, so crawlers and AI bots that don't run JavaScript still read headings, prices, FAQs and full articles.
+- **JSON-LD**:
+  - Organization and ProfessionalService (address, area served: South Africa, price range in ZAR, payment methods, `sameAs` social profiles)
+  - WebSite and BreadcrumbList
+  - Service with ZAR Offers (monthly unit pricing)
+  - FAQPage
+  - Blog and BlogPosting
+  - AboutPage and ContactPage
+  - Review
+- **AEO**: question-led FAQs with direct answers on the home page and every service page. Articles open with a "Quick answer" section.
+- **GEO**:
+  - `robots.txt` explicitly welcomes GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended and others.
+  - `/llms.txt` and `/llms-full.txt` give AI assistants a factual summary of services, prices, FAQs and articles.
+- `/sitemap.xml` (about 190 URLs), `/blog/rss.xml`, a 1200×630 social image, a web manifest, and an SEO audit in the Command Centre.
 
 ## Quick start
 
@@ -64,28 +89,31 @@ npm run install:all
 npm run dev          # API on :4000 and web app on http://localhost:5173
 ```
 
-On first start the database is created and seeded. It loads the service catalog and imports every agent in the repo.
+For the full server-rendered SEO experience locally, build and serve from Express:
+
+```bash
+npm run build && SITE_URL=http://localhost:4000 npm start   # http://localhost:4000
+```
 
 | Account | Email | Password |
 |---|---|---|
-| Admin | `admin@hipcastle.agency` | `ChangeMe123!` (set `ADMIN_PASSWORD` to override) |
+| Admin | `admin@hipcastle.co.za` | `ChangeMe123!` (set `ADMIN_PASSWORD` to override; the Command Centre warns until it is changed) |
 | Demo client | `client@example.com` | `Client123!` |
+
+On every boot the app imports agents and inserts any missing catalog entries. Prices edited in the Command Centre are kept. To reset copy and prices from `server/src/catalog.js`, run:
+
+```bash
+npm run seed -- --sync-catalog
+```
 
 ### Production
 
 ```bash
-npm run build        # builds the client into client/dist
-JWT_SECRET=... ADMIN_PASSWORD=... SEED_DEMO=false npm start   # Express serves both the API and the SPA on :4000
+docker build -f webapp/Dockerfile -t hipcastle .      # from the repository root
+docker run -p 4000:4000 -v hipcastle-data:/data --env-file webapp/.env hipcastle
 ```
 
-Or use Docker. Build from the repository root so the agent files are included:
-
-```bash
-docker build -f webapp/Dockerfile -t hipcastle .
-docker run -p 4000:4000 -v hipcastle-data:/data -e JWT_SECRET=... -e ADMIN_PASSWORD=... hipcastle
-```
-
-See [`.env.example`](.env.example) for all settings. `npm run seed` re-syncs the catalog and agents at any time. It is safe to run more than once.
+See [`.env.example`](.env.example) for every setting.
 
 ### Tests
 
@@ -93,7 +121,16 @@ See [`.env.example`](.env.example) for all settings. `npm run seed` re-syncs the
 npm test
 ```
 
-API integration tests use an in-memory database. They cover the catalog (3 tiers per service), agent import, lead capture, the full client journey (register → order → pay → message), access control between clients and staff, and staff operations.
+There are 11 API integration test groups, run against an in-memory database. They cover:
+- 3 rand tiers per service
+- FAQs and reviews on service pages
+- Lead consent and testimonial moderation
+- PayFast signature encoding
+- A full journey with VAT, a **signed PayFast ITN** (tampered signature rejected) and a **hashed Ozow notification** (bad hash rejected)
+- The simulated gateway
+- Client isolation
+- The Command Centre: system, events, settings, pause orders, jobs, CSV export, blog, SEO audit
+- Sitemap, robots.txt, llms.txt and RSS
 
 ## Database schema
 
@@ -102,29 +139,20 @@ Defined in [`server/src/schema.sql`](server/src/schema.sql):
 ```
 users ─┬─< orders >── service_tiers >── services >─< service_agents >─< agents
        │     ├─< milestones
-       │     ├─< invoices
-       │     └─< messages >── users
-leads >── services     testimonials     newsletter_subscribers
+       │     ├─< invoices ─< payments          (PayFast / Ozow attempts)
+       │     └─< messages
+leads >── services     testimonials >── services     posts     settings     events (audit log)     newsletter_subscribers
 ```
 
-## API overview
+## Before launch checklist
 
-| Method | Path | Access |
-|---|---|---|
-| GET | `/api/services[?include=tiers]`, `/api/services/:slug` | public |
-| GET | `/api/agents[?q=&service=]`, `/api/agents/:slug` | public |
-| GET | `/api/stats`, `/api/testimonials` | public |
-| POST | `/api/leads`, `/api/newsletter` | public |
-| POST | `/api/auth/register`, `/api/auth/login` · GET/PATCH `/api/auth/me` | public / user |
-| GET/POST | `/api/orders` · GET `/api/orders/:id` | owner or staff |
-| POST | `/api/orders/:id/messages`, `/cancel`, `/invoices/:invId/pay` | owner or staff |
-| PATCH | `/api/orders/:id`, `/api/orders/:id/milestones/:mid` · POST `/api/orders/:id/invoices` | staff |
-| GET/PATCH | `/api/admin/overview`, `/leads`, `/users`, `/invoices`, `/tiers/:id`, `/staff` | staff (role and tier edits: admin only) |
-
-## Going live checklist
-
-- Set a strong `JWT_SECRET` and `ADMIN_PASSWORD`, and set `SEED_DEMO=false`.
-- Replace the simulated payment in `routes/orders.js` (`/invoices/:id/pay`) with Stripe, PayFast or Paystack checkout plus a webhook.
-- Add transactional email (order confirmation, new-lead alerts), for example Resend or SendGrid.
-- To change currency, set `VITE_CURRENCY` (for example `ZAR`) and adjust the prices in `catalog.js`.
-- For multi-instance hosting, move to PostgreSQL. The schema only needs `AUTOINCREMENT` changed to `GENERATED ALWAYS AS IDENTITY` and `datetime('now')` changed to `now()`.
+- [ ] Set `JWT_SECRET`, `SITE_URL` and `ADMIN_PASSWORD`, and set `SEED_DEMO=false`.
+- [ ] Add live PayFast and Ozow credentials, then set `PAYMENTS_MODE=live`. Run one small live payment end to end.
+- [ ] In **Command Centre → Settings**:
+  - [ ] Real phone, WhatsApp, street address, CIPC and VAT numbers.
+  - [ ] Social profile URLs.
+  - [ ] VAT registration status.
+- [ ] Replace the four sample testimonials with real client reviews.
+- [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.
+- [ ] Create a Google Business Profile with the same name, address and phone, and submit `/sitemap.xml` in Google Search Console.
+- [ ] Back up `data/` regularly; a daily snapshot is also written to `data/backups`.

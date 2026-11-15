@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS leads (
   phone       TEXT,
   service_id  INTEGER REFERENCES services(id) ON DELETE SET NULL,
   budget      TEXT,
+  province    TEXT,
+  preferred_contact TEXT,
+  source      TEXT,
   message     TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','qualified','won','lost')),
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -104,7 +107,10 @@ CREATE TABLE IF NOT EXISTS invoices (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   number       TEXT    NOT NULL UNIQUE,
   order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  amount_cents INTEGER NOT NULL,
+  subtotal_cents INTEGER NOT NULL DEFAULT 0,      -- excl. VAT
+  vat_cents      INTEGER NOT NULL DEFAULT 0,
+  amount_cents   INTEGER NOT NULL,                -- total payable (incl. VAT)
+  description    TEXT,
   status       TEXT    NOT NULL DEFAULT 'unpaid' CHECK (status IN ('unpaid','paid','void')),
   issued_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   due_at       TEXT    NOT NULL,
@@ -121,11 +127,75 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE TABLE IF NOT EXISTS testimonials (
-  id       INTEGER PRIMARY KEY AUTOINCREMENT,
-  author   TEXT NOT NULL,
-  role     TEXT NOT NULL,
-  quote    TEXT NOT NULL,
-  rating   INTEGER NOT NULL DEFAULT 5 CHECK (rating BETWEEN 1 AND 5)
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  author     TEXT NOT NULL,
+  role       TEXT NOT NULL,
+  quote      TEXT NOT NULL,
+  rating     INTEGER NOT NULL DEFAULT 5 CHECK (rating BETWEEN 1 AND 5),
+  company    TEXT,
+  location   TEXT,
+  service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  email      TEXT,
+  status     TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending','approved','rejected')),
+  is_featured INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT
+);
+
+-- Online payment attempts through PayFast / Ozow (one invoice can have many attempts)
+CREATE TABLE IF NOT EXISTS payments (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  reference      TEXT    NOT NULL UNIQUE,         -- our m_payment_id / TransactionReference
+  invoice_id     INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  gateway        TEXT    NOT NULL CHECK (gateway IN ('payfast','ozow','simulated','manual')),
+  amount_cents   INTEGER NOT NULL,
+  status         TEXT    NOT NULL DEFAULT 'initiated'
+                 CHECK (status IN ('initiated','pending','complete','failed','cancelled','abandoned')),
+  gateway_txn_id TEXT,
+  status_message TEXT,
+  is_test        INTEGER NOT NULL DEFAULT 1,
+  raw_notify     TEXT,                              -- last notification payload (JSON)
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Key/value business settings, managed from the Command Centre
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,                         -- JSON encoded
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Audit / activity log for every important system event
+CREATE TABLE IF NOT EXISTS events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  type       TEXT NOT NULL,                         -- e.g. order.created, payment.complete
+  level      TEXT NOT NULL DEFAULT 'info' CHECK (level IN ('info','warn','error')),
+  message    TEXT NOT NULL,
+  actor_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ref        TEXT,
+  meta       TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Blog / insights
+CREATE TABLE IF NOT EXISTS posts (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug             TEXT NOT NULL UNIQUE,
+  title            TEXT NOT NULL,
+  excerpt          TEXT NOT NULL,
+  body             TEXT NOT NULL,                   -- Markdown
+  category         TEXT NOT NULL DEFAULT 'Insights',
+  tags             TEXT NOT NULL DEFAULT '[]',
+  cover_emoji      TEXT NOT NULL DEFAULT '📝',
+  author           TEXT NOT NULL DEFAULT 'Hipcastle Team',
+  meta_title       TEXT,
+  meta_description TEXT,
+  status           TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  published_at     TEXT,
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  views            INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
@@ -141,3 +211,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_messages_order  ON messages(order_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_order  ON invoices(order_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status    ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status  ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_events_created   ON events(created_at);
+CREATE INDEX IF NOT EXISTS idx_events_type      ON events(type);
+CREATE INDEX IF NOT EXISTS idx_posts_status     ON posts(status, published_at);

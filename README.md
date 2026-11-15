@@ -11,7 +11,7 @@
 
 ## 🏰 Hipcastle Agency Web App
 
-This repository also contains a **full-stack services agency web app** in [`webapp/`](webapp/). It has a React frontend, an Express API and a SQLite database. The app turns every agent division into a service line with **three tiers** (Essential, Growth, Enterprise), and adds a client portal and an operations dashboard. See [`webapp/README.md`](webapp/README.md).
+This repository also contains a **full-stack services agency web app** for South African entrepreneurs, in [`webapp/`](webapp/). It has a React frontend, an Express API and a SQLite database. Every agent division becomes a service line with **three rand-priced tiers**. Clients pay through **PayFast and Ozow**, the site is built for SEO, AEO and GEO, and staff use a back-office **Command Centre**. See [`webapp/README.md`](webapp/README.md).
 
 ---
 

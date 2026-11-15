@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db, row } from '../db.js';
 import { body, z } from '../validate.js';
 import { authenticate, publicUser, signToken } from '../auth.js';
+import { logEvent } from '../events.js';
 
 const r = Router();
 const password = z.string().min(8, 'Password must be at least 8 characters').max(200);
@@ -21,12 +22,14 @@ r.post('/register', body(z.object({
   }
   const user = row(db.prepare(`INSERT INTO users (name, email, password_hash, company, phone)
     VALUES (?, ?, ?, ?, ?) RETURNING *`).get(name, lower, bcrypt.hashSync(req.body.password, 10), company, phone));
+  logEvent('user.registered', `New client account: ${user.name}${company ? ` (${company})` : ''}`, { actor: user.id });
   res.status(201).json({ token: signToken(user), user: publicUser(user) });
 });
 
 r.post('/login', body(z.object({ email: z.string().trim().email(), password: z.string().min(1) })), (req, res) => {
   const user = row(db.prepare('SELECT * FROM users WHERE email = ?').get(req.body.email.toLowerCase()));
   if (!user || !bcrypt.compareSync(req.body.password, user.password_hash)) {
+    logEvent('auth.failed', `Failed sign-in for ${req.body.email.toLowerCase()}`, { level: 'warn', meta: { ip: req.ip } });
     return res.status(401).json({ error: 'Incorrect email or password' });
   }
   res.json({ token: signToken(user), user: publicUser(user) });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ErrorBox, Loader, PageHeader } from '../components/ui.jsx';
 import { useFetch } from '../useFetch.js';
+import Seo from '../components/Seo.jsx';
 
 export default function Agents() {
   const [params, setParams] = useSearchParams();
@@ -15,6 +16,7 @@ export default function Agents() {
 
   return (
     <>
+      <Seo title="Specialist AI Agents" description="Meet the 160+ specialist AI agents behind Hipcastle — engineers, designers, marketers, sales and operations experts, each with a defined mission." />
       <PageHeader eyebrow="Specialists" title="Meet the Hipcastle bench">
         <p>Every specialist has a defined identity, mission, workflow and success metrics. Search the roster or filter by service line.</p>
       </PageHeader>

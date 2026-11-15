@@ -3,6 +3,7 @@ import Markdown from '../components/Markdown.jsx';
 import { ErrorBox, Loader } from '../components/ui.jsx';
 import { useFetch } from '../useFetch.js';
 import NotFound from './NotFound.jsx';
+import Seo, { breadcrumbSchema } from '../components/Seo.jsx';
 
 export default function AgentDetail() {
   const { slug } = useParams();
@@ -12,6 +13,7 @@ export default function AgentDetail() {
   if (error) return <div className="container section"><ErrorBox error={error} /></div>;
   return (
     <>
+      <Seo title={`${a.name} — Specialist`} description={(a.description || '').slice(0, 160)} schema={[breadcrumbSchema([{ name: 'Specialists', path: '/agents' }, { name: a.name, path: `/agents/${a.slug}` }])]} />
       <section className="page-header">
         <div className="container">
           <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/agents">Specialists</Link> / <span>{a.name}</span></nav>

@@ -3,15 +3,22 @@ import { Link } from 'react-router-dom';
 import TierCard from '../components/TierCard.jsx';
 import { ErrorBox, Loader, PageHeader } from '../components/ui.jsx';
 import { useFetch } from '../useFetch.js';
+import Seo, { breadcrumbSchema } from '../components/Seo.jsx';
+import { useSite } from '../context/SiteContext.jsx';
+import { PaymentBadges } from '../components/icons.jsx';
 
 export default function Pricing() {
   const { data, error, loading } = useFetch('/services?include=tiers');
+  const site = useSite();
   const [active, setActive] = useState('all');
   const shown = data?.filter((s) => active === 'all' || s.slug === active) ?? [];
   return (
     <>
-      <PageHeader eyebrow="Pricing" title="Transparent pricing, three tiers per service">
-        <p>Projects require a 50% deposit; retainers are billed monthly. No hidden fees, cancel retainers with 30 days’ notice.</p>
+      <Seo title="Agency Pricing in Rand — 42 Fixed-Price Packages" description="Transparent agency pricing for South African businesses: Essential, Growth and Enterprise packages for every service, priced in rand. Pay by card or instant EFT."
+        schema={[breadcrumbSchema([{ name: 'Pricing', path: '/pricing' }])]} />
+      <PageHeader eyebrow="Pricing" title="Transparent rand pricing, three tiers per service">
+        <p>All prices in South African rand{site.vat_registered ? `, excluding ${site.vat_rate}% VAT` : ''}. Projects: 50% deposit, balance on delivery. Retainers: billed monthly, cancel with 30 days’ notice. No hidden fees.</p>
+        <div className="mt"><PaymentBadges /></div>
       </PageHeader>
       <section className="section">
         <div className="container">

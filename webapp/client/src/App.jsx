@@ -16,7 +16,14 @@ import Checkout from './pages/Checkout.jsx';
 import Portal from './pages/Portal.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
 import Account from './pages/Account.jsx';
-import Admin from './pages/Admin.jsx';
+import CommandCentre from './pages/admin/CommandCentre.jsx';
+import Testimonials from './pages/Testimonials.jsx';
+import Blog from './pages/Blog.jsx';
+import BlogPost from './pages/BlogPost.jsx';
+import { Privacy, Terms } from './pages/Legal.jsx';
+import PaymentReturn from './pages/PaymentReturn.jsx';
+import PaymentSimulate from './pages/PaymentSimulate.jsx';
+import WhatsAppButton from './components/WhatsAppButton.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 function RequireAuth({ children, staff = false }) {
@@ -46,17 +53,25 @@ export default function App() {
           <Route path="/agents/:slug" element={<AgentDetail />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/testimonials" element={<Testimonials />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/payment/return" element={<RequireAuth><PaymentReturn /></RequireAuth>} />
+          <Route path="/payment/simulate" element={<RequireAuth><PaymentSimulate /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/checkout/:tierId" element={<RequireAuth><Checkout /></RequireAuth>} />
           <Route path="/portal" element={<RequireAuth><Portal /></RequireAuth>} />
           <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
-          <Route path="/admin/*" element={<RequireAuth staff><Admin /></RequireAuth>} />
+          <Route path="/admin/*" element={<RequireAuth staff><CommandCentre /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
+      {!pathname.startsWith('/admin') && <Footer />}
+      <WhatsAppButton />
     </div>
   );
 }

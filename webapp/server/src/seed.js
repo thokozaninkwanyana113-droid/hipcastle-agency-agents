@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { db, tx } from './db.js';
 import { catalog, testimonials } from './catalog.js';
+import { seedPosts } from './posts-seed.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(here, '../../..');
@@ -55,20 +56,27 @@ export function loadAgents() {
   return agents;
 }
 
-export function seed({ demo = true, log = console.log } = {}) {
+/**
+ * @param {object} opts
+ * @param {boolean} opts.demo         create the demo client + engagement
+ * @param {boolean} opts.syncCatalog  overwrite service copy and tier prices from catalog.js
+ *                                    (otherwise only missing services/tiers are inserted, so
+ *                                    edits made in the Command Centre survive restarts)
+ */
+export function seed({ demo = true, syncCatalog = false, log = console.log } = {}) {
   tx(() => {
     const upsertService = db.prepare(`
       INSERT INTO services (slug, name, icon, tagline, description, outcomes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(slug) DO UPDATE SET name=excluded.name, icon=excluded.icon, tagline=excluded.tagline,
-        description=excluded.description, outcomes=excluded.outcomes, sort_order=excluded.sort_order
-      RETURNING id`);
+      ON CONFLICT(slug) DO ${syncCatalog ? `UPDATE SET name=excluded.name, icon=excluded.icon, tagline=excluded.tagline,
+        description=excluded.description, outcomes=excluded.outcomes, sort_order=excluded.sort_order` : 'NOTHING'}`);
+    const serviceId = db.prepare('SELECT id FROM services WHERE slug = ?');
     const upsertTier = db.prepare(`
       INSERT INTO service_tiers (service_id, tier, name, price_cents, billing, delivery_days, summary, features, is_popular)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(service_id, tier) DO UPDATE SET name=excluded.name, price_cents=excluded.price_cents,
+      ON CONFLICT(service_id, tier) DO ${syncCatalog ? `UPDATE SET name=excluded.name, price_cents=excluded.price_cents,
         billing=excluded.billing, delivery_days=excluded.delivery_days, summary=excluded.summary,
-        features=excluded.features, is_popular=excluded.is_popular`);
+        features=excluded.features, is_popular=excluded.is_popular` : 'NOTHING'}`);
     const upsertAgent = db.prepare(`
       INSERT INTO agents (slug, name, division, emoji, color, description, vibe, source_path)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -85,7 +93,8 @@ export function seed({ demo = true, log = console.log } = {}) {
 
     const tierKeys = ['essential', 'growth', 'enterprise'];
     catalog.forEach((s, i) => {
-      const { id } = upsertService.get(s.slug, s.name, s.icon, s.tagline, s.description, JSON.stringify(s.outcomes), i);
+      upsertService.run(s.slug, s.name, s.icon, s.tagline, s.description, JSON.stringify(s.outcomes), i);
+      const { id } = serviceId.get(s.slug);
       s.tiers.forEach((t, j) =>
         upsertTier.run(id, tierKeys[j], t.name, t.price_cents, t.billing, t.delivery_days, t.summary, JSON.stringify(t.features), t.is_popular ? 1 : 0));
       for (const a of agents) if (s.divisions.includes(a.division)) link.run(id, agentIds.get(a.slug));
@@ -93,11 +102,17 @@ export function seed({ demo = true, log = console.log } = {}) {
     });
 
     if (db.prepare('SELECT COUNT(*) n FROM testimonials').get().n === 0) {
-      const ins = db.prepare('INSERT INTO testimonials (author, role, quote, rating) VALUES (?, ?, ?, ?)');
-      for (const t of testimonials) ins.run(t.author, t.role, t.quote, t.rating);
+      const ins = db.prepare(`INSERT INTO testimonials (author, role, company, location, service_id, quote, rating, status, is_featured, created_at)
+        VALUES (?, ?, ?, ?, (SELECT id FROM services WHERE slug = ?), ?, ?, 'approved', ?, datetime('now'))`);
+      for (const t of testimonials) ins.run(t.author, t.role, t.company, t.location, t.service, t.quote, t.rating, t.featured);
     }
 
-    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hipcastle.agency').toLowerCase();
+    // Blog: insert starter posts once (never overwrite edits made in the Command Centre).
+    const insPost = db.prepare(`INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, tags, cover_emoji, meta_title, meta_description, status, published_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', datetime('now', ?))`);
+    seedPosts.forEach((p, i) => insPost.run(p.slug, p.title, p.excerpt, p.body, p.category, JSON.stringify(p.tags), p.cover_emoji, p.meta_title || null, p.meta_description, `-${i * 4} days`));
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hipcastle.co.za').toLowerCase();
     if (!db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail)) {
       const pw = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
       db.prepare(`INSERT INTO users (name, email, password_hash, company, role) VALUES (?, ?, ?, 'Hipcastle Agency', 'admin')`)
@@ -107,7 +122,7 @@ export function seed({ demo = true, log = console.log } = {}) {
 
     if (demo && !db.prepare("SELECT id FROM users WHERE email = 'client@example.com'").get()) {
       const { id: uid } = db.prepare(`INSERT INTO users (name, email, password_hash, company, role)
-        VALUES ('Demo Client', 'client@example.com', ?, 'Acme Ltd', 'client') RETURNING id`).get(bcrypt.hashSync('Client123!', 10));
+        VALUES ('Demo Client', 'client@example.com', ?, 'Demo Trading (Pty) Ltd', 'client') RETURNING id`).get(bcrypt.hashSync('Client123!', 10));
       const tier = db.prepare(`SELECT st.* FROM service_tiers st JOIN services s ON s.id = st.service_id
         WHERE s.slug = 'engineering' AND st.tier = 'growth'`).get();
       const { id: oid } = db.prepare(`INSERT INTO orders (reference, user_id, tier_id, status, brief, price_cents, progress, due_date)
@@ -116,18 +131,19 @@ export function seed({ demo = true, log = console.log } = {}) {
       const ms = db.prepare('INSERT INTO milestones (order_id, title, position, is_done, done_at) VALUES (?, ?, ?, ?, ?)');
       ['Kick-off & discovery', 'Architecture & design', 'Build sprint 1', 'Build sprint 2', 'QA & launch']
         .forEach((title, i) => ms.run(oid, title, i, i < 2 ? 1 : 0, i < 2 ? new Date().toISOString() : null));
-      db.prepare(`INSERT INTO invoices (number, order_id, amount_cents, status, due_at, paid_at)
-        VALUES ('INV-DEMO01', ?, ?, 'paid', date('now'), datetime('now'))`).run(oid, tier.price_cents / 2);
-      db.prepare(`INSERT INTO invoices (number, order_id, amount_cents, status, due_at)
-        VALUES ('INV-DEMO02', ?, ?, 'unpaid', date('now', '+30 days'))`).run(oid, tier.price_cents / 2);
+      const half = tier.price_cents / 2;
+      db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, status, due_at, paid_at)
+        VALUES ('INV-DEMO01', ?, ?, 0, ?, 'Deposit (50%)', 'paid', date('now'), datetime('now'))`).run(oid, half, half);
+      db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, status, due_at)
+        VALUES ('INV-DEMO02', ?, ?, 0, ?, 'Balance on delivery (50%)', 'unpaid', date('now', '+30 days'))`).run(oid, half, half);
       db.prepare('INSERT INTO messages (order_id, author_id, body) VALUES (?, ?, ?)')
         .run(oid, uid, 'Excited to get started — please share the discovery agenda.');
       log('Created demo client client@example.com / Client123!');
     }
-    log(`Seeded ${catalog.length} services (${catalog.length * 3} tiers) and ${agents.length} agents.`);
+    log(`Catalog: ${catalog.length} services (${catalog.length * 3} tiers)${syncCatalog ? ' synced from catalog.js' : ''}; ${agents.length} agents imported.`);
   });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  seed({ demo: !process.argv.includes('--no-demo') });
+  seed({ demo: !process.argv.includes('--no-demo'), syncCatalog: process.argv.includes('--sync-catalog') });
 }

@@ -1,15 +1,22 @@
 // Minimal, safe Markdown renderer for agent profiles (no raw HTML is ever injected).
 import { Fragment } from 'react';
+import { Link } from 'react-router-dom';
 
 function inline(text, key = 0) {
   const parts = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
   let last = 0, m;
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     const t = m[0];
     if (t.startsWith('**')) parts.push(<strong key={`${key}-${m.index}`}>{t.slice(2, -2)}</strong>);
     else if (t.startsWith('`')) parts.push(<code key={`${key}-${m.index}`}>{t.slice(1, -1)}</code>);
+    else if (t.startsWith('[')) {
+      const [, label, href] = t.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+      if (href.startsWith('/')) parts.push(<Link key={`${key}-${m.index}`} to={href}>{label}</Link>);
+      else if (/^https?:\/\//.test(href)) parts.push(<a key={`${key}-${m.index}`} href={href} target="_blank" rel="noopener noreferrer">{label}</a>);
+      else parts.push(label);
+    }
     else parts.push(<em key={`${key}-${m.index}`}>{t.slice(1, -1)}</em>);
     last = m.index + t.length;
   }
@@ -33,7 +40,7 @@ export default function Markdown({ source }) {
     }
     const h = line.match(/^(#{1,4})\s+(.*)/);
     if (h) {
-      const Tag = `h${Math.min(h[1].length + 1, 5)}`;
+      const Tag = `h${Math.min(Math.max(h[1].length, 2), 5)}`;
       out.push(<Tag key={i}>{inline(h[2], i)}</Tag>);
       i++;
       continue;

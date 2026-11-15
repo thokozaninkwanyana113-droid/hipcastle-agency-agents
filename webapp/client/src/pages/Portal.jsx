@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorBox, Loader, Progress, Status } from '../components/ui.jsx';
 import { date, money } from '../format.js';
 import { useFetch } from '../useFetch.js';
+import Seo from '../components/Seo.jsx';
 
 export default function Portal() {
   const { user, isStaff } = useAuth();
@@ -12,6 +13,7 @@ export default function Portal() {
 
   return (
     <section className="section portal">
+      <Seo title="Client portal" noindex />
       <div className="container">
         <div className="portal__head">
           <div>

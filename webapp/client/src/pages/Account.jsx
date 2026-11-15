@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field } from '../components/ui.jsx';
+import Seo from '../components/Seo.jsx';
 
 export default function Account() {
   const { user, setUser } = useAuth();
@@ -22,6 +23,7 @@ export default function Account() {
 
   return (
     <section className="auth">
+      <Seo title="Account settings" noindex />
       <form className="card auth__card form" onSubmit={submit}>
         <h1>Account settings</h1>
         <p className="muted">{user.email}</p>

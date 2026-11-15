@@ -3,9 +3,11 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useFetch } from '../useFetch.js';
+import { useSite } from '../context/SiteContext.jsx';
 
 export default function Header() {
   const { user, isStaff, logout } = useAuth();
+  const site = useSite();
   const { data: services } = useFetch('/services');
   const [open, setOpen] = useState(false);
   const [mega, setMega] = useState(false);
@@ -31,12 +33,14 @@ export default function Header() {
 
   return (
     <header className={`header ${scrolled ? 'header--scrolled' : ''}`}>
-      <div className="topbar">
-        <div className="container topbar__inner">
-          <span>🚀 Now booking Q1 engagements — free 30-minute strategy consultation.</span>
-          <Link to="/contact">Book a call →</Link>
+      {site.announcement && (
+        <div className="topbar">
+          <div className="container topbar__inner">
+            <span>{site.announcement}</span>
+            <Link to="/contact">Book a free session →</Link>
+          </div>
         </div>
-      </div>
+      )}
       <div className="container header__inner">
         <Logo />
         <button className="nav-toggle" aria-expanded={open} aria-controls="primary-nav" onClick={() => setOpen(!open)}>
@@ -58,7 +62,7 @@ export default function Header() {
                   ))}
                 </div>
                 <div className="mega__foot">
-                  <span>Every service comes in Essential, Growth & Enterprise tiers.</span>
+                  <span>Every service: Essential, Growth & Enterprise tiers, priced in rand.</span>
                   <Link to="/pricing">Compare all pricing →</Link>
                 </div>
               </div>
@@ -66,12 +70,13 @@ export default function Header() {
           </div>
           <NavLink to="/pricing" className="nav__link">Pricing</NavLink>
           <NavLink to="/agents" className="nav__link">Specialists</NavLink>
+          <NavLink to="/blog" className="nav__link">Blog</NavLink>
           <NavLink to="/about" className="nav__link">About</NavLink>
           <NavLink to="/contact" className="nav__link">Contact</NavLink>
           <div className="nav__actions">
             {user ? (
               <>
-                {isStaff && <NavLink to="/admin" className="nav__link">Admin</NavLink>}
+                {isStaff && <NavLink to="/admin" className="nav__link">Command Centre</NavLink>}
                 <NavLink to="/portal" className="btn btn--ghost btn--sm">My portal</NavLink>
                 <button className="btn btn--text btn--sm" onClick={() => { logout(); navigate('/'); }}>Sign out</button>
               </>
