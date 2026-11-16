@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   company       TEXT,
   phone         TEXT,
   role          TEXT    NOT NULL DEFAULT 'client' CHECK (role IN ('client','staff','admin')),
+  token_version INTEGER NOT NULL DEFAULT 0,             -- bump to sign out every session
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -204,6 +205,9 @@ CREATE TABLE IF NOT EXISTS payments (
   status_message TEXT,
   is_test        INTEGER NOT NULL DEFAULT 1,
   raw_notify     TEXT,                              -- last notification payload (JSON)
+  needs_refund   INTEGER NOT NULL DEFAULT 0,        -- duplicate payment on an already-paid invoice
+  refunded_at    TEXT,
+  refund_note    TEXT,
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -247,9 +251,12 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  email      TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  email           TEXT NOT NULL UNIQUE,
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active')),  -- double opt-in
+  confirmed_at    TEXT,
+  confirm_sent_at TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Outbound email queue (transactional + newsletter), processed with retries

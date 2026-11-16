@@ -16,9 +16,9 @@ export default function Agents() {
 
   return (
     <>
-      <Seo title="Specialist AI Agents" description="Meet the 160+ specialist AI agents behind Hipcastle — engineers, designers, marketers, sales and operations experts, each with a defined mission." />
-      <PageHeader eyebrow="Specialists" title="Meet the Hipcastle bench">
-        <p>Every specialist has a defined identity, mission, workflow and success metrics. Search the roster or filter by service line.</p>
+      <Seo title="Specialist AI Playbooks" description="Browse the 160+ specialist AI playbooks our team works with — engineering, design, marketing, sales and operations, each with a defined mission and quality bar." />
+      <PageHeader eyebrow="AI playbooks" title="Our specialist AI playbooks">
+        <p>Our team works with this library of specialist AI agent playbooks — open-source definitions of a role’s mission, workflow and quality bar — to deliver faster and more consistently. People own every engagement and review every deliverable. Search the library or filter by service line.</p>
       </PageHeader>
       <section className="section">
         <div className="container">

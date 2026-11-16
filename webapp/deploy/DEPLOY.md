@@ -58,7 +58,8 @@ The workflow [`.github/workflows/deploy-fly.yml`](../../.github/workflows/deploy
 2. Create an **org token**: either run `fly tokens create org personal`, or go to the Fly dashboard → **Tokens** → create an organisation token. A deploy token isn't enough for the first run, because the app has to be created.
 3. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
    - `FLY_API_TOKEN`: the org token
-   - `ADMIN_PASSWORD`: the password for `admin@hipcastle.agency`
+   - `ADMIN_PASSWORD`: the password for `admin@hipcastle.agency`, at least 10 characters (the server refuses to start in production without it)
+   - optional: `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` to turn on Cloudflare Turnstile bot protection
    - optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, PayFast and Ozow keys (they can be added later; just re-run the workflow)
 4. Go to **Actions → Deploy Hipcastle to Fly.io → Run workflow**.
 5. Open the finished run's **Summary** and add the DNS records it lists in GoDaddy. HTTPS starts working once DNS has propagated.

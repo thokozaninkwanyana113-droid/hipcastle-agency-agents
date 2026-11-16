@@ -119,7 +119,8 @@ export function seed({ demo = true, syncCatalog = false, log = console.log } = {
       for (const slug of s.agentSlugs || []) if (agentIds.has(slug)) link.run(id, agentIds.get(slug));
     });
 
-    if (db.prepare('SELECT COUNT(*) n FROM testimonials').get().n === 0) {
+    // Sample reviews are demo data only — never publish them on a live site.
+    if (demo && db.prepare('SELECT COUNT(*) n FROM testimonials').get().n === 0) {
       const ins = db.prepare(`INSERT INTO testimonials (author, role, company, location, service_id, quote, rating, status, is_featured, created_at)
         VALUES (?, ?, ?, ?, (SELECT id FROM services WHERE slug = ?), ?, ?, 'approved', ?, datetime('now'))`);
       for (const t of testimonials) ins.run(t.author, t.role, t.company, t.location, t.service, t.quote, t.rating, t.featured);
@@ -135,6 +136,12 @@ export function seed({ demo = true, syncCatalog = false, log = console.log } = {
 
     const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hipcastle.agency').toLowerCase();
     if (!db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail)) {
+      if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+        throw new Error('ADMIN_PASSWORD must be set in production to create the first admin account (refusing to use a default password).');
+      }
+      if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length < 10) {
+        throw new Error('ADMIN_PASSWORD must be at least 10 characters.');
+      }
       const pw = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
       db.prepare(`INSERT INTO users (name, email, password_hash, company, role) VALUES (?, ?, ?, 'Hipcastle Agency', 'admin')`)
         .run('Hipcastle Admin', adminEmail, bcrypt.hashSync(pw, 10));

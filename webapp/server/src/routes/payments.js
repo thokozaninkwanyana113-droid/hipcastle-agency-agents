@@ -19,12 +19,19 @@ r.get('/methods', (_req, res) => res.json(availableGateways()));
 r.post('/checkout', authenticate, body(z.object({
   invoice_id: z.number().int().positive(),
   gateway: z.enum(['payfast', 'ozow', 'simulated']),
+  force: z.boolean().optional(),
 })), (req, res) => {
   const inv = row(db.prepare(`SELECT i.*, o.user_id, o.reference AS order_ref, s.name AS service_name, st.name AS tier_name
     FROM invoices i JOIN orders o ON o.id = i.order_id JOIN service_tiers st ON st.id = o.tier_id
     JOIN services s ON s.id = st.service_id WHERE i.id = ?`).get(req.body.invoice_id));
   if (!inv || (inv.user_id !== req.user.id && !isStaff(req.user))) return res.status(404).json({ error: 'Invoice not found' });
   if (inv.status !== 'unpaid') return res.status(409).json({ error: `Invoice is already ${inv.status}` });
+  // Prevent double payments: refuse a new checkout while another one for this invoice may still complete.
+  const inFlight = db.prepare(`SELECT reference FROM payments WHERE invoice_id = ? AND status IN ('initiated','pending')
+    AND created_at > datetime('now','-30 minutes')`).get(inv.id);
+  if (inFlight && !req.body.force) {
+    return res.status(409).json({ error: 'A payment for this invoice was started in the last 30 minutes and may still be confirming. Please wait a few minutes, or cancel that attempt first.', code: 'payment_in_progress', reference: inFlight.reference });
+  }
   if (!availableGateways().some((g) => g.id === req.body.gateway)) {
     return res.status(400).json({ error: 'That payment method is not available right now' });
   }
@@ -59,13 +66,20 @@ r.post('/checkout', authenticate, body(z.object({
 
 // ---- Customer comes back from the gateway (GET or POST) ------------------------------
 // Never trust the redirect for payment status — only the server-to-server notification.
+// Read-only: this URL is public, so it never changes a payment. Status changes come only from
+// verified gateway notifications (or the signed-in customer cancelling their own attempt below).
 r.all('/return', express.urlencoded({ extended: false }), (req, res) => {
-  const ref = String(req.query.ref || req.body?.TransactionReference || '');
-  const status = String(req.query.status || '');
-  const p = ref && findPayment(ref);
-  if (p && p.status === 'initiated' && status === 'cancelled') applyPaymentStatus(p, 'cancelled', { message: 'Customer cancelled at gateway' });
-  else if (p && p.status === 'initiated') db.prepare("UPDATE payments SET status = 'pending', updated_at = datetime('now') WHERE id = ?").run(p.id);
-  res.redirect(303, `${siteUrl()}/payment/return?ref=${encodeURIComponent(ref)}`);
+  const ref = String(req.query.ref || req.body?.TransactionReference || '').slice(0, 64);
+  const status = ['cancelled', 'error'].includes(String(req.query.status)) ? String(req.query.status) : '';
+  res.redirect(303, `${siteUrl()}/payment/return?ref=${encodeURIComponent(ref)}${status ? `&gateway_status=${status}` : ''}`);
+});
+
+// The signed-in customer abandons their own unfinished checkout (e.g. after pressing Cancel at the gateway).
+r.post('/:ref/cancel', authenticate, (req, res) => {
+  const p = findPayment(req.params.ref);
+  if (!p || p.user_id !== req.user.id) return res.status(404).json({ error: 'Payment not found' });
+  if (p.status !== 'initiated') return res.status(409).json({ error: `This payment is ${p.status}` });
+  res.json(applyPaymentStatus(p, 'cancelled', { message: 'Cancelled by customer' }));
 });
 
 // ---- Payment status for the return page ---------------------------------------------

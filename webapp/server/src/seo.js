@@ -126,7 +126,7 @@ function offer(base, service, t) {
 // ---------------------------------------------------------------- snapshot HTML fragments
 const faqHtml = (faqs, heading = 'Frequently asked questions') =>
   `<section><h2>${esc(heading)}</h2>${faqs.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</section>`;
-const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">Specialists</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a></nav>`;
+const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">AI playbooks</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a></nav>`;
 const footer = (s) => `<footer><p><a href="${esc(siteUrl())}/">${esc(siteUrl().replace(/^https?:\/\//, ''))}</a> · ${esc(s.business_name)} — ${esc(s.tagline)}. ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa. Email ${esc(s.email)} · Phone ${esc(s.phone)} · ${esc(s.office_hours)}.</p><p>Secure payments by PayFast and Ozow. Prices in South African rand (ZAR).</p></footer>`;
 const tierList = (svc, tiers) => `<ul>${tiers.map((t) => `<li><strong>${esc(t.name)}</strong> — ${esc(rand(t.price_cents))} ${billingText(t.billing)}: ${esc(t.summary)} Includes ${esc(t.features.join(', '))}.</li>`).join('')}</ul>`;
 
@@ -202,31 +202,31 @@ export function resolvePage(pathname) {
   } else if (parts[0] === 'agents' && parts.length === 1) {
     const n = db.prepare('SELECT COUNT(*) n FROM agents').get().n;
     Object.assign(page, {
-      title: titled(`${n} Specialist AI Agents`),
-      description: `Meet the ${n} specialist AI agents behind ${brand}: engineers, designers, marketers, sales and operations experts with defined missions.`,
-      schema: [org, breadcrumbs(base, [{ name: 'Specialists', path: '/agents' }])],
-      body: `<h1>Our specialists</h1><ul>${rows(db.prepare('SELECT slug, name, description FROM agents ORDER BY name').all())
+      title: titled(`${n} Specialist AI Playbooks`),
+      description: `Browse the ${n} specialist AI playbooks the ${brand} team works with: engineering, design, marketing, sales and operations, each with a defined mission.`,
+      schema: [org, breadcrumbs(base, [{ name: 'AI playbooks', path: '/agents' }])],
+      body: `<h1>Our specialist AI playbooks</h1><ul>${rows(db.prepare('SELECT slug, name, description FROM agents ORDER BY name').all())
         .map((a) => `<li><a href="/agents/${a.slug}">${esc(a.name)}</a> — ${esc(a.description)}</li>`).join('')}</ul>`,
     });
   } else if (parts[0] === 'agents' && parts.length === 2) {
     const a = row(db.prepare('SELECT * FROM agents WHERE slug = ?').get(parts[1]));
     if (!a) return notFound(page, s);
     Object.assign(page, {
-      title: clip(titled(`${a.name} — Specialist`), 65),
+      title: clip(titled(`${a.name} — AI Playbook`), 65),
       description: clip(a.description || `${a.name} at ${brand}.`, 160),
-      schema: [org, breadcrumbs(base, [{ name: 'Specialists', path: '/agents' }, { name: a.name, path: `/agents/${a.slug}` }])],
+      schema: [org, breadcrumbs(base, [{ name: 'AI playbooks', path: '/agents' }, { name: a.name, path: `/agents/${a.slug}` }])],
       body: `<h1>${esc(a.name)}</h1><p>${esc(a.description)}</p>${a.vibe ? `<p>${esc(a.vibe)}</p>` : ''}`,
     });
   } else if (parts[0] === 'about') {
     Object.assign(page, {
       title: titled('About Us | South African Digital Agency'),
-      description: clip(`${brand} is a ${s.address_locality} digital agency pairing senior strategists with 160+ specialist AI agents to help SA entrepreneurs grow.`, 160),
+      description: clip(`${brand} is a ${s.address_locality} digital agency: a human-led team using 160+ specialist AI playbooks to help SA entrepreneurs grow.`, 160),
       schema: [org, breadcrumbs(base, [{ name: 'About us', path: '/about' }]), {
         '@context': 'https://schema.org', '@type': 'AboutPage', url: `${base}/about`, name: `About ${brand}`, mainEntity: { '@id': `${base}/#organization` }, inLanguage: 'en-ZA',
       }],
       body: `<h1>About ${esc(brand)}</h1><p>${esc(brand)} is a South African digital agency based in ${esc(s.address_locality)}, ${esc(s.address_region)}. We give entrepreneurs, SMEs and growing companies specialist teams — software engineers, designers, marketers, ad buyers, sales strategists and operators — packaged into transparent Essential, Growth and Enterprise tiers priced in rand.</p>
         <h2>Why we exist</h2><p>South African founders deserve world-class execution without big-agency retainers, vague quotes or waiting weeks for answers. We publish our prices, show every milestone in a client portal, and accept local payment methods.</p>
-        <h2>How we work</h2><p>Senior strategists orchestrate more than 160 specialist AI agents, each with a defined mission and quality bar, and review every deliverable before it reaches you.</p>${faqHtml(generalFaqs().slice(0, 4))}`,
+        <h2>How we work</h2><p>A human-led team owns every engagement and works with a library of more than 160 specialist AI playbooks, each with a defined mission and quality bar. Every deliverable is reviewed by a person before it reaches you.</p>${faqHtml(generalFaqs().slice(0, 4))}`,
     });
   } else if (parts[0] === 'contact') {
     Object.assign(page, {
@@ -402,7 +402,7 @@ export function llmsTxt({ full = false } = {}) {
     `- [About us](${base}/about): who we are and how we work`,
     `- [Client reviews](${base}/testimonials)`,
     `- [Contact](${base}/contact): free 30-minute strategy session`,
-    `- [Specialists](${base}/agents): the specialist AI agents behind our work`, '',
+    `- [AI playbooks](${base}/agents): the specialist AI playbooks our team works with`, '',
     '## Frequently asked questions', '');
   for (const f of generalFaqs()) lines.push(`- **${f.q}** ${f.a}`);
   lines.push('', '## Articles', '');

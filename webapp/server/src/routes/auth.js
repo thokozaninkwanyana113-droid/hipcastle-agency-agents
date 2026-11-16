@@ -2,7 +2,8 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { db, row } from '../db.js';
 import { body, z } from '../validate.js';
-import { authenticate, publicUser, signToken } from '../auth.js';
+import { authenticate, publicUser, revokeSessions, signToken } from '../auth.js';
+import { botCheck } from '../botcheck.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { logEvent } from '../events.js';
 import { onRegister } from '../email/notify.js';
@@ -12,7 +13,7 @@ import { canonicalUrl } from '../urls.js';
 const r = Router();
 const password = z.string().min(8, 'Password must be at least 8 characters').max(200);
 
-r.post('/register', body(z.object({
+r.post('/register', botCheck('register'), body(z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().max(200),
   password,
@@ -42,6 +43,13 @@ r.post('/login', body(z.object({ email: z.string().trim().email(), password: z.s
 
 r.get('/me', authenticate, (req, res) => res.json(publicUser(req.user)));
 
+// Sign out of every device (returns a fresh token for this one).
+r.post('/logout-all', authenticate, (req, res) => {
+  const user = revokeSessions(req.user.id);
+  logEvent('auth.logout_all', `${user.email} signed out of all sessions`, { actor: user.id });
+  res.json({ token: signToken(user), user: publicUser(user) });
+});
+
 r.patch('/me', authenticate, body(z.object({
   name: z.string().trim().min(2).max(100).optional(),
   company: z.string().trim().max(150).optional(),
@@ -58,8 +66,14 @@ r.patch('/me', authenticate, body(z.object({
     }
     hash = bcrypt.hashSync(b.newPassword, 10);
   }
-  const updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, password_hash = ? WHERE id = ? RETURNING *')
+  let updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, password_hash = ? WHERE id = ? RETURNING *')
     .get(b.name ?? u.name, b.company ?? u.company, b.phone ?? u.phone, hash, u.id));
+  if (b.newPassword) {
+    // A new password signs out every other session; this one gets a fresh token.
+    updated = revokeSessions(u.id);
+    logEvent('auth.password_changed', `${u.email} changed their password (other sessions signed out)`, { actor: u.id, level: 'warn' });
+    return res.json({ ...publicUser(updated), token: signToken(updated) });
+  }
   res.json(publicUser(updated));
 });
 
@@ -87,7 +101,7 @@ r.post('/reset', body(z.object({ token: z.string().min(20).max(200), password })
   if (!rec) return res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(req.body.password, 10), rec.user_id);
   db.prepare("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL").run(rec.user_id);
-  const user = row(db.prepare('SELECT * FROM users WHERE id = ?').get(rec.user_id));
+  const user = revokeSessions(rec.user_id); // sign out every existing session
   logEvent('auth.reset_completed', `Password reset for ${user.email}`, { actor: user.id, level: 'warn' });
   res.json({ token: signToken(user), user: publicUser(user) });
 });

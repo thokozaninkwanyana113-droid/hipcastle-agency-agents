@@ -10,7 +10,9 @@ import { generalFaqs, serviceFaqs, PROVINCES } from '../content.js';
 import { journey } from '../playbooks.js';
 import { availableGateways } from '../payments/config.js';
 import { onLead, onSubscribe, onTestimonialSubmitted } from '../email/notify.js';
-import { verifyUnsubscribe } from '../email/mailer.js';
+import { botCheck, turnstileSiteKey } from '../botcheck.js';
+import { sendEmail } from '../email/mailer.js';
+import { confirmUrl, verifyConfirm, verifyUnsubscribe } from '../email/mailer.js';
 import express from 'express';
 import { canonicalUrl } from '../urls.js';
 
@@ -78,7 +80,7 @@ r.get('/testimonials', (req, res) => {
     WHERE t.status = 'approved' AND (? = 0 OR t.is_featured = 1) ORDER BY t.is_featured DESC, t.id DESC`).all(featured ? 1 : 0)));
 });
 
-r.post('/testimonials', body(z.object({
+r.post('/testimonials', botCheck('review'), body(z.object({
   author: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(200),
   role: z.string().trim().min(2).max(80),
@@ -100,7 +102,7 @@ r.post('/testimonials', body(z.object({
 });
 
 // ---- Site-wide public data -----------------------------------------------------------
-r.get('/site', (_req, res) => res.json({ ...publicSettings(), site_url: canonicalUrl(), payment_methods: availableGateways(), provinces: PROVINCES }));
+r.get('/site', (_req, res) => res.json({ ...publicSettings(), site_url: canonicalUrl(), payment_methods: availableGateways(), provinces: PROVINCES, turnstile_site_key: turnstileSiteKey() }));
 r.get('/faqs', (_req, res) => res.json(generalFaqs()));
 
 // ---- Blog ----------------------------------------------------------------------------
@@ -131,11 +133,10 @@ r.get('/stats', (_req, res) => {
     services: one('SELECT COUNT(*) n FROM services WHERE is_active = 1'),
     tiers: one('SELECT COUNT(*) n FROM service_tiers'),
     agents: one('SELECT COUNT(*) n FROM agents'),
-    projects: one("SELECT COUNT(*) n FROM orders WHERE status <> 'cancelled'"),
   });
 });
 
-r.post('/leads', body(z.object({
+r.post('/leads', botCheck('contact'), body(z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().max(200),
   company: z.string().trim().max(150).optional().default(''),
@@ -158,13 +159,32 @@ r.post('/leads', body(z.object({
   res.status(201).json({ ok: true, id: lead.id });
 });
 
-r.post('/newsletter', body(z.object({ email: z.string().trim().email().max(200) })), (req, res) => {
-  const info = db.prepare('INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)').run(req.body.email.toLowerCase());
-  if (info.changes) {
-    logEvent('newsletter.subscribed', `New subscriber: ${req.body.email.toLowerCase()}`);
-    onSubscribe(req.body.email.toLowerCase());
+// Double opt-in: we only email a confirmation link; the address is subscribed once it's clicked.
+// At most one confirmation email per address per 24 hours, so the form can't be used to spam people.
+r.post('/newsletter', botCheck('newsletter', { captcha: false }), body(z.object({ email: z.string().trim().email().max(200) })), (req, res) => {
+  const email = req.body.email.toLowerCase();
+  const sub = row(db.prepare('SELECT * FROM newsletter_subscribers WHERE email = ?').get(email));
+  if (sub?.status === 'active') return res.status(201).json({ ok: true, status: 'active' });
+  if (!sub) db.prepare("INSERT INTO newsletter_subscribers (email, status) VALUES (?, 'pending')").run(email);
+  const recent = sub?.confirm_sent_at && Date.parse(`${sub.confirm_sent_at.replace(' ', 'T')}Z`) > Date.now() - 864e5;
+  if (!recent) {
+    sendEmail('newsletter.confirm', email, { url: confirmUrl(email) }, { ref: 'newsletter' });
+    db.prepare("UPDATE newsletter_subscribers SET confirm_sent_at = datetime('now') WHERE email = ?").run(email);
   }
-  res.status(201).json({ ok: true });
+  res.status(201).json({ ok: true, status: 'pending' });
+});
+
+r.get('/newsletter/confirm', (req, res) => {
+  const email = String(req.query.email || '').toLowerCase();
+  if (!email || !verifyConfirm(email, req.query.token)) return res.status(400).type('html').send(unsubPage('This confirmation link is invalid. Please subscribe again.'));
+  const sub = row(db.prepare('SELECT * FROM newsletter_subscribers WHERE email = ?').get(email));
+  if (!sub) db.prepare("INSERT INTO newsletter_subscribers (email, status, confirmed_at) VALUES (?, 'active', datetime('now'))").run(email);
+  else if (sub.status !== 'active') db.prepare("UPDATE newsletter_subscribers SET status = 'active', confirmed_at = datetime('now') WHERE email = ?").run(email);
+  if (!sub || sub.status !== 'active') {
+    logEvent('newsletter.subscribed', `New subscriber confirmed: ${email}`);
+    onSubscribe(email);
+  }
+  res.type('html').send(unsubPage(`Thanks — ${email} is subscribed. Look out for our next growth guide.`));
 });
 
 // One-click unsubscribe (GET from the email link, POST from mail clients via List-Unsubscribe-Post)

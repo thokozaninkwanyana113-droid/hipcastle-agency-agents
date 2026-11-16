@@ -69,7 +69,7 @@ export default function Header() {
             )}
           </div>
           <NavLink to="/pricing" className="nav__link">Pricing</NavLink>
-          <NavLink to="/agents" className="nav__link">Specialists</NavLink>
+          <NavLink to="/agents" className="nav__link">AI Playbooks</NavLink>
           <NavLink to="/blog" className="nav__link">Blog</NavLink>
           <NavLink to="/about" className="nav__link">About</NavLink>
           <NavLink to="/contact" className="nav__link">Contact</NavLink>

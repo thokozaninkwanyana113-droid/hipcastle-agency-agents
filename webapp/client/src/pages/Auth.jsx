@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { setToken } from '../api.js';
 import { Field } from '../components/ui.jsx';
 import Seo from '../components/Seo.jsx';
+import { Captcha, Honeypot } from '../components/BotGuard.jsx';
 
 function useAfterAuth() {
   const [params] = useSearchParams();
@@ -49,7 +50,7 @@ export function Register() {
   const { register } = useAuth();
   const done = useAfterAuth();
   const [params] = useSearchParams();
-  const [form, setForm] = useState({ name: '', email: '', company: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', company: '', password: '', website: '', captcha_token: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -71,6 +72,8 @@ export function Register() {
         <Field label="Work email" error={errors.email}><input className="input" type="email" required autoComplete="email" value={form.email} onChange={set('email')} /></Field>
         <Field label="Company" error={errors.company}><input className="input" autoComplete="organization" value={form.company} onChange={set('company')} /></Field>
         <Field label="Password" error={errors.password} hint="At least 8 characters"><input className="input" type="password" required autoComplete="new-password" value={form.password} onChange={set('password')} /></Field>
+        <Honeypot value={form.website} onChange={(v) => setForm((f) => ({ ...f, website: v }))} />
+        <Captcha onToken={(t) => setForm((f) => ({ ...f, captcha_token: t }))} />
         <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
         <p className="muted center">Already have an account? <Link to={`/login${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`}>Sign in</Link></p>
       </form>

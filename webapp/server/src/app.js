@@ -10,7 +10,7 @@ import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payments.js';
 import { metricsMiddleware, recordError } from './events.js';
-import { canonicalHostRedirect } from './urls.js';
+import { canonicalHostRedirect, canonicalUrl } from './urls.js';
 import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml } from './seo.js';
 
 export function createApp() {
@@ -21,7 +21,9 @@ export function createApp() {
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
-        'script-src': ["'self'"],
+        'script-src': ["'self'", 'https://challenges.cloudflare.com'],
+        'frame-src': ['https://challenges.cloudflare.com'],
+        'connect-src': ["'self'", 'https://challenges.cloudflare.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
         'img-src': ["'self'", 'data:', 'https:'],
@@ -34,7 +36,9 @@ export function createApp() {
   }));
   app.use(canonicalHostRedirect);
   app.use(compression());
-  app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || true }));
+  // Production: only the site itself (plus any CORS_ORIGIN extras) may call the API from a browser.
+  const allowed = [canonicalUrl(), ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])].map((o) => o.trim().replace(/\/$/, ''));
+  app.use(cors({ origin: process.env.NODE_ENV === 'production' ? allowed : true }));
   app.use(metricsMiddleware);
   app.use(express.json({ limit: '200kb' }));
 
@@ -44,7 +48,8 @@ export function createApp() {
     app.use('/api/auth/register', limiter(20));
     app.use('/api/auth/forgot', limiter(10));
     app.use('/api/auth/reset', limiter(20));
-    app.use('/api/leads', limiter(30));
+    app.use('/api/leads', limiter(10));
+    app.use('/api/newsletter', limiter(10));
     app.use('/api/testimonials', (req, res, next) => (req.method === 'POST' ? limiter(10)(req, res, next) : next()));
     app.use('/api/payments/checkout', limiter(40));
   }

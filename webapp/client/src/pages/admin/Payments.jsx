@@ -28,6 +28,12 @@ export default function Payments() {
     setErr(null);
     try { await api(`/admin/payments/${p.reference}/resolve`, { method: 'POST', body: { status: s, note } }); reload(); } catch (e) { setErr(e); }
   };
+  const refunded = async (p) => {
+    const note = window.prompt(`Gateway refund reference for ${p.reference}:`);
+    if (!note) return;
+    setErr(null);
+    try { await api(`/admin/payments/${p.reference}/refunded`, { method: 'POST', body: { note } }); reload(); } catch (e) { setErr(e); }
+  };
   const total = data?.filter((p) => p.status === 'complete').reduce((a, p) => a + p.amount_cents, 0) ?? 0;
 
   return (
@@ -56,8 +62,13 @@ export default function Payments() {
                   <td>{p.gateway}{p.gateway_txn_id && <small>{p.gateway_txn_id}</small>}</td>
                   <td>{moneyExact(p.amount_cents)}</td>
                   <td className="nowrap">{dateTime(p.updated_at)}</td>
-                  <td><Status value={p.status} />{p.status_message && <small>{p.status_message}</small>}</td>
+                  <td>
+                    <Status value={p.status} />{p.status_message && <small>{p.status_message}</small>}
+                    {p.needs_refund ? <span className="health health--bad">Refund needed</span> : null}
+                    {p.refunded_at && <small>Refunded: {p.refund_note}</small>}
+                  </td>
                   <td className="nowrap">
+                    {user.role === 'admin' && p.needs_refund ? <button className="btn btn--outline btn--sm" onClick={() => refunded(p)}>Mark refunded</button> : null}
                     {user.role === 'admin' && ['initiated', 'pending'].includes(p.status) && (
                       <><button className="btn btn--text btn--sm" onClick={() => resolve(p, 'complete')}>Mark paid</button>
                         <button className="btn btn--text btn--sm" onClick={() => resolve(p, 'failed')}>Mark failed</button></>

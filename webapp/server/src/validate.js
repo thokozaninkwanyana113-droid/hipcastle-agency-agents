@@ -18,4 +18,7 @@ export const id = (v) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
+/** A web link: only https:// or http:// (rejects javascript:, data:, file: …). */
+export const webUrl = () => z.string().trim().max(500).url().refine((v) => /^https?:\/\//i.test(v), { message: 'Use a link starting with https://' });
+
 export { z };

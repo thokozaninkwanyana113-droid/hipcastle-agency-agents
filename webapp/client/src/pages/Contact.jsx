@@ -8,6 +8,7 @@ import { Icon, SocialLinks } from '../components/icons.jsx';
 import { useSite } from '../context/SiteContext.jsx';
 import { useFetch } from '../useFetch.js';
 import { waLink } from '../format.js';
+import { Captcha, Honeypot } from '../components/BotGuard.jsx';
 
 const BUDGETS = ['Under R10 000', 'R10 000 – R30 000', 'R30 000 – R75 000', 'R75 000 – R150 000', 'R150 000+', 'Monthly retainer', 'Not sure yet'];
 
@@ -17,7 +18,7 @@ export default function Contact() {
   const { data: services } = useFetch('/services');
   const [form, setForm] = useState({
     name: '', email: '', company: '', phone: '', service: params.get('service') || '', budget: '', province: '',
-    preferred_contact: 'email', message: '', consent: false, source: params.get('utm_source') || 'website',
+    preferred_contact: 'email', message: '', consent: false, source: params.get('utm_source') || 'website', website: '', captcha_token: '',
   });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState('idle');
@@ -66,7 +67,7 @@ export default function Contact() {
               <h2 className="h3">Where we are</h2>
               <p><Icon name="pin" size={16} /> {site.street_address ? `${site.street_address}, ` : ''}{site.address_locality}, {site.address_region}{site.postal_code ? `, ${site.postal_code}` : ''}, South Africa</p>
               <p><Icon name="clock" size={16} /> {site.office_hours}</p>
-              <p className="muted small">We work remotely with clients in all nine provinces, and meet in person in {site.address_locality} by appointment.</p>
+              <p className="muted small">We work remotely with clients anywhere in South Africa, and meet in person in {site.address_locality} by appointment.</p>
               <hr />
               <h2 className="h3">What happens next?</h2>
               <ol className="mini-steps">
@@ -138,6 +139,9 @@ export default function Contact() {
                   <span>I agree that {site.business_name} may contact me about this enquiry and process my details as described in the <Link to="/privacy" target="_blank">privacy policy</Link> (POPIA). *</span>
                 </label>
                 {errors.consent && <small className="field__error">{errors.consent}</small>}
+                <Honeypot value={form.website} onChange={(v) => setForm((f) => ({ ...f, website: v }))} />
+                <Captcha onToken={(t) => setForm((f) => ({ ...f, captcha_token: t }))} />
+                {errors.captcha && <small className="field__error">{errors.captcha}</small>}
                 <button className="btn btn--primary btn--lg" disabled={status === 'loading'}>{status === 'loading' ? 'Sending…' : 'Book my free session'}</button>
               </form>
             )}

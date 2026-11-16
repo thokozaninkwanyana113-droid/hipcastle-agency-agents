@@ -144,9 +144,12 @@ export function Invoices() {
   const [status, setStatus] = useState(params.get('status') || '');
   const { data, error, loading, setData } = useFetch(`/admin/invoices?status=${status}`);
   const update = async (inv, s) => {
-    if (!window.confirm(`Manually mark ${inv.number} as ${s}? This is logged.`)) return;
-    const updated = await api(`/admin/invoices/${inv.id}`, { method: 'PATCH', body: { status: s } });
-    setData(data.map((i) => (i.id === inv.id ? { ...i, ...updated } : i)));
+    const reason = window.prompt(`Why are you marking ${inv.number} as ${s}? (e.g. "EFT received 12 Nov, FNB ref 1234") — this is logged.`);
+    if (!reason || reason.trim().length < 5) return;
+    try {
+      const updated = await api(`/admin/invoices/${inv.id}`, { method: 'PATCH', body: { status: s, reason: reason.trim() } });
+      setData(data.map((i) => (i.id === inv.id ? { ...i, ...updated } : i)));
+    } catch (e) { alert(e.message); }
   };
   const total = data?.reduce((a, i) => a + i.amount_cents, 0) ?? 0;
   const today = new Date().toISOString().slice(0, 10);
@@ -174,9 +177,11 @@ export function Invoices() {
                   <td>{moneyExact(i.vat_cents)}</td>
                   <td>{moneyExact(i.amount_cents)}</td>
                   <td>
-                    <select className="input input--sm" aria-label="Invoice status" value={i.status} onChange={(e) => update(i, e.target.value)}>
-                      {['unpaid', 'paid', 'void'].map((s) => <option key={s}>{s}</option>)}
-                    </select>
+                    {user.role === 'admin' ? (
+                      <select className="input input--sm" aria-label="Invoice status" value={i.status} onChange={(e) => update(i, e.target.value)}>
+                        {['unpaid', 'paid', 'void'].map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    ) : <Status value={i.status} />}
                   </td>
                 </tr>
               );

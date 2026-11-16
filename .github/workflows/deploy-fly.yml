@@ -5,10 +5,11 @@
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   FLY_API_TOKEN   Fly org token (fly tokens create org) — needed to create the app on the first run
-#   ADMIN_PASSWORD  password for admin@hipcastle.agency (used on the first boot only)
+#   ADMIN_PASSWORD  password for admin@hipcastle.agency (at least 10 characters; used on the first boot only)
 # Optional secrets, copied to Fly when present:
 #   SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS EMAIL_FROM
 #   PAYFAST_MERCHANT_ID PAYFAST_MERCHANT_KEY PAYFAST_PASSPHRASE OZOW_SITE_CODE OZOW_PRIVATE_KEY OZOW_API_KEY
+#   TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY
 # Optional variables: FLY_APP (default hipcastle), FLY_ORG (default personal), FLY_REGION (default jnb),
 #   PAYMENTS_MODE (default sandbox)
 name: Deploy Hipcastle to Fly.io
@@ -91,6 +92,8 @@ jobs:
           OZOW_SITE_CODE: ${{ secrets.OZOW_SITE_CODE }}
           OZOW_PRIVATE_KEY: ${{ secrets.OZOW_PRIVATE_KEY }}
           OZOW_API_KEY: ${{ secrets.OZOW_API_KEY }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           PAYMENTS_MODE: ${{ vars.PAYMENTS_MODE || 'sandbox' }}
         run: |
           existing=$(flyctl secrets list --app "$FLY_APP" --json 2>/dev/null | jq -r '.[] | (.name // .Name)' || true)
@@ -105,7 +108,7 @@ jobs:
             fi
             args+=("ADMIN_PASSWORD=$ADMIN_PASSWORD")
           fi
-          for k in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS EMAIL_FROM PAYFAST_MERCHANT_ID PAYFAST_MERCHANT_KEY PAYFAST_PASSPHRASE OZOW_SITE_CODE OZOW_PRIVATE_KEY OZOW_API_KEY; do
+          for k in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS EMAIL_FROM PAYFAST_MERCHANT_ID PAYFAST_MERCHANT_KEY PAYFAST_PASSPHRASE OZOW_SITE_CODE OZOW_PRIVATE_KEY OZOW_API_KEY TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
             [ -n "${!k}" ] && args+=("$k=${!k}")
           done
           args+=("PAYMENTS_MODE=$PAYMENTS_MODE")
