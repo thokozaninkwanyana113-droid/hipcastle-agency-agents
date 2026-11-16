@@ -4,6 +4,7 @@ import { ErrorBox, Loader, Progress, Status } from '../components/ui.jsx';
 import { date, money } from '../format.js';
 import { useFetch } from '../useFetch.js';
 import Seo from '../components/Seo.jsx';
+import { HealthBadge, STAGE_LABEL } from '../components/Pipeline.jsx';
 
 export default function Portal() {
   const { user, isStaff } = useAuth();
@@ -49,10 +50,18 @@ export default function Portal() {
               <div className="order-row__main">
                 <strong>{o.service_name} — {o.tier_name}</strong>
                 <small>{o.reference} · started {date(o.created_at)} · due {date(o.due_date)}</small>
+                {o.pipeline && (
+                  <small className="order-row__pipeline">
+                    {STAGE_LABEL[o.pipeline.stage] || o.pipeline.stage_label}
+                    {o.pipeline.next && ` · next: ${o.pipeline.next.title}`}
+                    {o.pipeline.awaiting_client > 0 && <strong className="text-warn"> · {o.pipeline.awaiting_client} item(s) need you</strong>}
+                  </small>
+                )}
                 <Progress value={o.progress} />
               </div>
               <div className="order-row__side">
                 <Status value={o.status} />
+                {o.pipeline && !['completed', 'cancelled', 'awaiting_deposit'].includes(o.pipeline.health) && <HealthBadge health={o.pipeline.health} />}
                 <span>{money(o.price_cents)}</span>
               </div>
             </Link>

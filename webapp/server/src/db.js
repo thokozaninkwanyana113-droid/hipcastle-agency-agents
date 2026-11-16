@@ -16,6 +16,17 @@ db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeou
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
   leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT' },
+  milestones: {
+    key: 'TEXT', stage: 'TEXT', cycle: 'INTEGER NOT NULL DEFAULT 0', agent_slug: 'TEXT', days: 'INTEGER NOT NULL DEFAULT 1', due_date: 'TEXT',
+    status: "TEXT NOT NULL DEFAULT 'todo'", requires_approval: 'INTEGER NOT NULL DEFAULT 0', client_task: 'INTEGER NOT NULL DEFAULT 0',
+    deliverable: 'TEXT', deliverable_url: 'TEXT', deliverable_note: 'TEXT', client_feedback: 'TEXT', revisions_used: 'INTEGER NOT NULL DEFAULT 0',
+    started_at: 'TEXT', submitted_at: 'TEXT', approved_at: 'TEXT', last_reminded_at: 'TEXT',
+  },
+  orders: {
+    pipeline_kind: "TEXT NOT NULL DEFAULT 'project'", revisions_allowed: 'INTEGER', kickoff_at: 'TEXT', onboarding_completed_at: 'TEXT',
+    onboarding_reminded_at: 'TEXT', delivered_at: 'TEXT', current_cycle: 'INTEGER NOT NULL DEFAULT 0', next_cycle_at: 'TEXT',
+    nps_score: 'INTEGER', nps_comment: 'TEXT', feedback_at: 'TEXT',
+  },
   testimonials: {
     company: 'TEXT', location: 'TEXT', service_id: 'INTEGER', user_id: 'INTEGER', email: 'TEXT',
     status: "TEXT NOT NULL DEFAULT 'approved'", is_featured: 'INTEGER NOT NULL DEFAULT 0', created_at: 'TEXT',
@@ -29,6 +40,8 @@ for (const [table, cols] of Object.entries(MIGRATIONS)) {
   }
 }
 db.exec(readFileSync(join(here, 'schema.sql'), 'utf8'));
+// Milestones created before pipelines existed: mirror is_done into the new status column.
+db.exec("UPDATE milestones SET status = 'done' WHERE is_done = 1 AND status <> 'done'");
 
 /** Run fn inside a transaction; rolls back on throw. Nested calls join the outer transaction. */
 let depth = 0;

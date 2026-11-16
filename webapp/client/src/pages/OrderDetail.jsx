@@ -8,6 +8,7 @@ import { useFetch } from '../useFetch.js';
 import NotFound from './NotFound.jsx';
 import Seo from '../components/Seo.jsx';
 import PayButton from '../components/PayButton.jsx';
+import { FeedbackPanel, HealthBadge, MilestoneTimeline, OnboardingPanel, STAGE_LABEL, StageStrip } from '../components/Pipeline.jsx';
 
 const STATUSES = ['pending', 'active', 'in_review', 'completed', 'cancelled'];
 
@@ -30,7 +31,10 @@ export default function OrderDetail() {
   };
   const send = (e) => { e.preventDefault(); if (msg.trim()) run(async () => { await api(`/orders/${o.id}/messages`, { method: 'POST', body: { body: msg } }); setMsg(''); }); };
   const update = (body) => run(() => api(`/orders/${o.id}`, { method: 'PATCH', body }));
-  const toggle = (m) => run(() => api(`/orders/${o.id}/milestones/${m.id}`, { method: 'PATCH', body: { is_done: !m.is_done } }));
+  const isClient = o.user_id === user.id;
+  const p = o.pipeline;
+  const rebaseline = () => run(() => api(`/orders/${o.id}/rebaseline`, { method: 'POST', body: {} }));
+  const nextCycle = () => window.confirm('Start the next month now? This creates the month’s milestones and issues the monthly invoice.') && run(() => api(`/orders/${o.id}/next-cycle`, { method: 'POST' }));
   const cancel = () => window.confirm('Cancel this engagement?') && run(() => api(`/orders/${o.id}/cancel`, { method: 'POST' }));
 
   const outstanding = o.invoices.filter((i) => i.status === 'unpaid');
@@ -41,7 +45,7 @@ export default function OrderDetail() {
       <div className="container">
         <nav className="breadcrumb breadcrumb--dark"><Link to={isStaff && o.user_id !== user.id ? '/admin/orders' : '/portal'}>Engagements</Link> / <span>{o.reference}</span></nav>
         {params.get('new') && o.status === 'pending' && (
-          <div className="alert alert--success">🎉 Order placed! Pay the first invoice below by card or instant EFT to kick things off.</div>
+          <div className="alert alert--success">🎉 Order placed! Pay the first invoice by card or instant EFT to kick things off — you can start onboarding straight away.</div>
         )}
         <ErrorBox error={actionError} />
         <div className="order-head card">
@@ -50,7 +54,15 @@ export default function OrderDetail() {
             <h1>{o.service_name} — {o.tier_name}</h1>
             <p className="muted">{o.reference} · {money(o.price_cents)} {billingLabel(o.billing)} · due {date(o.due_date)}{o.manager_name && ` · lead: ${o.manager_name}`}</p>
             <Progress value={o.progress} />
-            <small className="muted">{o.progress}% complete</small>
+            <small className="muted">{o.progress}% complete{o.pipeline_kind === 'retainer' && o.current_cycle ? ` · month ${o.current_cycle}` : ''}</small>
+            {p && (
+              <div className="pipeline-summary">
+                <span><strong>Stage:</strong> {STAGE_LABEL[p.stage] || p.stage_label}</span>
+                <HealthBadge health={p.health} />
+                {p.next && <span><strong>Next:</strong> {p.next.title}{p.next.due_date && ` · due ${date(p.next.due_date)}`}</span>}
+                <span className="muted">{o.revisions_allowed === null ? 'Unlimited revisions' : `${o.revisions_allowed} revision rounds per deliverable`}</span>
+              </div>
+            )}
           </div>
           <div className="order-head__side">
             <Status value={o.status} />
@@ -77,27 +89,33 @@ export default function OrderDetail() {
                 const description = cents > 0 ? window.prompt('Description (e.g. Balance on delivery)', 'Balance on delivery') : null;
                 if (cents > 0) run(() => api(`/orders/${o.id}/invoices`, { method: 'POST', body: { amount_cents: cents, description: description || '', due_in_days: 14 } }));
               }}>+ Issue invoice</button>
+              <button className="btn btn--ghost btn--sm" disabled={busy} onClick={rebaseline} title="Re-plan open milestones from today">↻ Re-plan timeline</button>
+              {o.pipeline_kind === 'retainer' && <button className="btn btn--ghost btn--sm" disabled={busy} onClick={nextCycle}>Start next month</button>}
             </div>
+            {o.nps_score !== null && o.nps_score !== undefined && <p className="small mt">Client rating: <strong>{o.nps_score}/10</strong>{o.nps_comment && ` — “${o.nps_comment}”`}</p>}
           </div>
         )}
 
+        {o.status === 'completed' && isClient && <FeedbackPanel order={o} onSaved={reload} />}
+
+        {o.onboarding?.length > 0 && o.status !== 'cancelled' && (
+          <OnboardingPanel order={o} items={o.onboarding} canEdit={isClient || isStaff} isStaff={isStaff} onSaved={reload} />
+        )}
+
+        <section className="card pipeline-card" aria-labelledby="delivery-h">
+          <div className="pipeline-card__head">
+            <h2 id="delivery-h">Delivery plan</h2>
+            <span className="muted small">{o.milestones.filter((m) => m.status === 'done').length}/{o.milestones.length} milestones done</span>
+          </div>
+          <StageStrip milestones={o.milestones.filter((m) => m.stage !== 'cycle' || m.cycle === o.current_cycle)} current={p?.stage} />
+          <MilestoneTimeline order={o} milestones={o.milestones} isClient={isClient} isStaff={isStaff} onChanged={reload} />
+        </section>
+
         <div className="grid grid--order">
           <div className="card">
-            <h2>Milestones</h2>
-            <ol className="milestones">
-              {o.milestones.map((m) => (
-                <li key={m.id} className={m.is_done ? 'done' : ''}>
-                  {isStaff ? (
-                    <label className="checkbox"><input type="checkbox" checked={!!m.is_done} onChange={() => toggle(m)} disabled={busy} /><span>{m.title}</span></label>
-                  ) : (<><span className="milestones__dot" aria-hidden="true">{m.is_done ? '✓' : ''}</span>{m.title}</>)}
-                  {m.done_at && <small>{date(m.done_at)}</small>}
-                </li>
-              ))}
-            </ol>
-            <h2 className="mt-lg">Brief</h2>
+            <h2>Brief</h2>
             <p className="brief">{o.brief}</p>
           </div>
-
           <div className="card">
             <h2>Invoices</h2>
             {outstanding.length > 0 && <p className="muted small">{money(outstanding.reduce((a, i) => a + i.amount_cents, 0))} outstanding</p>}

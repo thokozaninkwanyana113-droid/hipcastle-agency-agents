@@ -46,6 +46,41 @@ A full-stack web app for running a services agency, built for **South African en
 | **SEO, AEO & GEO** | Readiness score, per-page title, description and schema audit, links to crawler files |
 | **Settings** | Business details (kept consistent with Google Business Profile), WhatsApp, social profiles, VAT, payment gateway toggles, pause orders, announcement bar |
 
+## Delivery pipelines: onboarding → delivery
+
+Every service has a **delivery playbook** for each tier, defined in [`server/src/playbooks.js`](server/src/playbooks.js). When a client orders, the engagement gets the right pipeline automatically.
+
+**What the pipeline includes**
+- **Stages:** Onboarding → Discovery → Strategy & design → Build & production → Quality review → Launch → Handover & support.
+- **Retainers** have Onboarding → Setup, then a **monthly cycle** that repeats: plan → work → report → review.
+- **Each milestone** has a specialist **owner** (one of this repo's agents), a planned duration and due date, the deliverable the client receives, and whether it needs **client approval**.
+- **An onboarding questionnaire** (common questions plus service-specific ones) and an **access & assets checklist**. Access is granted by invitation; the form warns clients never to share passwords.
+- **Revision rounds** per deliverable: Essential 2, Growth 3, Enterprise unlimited. Once the rounds are used up, the client is asked to arrange more with the team.
+
+**Automation along the way**
+
+| When | What happens |
+|---|---|
+| Order placed | Pipeline, onboarding questionnaire and due dates created from the playbook. Timelines are scaled to the package's published delivery days. |
+| Deposit paid | Engagement goes active, the timeline is re-planned from today, and the client gets an "onboarding" email. |
+| Client completes onboarding | Intake milestone done; the team gets the answers by email to book the kick-off. |
+| Kick-off done | Timeline re-baselined from the kick-off date. |
+| Deliverable submitted (approval milestones) | The client gets a "ready for review" email. They approve or request changes in the portal, and the team is notified either way. |
+| Launch | The **50% balance invoice** is issued automatically, once. |
+| All milestones done | Engagement completed; the client gets a feedback (NPS) request and an invitation to leave a review. Low scores trigger a "call within 24h" alert. |
+| Retainer month due | The next month's milestones and invoice are created automatically (the "Retainer monthly cycles" job), or manually with **Start next month**. |
+| Hourly ("Delivery pipeline watch") | Flags overdue milestones, reminds clients about approvals waiting 3+ days and unfinished onboarding, and emails the team a daily overdue digest. |
+
+**Where to manage it**
+- **Client portal:** stage tracker, health, onboarding form, timeline with owners, due dates and deliverable links, approve or request changes, and a feedback form.
+- **Command Centre → Delivery pipeline:** a board of every engagement by stage, with health (on track, at risk, off track, waiting on client), the next milestone and its owner, and workload per specialist and client NPS.
+- **Engagement page (staff):**
+  - Start, submit, mark done, block and re-date milestones
+  - Re-plan the timeline and start the next retainer month
+  - Mark checklist items received
+- **Command Centre → Delivery playbooks:** browse every service and tier's milestones, owners, approval gates and onboarding questions.
+- **Service pages:** a public "How delivery works" section per tier, showing days to launch, support days and revision rounds.
+
 ## Domain: www.hipcastle.agency
 
 `https://www.hipcastle.agency` is the canonical address. It's set in [`server/src/urls.js`](server/src/urls.js) and can be overridden with `SITE_URL`. It's used for:
@@ -190,7 +225,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 15 API integration test groups, run against an in-memory database. They cover:
+There are 20 API integration test groups, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -204,6 +239,7 @@ There are 15 API integration test groups, run against an in-memory database. The
 - Email queueing, branding and HTML escaping
 - Password reset (no account enumeration, single-use tokens)
 - Signed newsletter unsubscribe
+- Delivery pipelines: full project journey, revision limits, balance invoice, feedback, retainer cycles, watch job and board
 
 ## Database schema
 
@@ -216,6 +252,7 @@ users ─┬─< orders >── service_tiers >── services >─< service_age
        │     └─< messages
 leads >── services     testimonials >── services     posts     settings     events (audit log)
 newsletter_subscribers     emails (outbox queue)     password_resets
+orders ─< onboarding_items (questionnaire & checklist)
 ```
 
 ## Before launch checklist

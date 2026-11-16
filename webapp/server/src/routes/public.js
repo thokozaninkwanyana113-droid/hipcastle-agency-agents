@@ -7,6 +7,7 @@ import { body, z } from '../validate.js';
 import { logEvent } from '../events.js';
 import { publicSettings } from '../settings.js';
 import { generalFaqs, serviceFaqs, PROVINCES } from '../content.js';
+import { journey } from '../playbooks.js';
 import { availableGateways } from '../payments/config.js';
 import { onLead, onSubscribe, onTestimonialSubmitted } from '../email/notify.js';
 import { verifyUnsubscribe } from '../email/mailer.js';
@@ -34,6 +35,7 @@ r.get('/services/:slug', (req, res) => {
   if (!s) return res.status(404).json({ error: 'Service not found' });
   s.tiers = tiersFor(s.id);
   s.faqs = serviceFaqs(s);
+  s.journey = journey(s.slug, s.tiers);
   s.testimonials = rows(db.prepare(`SELECT id, author, role, company, location, quote, rating FROM testimonials
     WHERE status = 'approved' AND service_id = ? ORDER BY is_featured DESC, id DESC LIMIT 3`).all(s.id));
   s.agents = rows(db.prepare(`SELECT a.slug, a.name, a.emoji, a.description, a.vibe, a.division

@@ -6,15 +6,10 @@ import { authenticate, isStaff, requireRole } from '../auth.js';
 import { logEvent } from '../events.js';
 import { getSettings, vatFor } from '../settings.js';
 import { onInvoiceIssued, onMessage, onOrderCreated, onOrderStatus } from '../email/notify.js';
+import * as P from '../pipeline.js';
 
 const r = Router();
 r.use(authenticate);
-
-const MILESTONES = {
-  essential: ['Kick-off & brief confirmation', 'Delivery', 'Review & handover'],
-  growth: ['Kick-off & discovery', 'Strategy & design', 'Build / execution', 'Quality review', 'Launch & handover'],
-  enterprise: ['Onboarding & access', 'Team assembly', 'Roadmap & KPIs', 'First delivery cycle', 'Monthly review'],
-};
 
 const ref = (prefix) => `${prefix}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
@@ -54,8 +49,7 @@ r.post('/', body(z.object({
     const o = row(db.prepare(`INSERT INTO orders (reference, user_id, tier_id, brief, price_cents, due_date)
       VALUES (?, ?, ?, ?, ?, date('now', ?)) RETURNING *`)
       .get(ref('HC'), req.user.id, tier.id, req.body.brief, tier.price_cents, `+${tier.delivery_days} days`));
-    const ms = db.prepare('INSERT INTO milestones (order_id, title, position) VALUES (?, ?, ?)');
-    MILESTONES[tier.tier].forEach((t, i) => ms.run(o.id, t, i));
+    P.instantiatePipeline(o.id);
     // Projects: 50% deposit up front. Retainers: first month up front.
     const subtotal = tier.billing === 'once' ? Math.round(tier.price_cents / 2) : tier.price_cents;
     const vat = vatFor(subtotal, settings);
@@ -75,13 +69,15 @@ r.get('/', (req, res) => {
   const list = rows(db.prepare(`${ORDER_SELECT}
     WHERE (? = 1 OR o.user_id = ?) AND (? = '' OR o.status = ?)
     ORDER BY o.created_at DESC, o.id DESC`).all(staff ? 1 : 0, req.user.id, status, status));
-  res.json(list);
+  res.json(list.map((o) => ({ ...o, pipeline: P.pipelineSummary(o) })));
 });
 
 r.get('/:id', (req, res) => {
   const o = loadOrder(req, res);
   if (!o) return;
-  o.milestones = rows(db.prepare('SELECT * FROM milestones WHERE order_id = ? ORDER BY position').all(o.id));
+  o.milestones = P.milestonesOf(o.id);
+  o.onboarding = P.onboardingOf(o.id);
+  o.pipeline = P.pipelineSummary(o, o.milestones, o.onboarding);
   o.invoices = rows(db.prepare('SELECT * FROM invoices WHERE order_id = ? ORDER BY issued_at, id').all(o.id));
   o.payments = rows(db.prepare(`SELECT p.reference, p.gateway, p.status, p.amount_cents, p.status_message, p.created_at, i.number AS invoice_number
     FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.order_id = ? ORDER BY p.created_at DESC, p.id DESC`).all(o.id));
@@ -133,16 +129,128 @@ r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
   res.json(row(db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(o.id)));
 });
 
-r.patch('/:id/milestones/:mid', requireRole('admin', 'staff'), body(z.object({ is_done: z.boolean() })), (req, res) => {
+// ---- Delivery pipeline ----------------------------------------------------------------
+const loadMilestone = (req, res, o) => {
+  const m = P.getMilestone(o.id, id(req.params.mid));
+  if (!m) res.status(404).json({ error: 'Milestone not found' });
+  return m;
+};
+const isOwner = (req, o) => o.user_id === req.user.id;
+const detail = (o) => ({ milestones: P.milestonesOf(o.id), onboarding: P.onboardingOf(o.id), pipeline: P.pipelineSummary(P.loadOrder(o.id)), order: P.loadOrder(o.id) });
+
+// Client (or staff on their behalf) answers onboarding questions / confirms checklist items.
+r.post('/:id/onboarding', body(z.object({
+  responses: z.array(z.object({ key: z.string().max(60), response: z.string().max(4000) })).min(1).max(40),
+})), (req, res) => {
   const o = loadOrder(req, res);
   if (!o) return;
-  const info = db.prepare(`UPDATE milestones SET is_done = ?, done_at = CASE WHEN ? THEN datetime('now') END
-    WHERE id = ? AND order_id = ?`).run(req.body.is_done ? 1 : 0, req.body.is_done ? 1 : 0, id(req.params.mid), o.id);
-  if (!info.changes) return res.status(404).json({ error: 'Milestone not found' });
-  // Keep progress in sync with milestone completion.
-  const { done, total } = db.prepare('SELECT SUM(is_done) done, COUNT(*) total FROM milestones WHERE order_id = ?').get(o.id);
-  db.prepare("UPDATE orders SET progress = ?, updated_at = datetime('now') WHERE id = ?").run(Math.round((done / total) * 100), o.id);
-  res.json({ ok: true, progress: Math.round((done / total) * 100) });
+  if (o.status === 'cancelled') return res.status(409).json({ error: 'This engagement is cancelled' });
+  const out = P.saveOnboarding(o.id, req.body.responses, req.user);
+  res.json({ ...detail(o), onboarding_complete: out.complete });
+});
+
+r.patch('/:id/onboarding/:itemId', requireRole('admin', 'staff'), body(z.object({
+  status: z.enum(['pending', 'done']).optional(),
+  response: z.string().max(4000).optional(),
+})), (req, res) => {
+  const o = loadOrder(req, res);
+  if (!o) return;
+  P.setOnboardingItem(o.id, id(req.params.itemId), req.body);
+  res.json(detail(o));
+});
+
+r.post('/:id/milestones/:mid/start', requireRole('admin', 'staff'), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  const m = loadMilestone(req, res, o); if (!m) return;
+  if (m.status === 'done') return res.status(409).json({ error: 'Milestone is already done' });
+  P.startMilestone(m);
+  res.json(detail(o));
+});
+
+r.post('/:id/milestones/:mid/submit', requireRole('admin', 'staff'), body(z.object({
+  url: z.union([z.literal(''), z.string().trim().url().max(500)]).optional().default(''),
+  note: z.string().trim().max(3000).optional().default(''),
+})), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  const m = loadMilestone(req, res, o); if (!m) return;
+  if (m.status === 'done') return res.status(409).json({ error: 'Milestone is already done' });
+  if (o.status === 'pending') return res.status(409).json({ error: 'Work starts once the deposit is paid' });
+  P.submitMilestone(m, req.body, req.user);
+  res.json(detail(o));
+});
+
+r.post('/:id/milestones/:mid/complete', requireRole('admin', 'staff'), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  const m = loadMilestone(req, res, o); if (!m) return;
+  if (m.status !== 'done') P.completeMilestone(m.id, req.user);
+  res.json(detail(o));
+});
+
+r.post('/:id/milestones/:mid/approve', (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  if (!isOwner(req, o)) return res.status(403).json({ error: 'Only the client can approve deliverables' });
+  const m = loadMilestone(req, res, o); if (!m) return;
+  if (m.status !== 'awaiting_client') return res.status(409).json({ error: 'This milestone is not waiting for your approval' });
+  P.approveMilestone(m, req.user);
+  res.json(detail(o));
+});
+
+r.post('/:id/milestones/:mid/changes', body(z.object({
+  feedback: z.string().trim().min(10, 'Please describe the changes you need (at least 10 characters)').max(3000),
+})), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  if (!isOwner(req, o)) return res.status(403).json({ error: 'Only the client can request changes' });
+  const m = loadMilestone(req, res, o); if (!m) return;
+  if (m.status !== 'awaiting_client') return res.status(409).json({ error: 'This milestone is not waiting for your approval' });
+  try { P.requestChanges(m, req.body.feedback, req.user); }
+  catch (e) { if (e instanceof P.RevisionLimitError) return res.status(409).json({ error: e.message, code: 'revision_limit' }); throw e; }
+  res.json(detail(o));
+});
+
+r.patch('/:id/milestones/:mid', requireRole('admin', 'staff'), body(z.object({
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  status: z.enum(['todo', 'in_progress', 'blocked']).optional(),
+  agent_slug: z.string().max(80).optional(),
+  is_done: z.boolean().optional(),          // backwards compatible toggle
+})), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  const m = loadMilestone(req, res, o); if (!m) return;
+  const { is_done, ...rest } = req.body;
+  if (is_done === true && m.status !== 'done') P.completeMilestone(m.id, req.user);
+  else if (is_done === false && m.status === 'done') {
+    db.prepare("UPDATE milestones SET status = 'todo', is_done = 0, done_at = NULL WHERE id = ?").run(m.id);
+    P.syncOrder(o.id);
+  }
+  if (Object.keys(rest).length) P.updateMilestone(P.getMilestone(o.id, m.id), rest);
+  const d = detail(o);
+  res.json({ ok: true, progress: d.order.progress, ...d });
+});
+
+r.post('/:id/rebaseline', requireRole('admin', 'staff'), body(z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  P.rebaseline(o.id, req.body.from || P.today());
+  logEvent('pipeline.rebaseline', `${o.reference}: timeline re-planned from ${req.body.from || P.today()}`, { actor: req.user.id, ref: o.reference });
+  res.json(detail(o));
+});
+
+r.post('/:id/next-cycle', requireRole('admin', 'staff'), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  const out = P.startNextCycle(o.id, req.user);
+  if (!out) return res.status(409).json({ error: 'Only active retainers can start a new month' });
+  res.json({ ...detail(o), started: out });
+});
+
+r.post('/:id/feedback', body(z.object({
+  score: z.number().int().min(0).max(10),
+  comment: z.string().trim().max(2000).optional().default(''),
+})), (req, res) => {
+  const o = loadOrder(req, res); if (!o) return;
+  if (!isOwner(req, o)) return res.status(403).json({ error: 'Only the client can rate an engagement' });
+  if (!['completed'].includes(o.status) && o.pipeline_kind === 'project') return res.status(409).json({ error: 'You can rate the project once it is delivered' });
+  P.saveFeedback(o.id, req.body.score, req.body.comment);
+  res.json(detail(o));
 });
 
 r.post('/:id/invoices', requireRole('admin', 'staff'), body(z.object({

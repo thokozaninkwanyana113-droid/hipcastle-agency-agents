@@ -7,6 +7,7 @@ import NotFound from './NotFound.jsx';
 import Seo, { breadcrumbSchema, faqSchema } from '../components/Seo.jsx';
 import { Faq, TestimonialCard } from '../components/Testimonials.jsx';
 import { money } from '../format.js';
+import DeliveryJourney from '../components/DeliveryJourney.jsx';
 
 export default function ServiceDetail() {
   const { slug } = useParams();
@@ -86,6 +87,8 @@ export default function ServiceDetail() {
           </div>
         </div>
       </section>
+
+      {s.journey && <DeliveryJourney service={s} />}
 
       <section className="section" aria-labelledby="svc-faq">
         <div className="container container--narrow">

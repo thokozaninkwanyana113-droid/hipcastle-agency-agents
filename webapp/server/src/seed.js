@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { db, tx } from './db.js';
 import { catalog, testimonials } from './catalog.js';
 import { seedPosts } from './posts-seed.js';
+import { instantiatePipeline } from './pipeline.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(here, '../../..');
@@ -148,9 +149,14 @@ export function seed({ demo = true, syncCatalog = false, log = console.log } = {
       const { id: oid } = db.prepare(`INSERT INTO orders (reference, user_id, tier_id, status, brief, price_cents, progress, due_date)
         VALUES ('HC-DEMO01', ?, ?, 'active', 'Build a customer self-service portal MVP.', ?, 40, date('now', '+30 days')) RETURNING id`)
         .get(uid, tier.id, tier.price_cents);
-      const ms = db.prepare('INSERT INTO milestones (order_id, title, position, is_done, done_at) VALUES (?, ?, ?, ?, ?)');
-      ['Kick-off & discovery', 'Architecture & design', 'Build sprint 1', 'Build sprint 2', 'QA & launch']
-        .forEach((title, i) => ms.run(oid, title, i, i < 2 ? 1 : 0, i < 2 ? new Date().toISOString() : null));
+      // Real delivery pipeline, with onboarding done and the first deliverable waiting for approval.
+      instantiatePipeline(oid);
+      db.prepare("UPDATE onboarding_items SET status = 'done', response = 'Provided during demo setup', completed_at = datetime('now') WHERE order_id = ?").run(oid);
+      db.prepare("UPDATE orders SET onboarding_completed_at = datetime('now'), kickoff_at = datetime('now') WHERE id = ?").run(oid);
+      db.prepare("UPDATE milestones SET status = 'done', is_done = 1, done_at = datetime('now') WHERE order_id = ? AND stage = 'onboarding'").run(oid);
+      db.prepare(`UPDATE milestones SET status = 'awaiting_client', submitted_at = datetime('now'), deliverable_url = 'https://www.figma.com/',
+        deliverable_note = 'Here are the prioritised user stories for the portal — please review.' WHERE order_id = ? AND key = 'requirements'`).run(oid);
+      db.prepare("UPDATE orders SET status = 'in_review', progress = 15 WHERE id = ?").run(oid);
       const half = tier.price_cents / 2;
       db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, status, due_at, paid_at)
         VALUES ('INV-DEMO01', ?, ?, 0, ?, 'Deposit (50%)', 'paid', date('now'), datetime('now'))`).run(oid, half, half);

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { db, row, tx } from '../db.js';
 import { logEvent } from '../events.js';
 import { onPayment } from '../email/notify.js';
+import { onActivated } from '../pipeline.js';
 
 export const newReference = () => `HCP-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
@@ -24,8 +25,10 @@ export function applyPaymentStatus(payment, status, { txnId = null, message = nu
       const inv = row(db.prepare('SELECT * FROM invoices WHERE id = ?').get(current.invoice_id));
       if (inv.status !== 'paid') {
         db.prepare("UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(inv.id);
+        const wasPending = db.prepare("SELECT status FROM orders WHERE id = ?").get(inv.order_id).status === 'pending';
         db.prepare("UPDATE orders SET status = CASE WHEN status = 'pending' THEN 'active' ELSE status END, updated_at = datetime('now') WHERE id = ?")
           .run(inv.order_id);
+        if (wasPending) onActivated(inv.order_id);
       }
       logEvent('payment.complete', `${current.gateway} payment ${current.reference} for ${inv.number} completed (R${(current.amount_cents / 100).toFixed(2)})`,
         { actor: current.user_id, ref: current.reference });

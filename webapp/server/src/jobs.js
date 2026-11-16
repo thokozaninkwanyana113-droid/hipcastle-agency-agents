@@ -7,6 +7,7 @@ import { getSettings, updateSettings } from './settings.js';
 import { expireStalePayments } from './payments/service.js';
 import { processQueue } from './email/mailer.js';
 import { onInvoiceOverdue } from './email/notify.js';
+import { runRetainerCycles, watchPipelines } from './pipeline.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -19,6 +20,16 @@ const definitions = [
       const r = await processQueue(50);
       return `${r.sent} sent, ${r.logged} logged, ${r.failed} failed`;
     },
+  },
+  {
+    id: 'pipeline-watch', name: 'Delivery pipeline watch', every: HOUR,
+    description: 'Flags overdue milestones, reminds clients about pending approvals (every 3 days) and unfinished onboarding, and emails the team a daily overdue digest.',
+    run: () => watchPipelines(),
+  },
+  {
+    id: 'retainer-cycles', name: 'Retainer monthly cycles', every: 6 * HOUR,
+    description: 'Starts the next month for retainers that are due: creates the month’s milestones and issues the monthly invoice.',
+    run: () => runRetainerCycles(),
   },
   {
     id: 'expire-payments', name: 'Expire abandoned payments', every: 15 * MIN,

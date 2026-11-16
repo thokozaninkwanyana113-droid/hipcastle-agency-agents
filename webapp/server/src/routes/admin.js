@@ -14,6 +14,8 @@ import { canonicalUrl } from '../urls.js';
 import { onTestimonialApproved } from '../email/notify.js';
 import { emailConfig, processQueue, renderTemplate, retryEmail, sendEmail, verifyTransport } from '../email/mailer.js';
 import { TEMPLATES } from '../email/templates.js';
+import * as P from '../pipeline.js';
+import { PLAYBOOKS, STAGES, buildPlan, REVISIONS } from '../playbooks.js';
 
 const r = Router();
 r.use(authenticate, requireRole('admin', 'staff'));
@@ -102,6 +104,13 @@ r.patch('/invoices/:id', body(z.object({ status: z.enum(['unpaid', 'paid', 'void
     WHERE id = ? RETURNING *`).get(s, s, id(req.params.id)));
   if (!inv) return res.status(404).json({ error: 'Invoice not found' });
   logEvent('invoice.status', `${inv.number} manually set to ${s}`, { actor: req.user.id, ref: inv.number, level: 'warn' });
+  if (s === 'paid') {
+    const o = db.prepare('SELECT status FROM orders WHERE id = ?').get(inv.order_id);
+    if (o.status === 'pending') {
+      db.prepare("UPDATE orders SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(inv.order_id);
+      P.onActivated(inv.order_id);
+    }
+  }
   res.json(inv);
 });
 
@@ -394,6 +403,26 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="hipcastle-${req.params.kind}-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send('﻿' + csv);
+});
+
+// Delivery pipelines
+r.get('/pipeline', (_req, res) => res.json({ ...P.boardData(), stages: STAGES }));
+r.get('/playbooks', (_req, res) => {
+  const services = rows(db.prepare('SELECT id, slug, name, icon FROM services ORDER BY sort_order').all());
+  res.json(services.map((s) => {
+    const tiers = rows(db.prepare(`SELECT tier, name, billing, delivery_days FROM service_tiers WHERE service_id = ?
+      ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(s.id));
+    const agents = Object.fromEntries(rows(db.prepare('SELECT slug, name, emoji FROM agents').all()).map((a) => [a.slug, a]));
+    return {
+      ...s, summary: PLAYBOOKS[s.slug]?.summary,
+      tiers: tiers.map((t) => {
+        const plan = buildPlan(s.slug, t.tier, t.billing, t.delivery_days);
+        return { ...t, kind: plan.kind, revisions: REVISIONS[t.tier] ?? null, intake: plan.intake, checklist: plan.checklist,
+          milestones: plan.milestones.map((m) => ({ stage: m.stage, title: m.title, days: m.days, approval: !!m.approval, client: !!m.client,
+            deliverable: m.deliverable || null, agent: m.agent ? agents[m.agent] || { slug: m.agent, name: m.agent } : null })) };
+      }),
+    };
+  }));
 });
 
 // Emails
