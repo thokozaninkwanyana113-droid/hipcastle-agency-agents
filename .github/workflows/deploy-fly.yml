@@ -94,6 +94,9 @@ jobs:
           OZOW_API_KEY: ${{ secrets.OZOW_API_KEY }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CHATBOT_MODEL: ${{ vars.CHATBOT_MODEL }}
+          CHATBOT_EFFORT: ${{ vars.CHATBOT_EFFORT }}
           PAYMENTS_MODE: ${{ vars.PAYMENTS_MODE || 'sandbox' }}
         run: |
           existing=$(flyctl secrets list --app "$FLY_APP" --json 2>/dev/null | jq -r '.[] | (.name // .Name)' || true)
@@ -108,7 +111,7 @@ jobs:
             fi
             args+=("ADMIN_PASSWORD=$ADMIN_PASSWORD")
           fi
-          for k in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS EMAIL_FROM PAYFAST_MERCHANT_ID PAYFAST_MERCHANT_KEY PAYFAST_PASSPHRASE OZOW_SITE_CODE OZOW_PRIVATE_KEY OZOW_API_KEY TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
+          for k in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS EMAIL_FROM PAYFAST_MERCHANT_ID PAYFAST_MERCHANT_KEY PAYFAST_PASSPHRASE OZOW_SITE_CODE OZOW_PRIVATE_KEY OZOW_API_KEY TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY ANTHROPIC_API_KEY CHATBOT_MODEL CHATBOT_EFFORT; do
             [ -n "${!k}" ] && args+=("$k=${!k}")
           done
           args+=("PAYMENTS_MODE=$PAYMENTS_MODE")

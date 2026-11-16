@@ -24,6 +24,7 @@ export default function Portal() {
           <div className="portal__actions">
             {isStaff && <Link to="/admin" className="btn btn--outline">Admin dashboard</Link>}
             <Link to="/account" className="btn btn--ghost">Account settings</Link>
+            <Link to="/portal/support" className="btn btn--outline">Support</Link>
             <Link to="/pricing" className="btn btn--primary">New engagement</Link>
           </div>
         </div>

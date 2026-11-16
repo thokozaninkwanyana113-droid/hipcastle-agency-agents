@@ -472,6 +472,101 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Sizwe Dlamini' }, order: { reference: 'HC-1E1AC5', service_name: 'Design & Brand', tier_name: 'Growth', nps_score: 9, nps_comment: 'Brilliant team.' } },
   },
+  // ------------------------------------------------------------------ Support desk
+  'ticket.created': {
+    audience: 'Client', description: 'Support ticket acknowledgement with the response target',
+    build: ({ user, ticket, hours }) => ({
+      subject: `We’ve got your request [${ticket.reference}] — ${ticket.subject}`,
+      preheader: `A Hipcastle team member will respond within ${hours} hours.`,
+      heading: 'Your support request is in',
+      blocks: [
+        `Thanks, ${first(user.name)}. We’ve logged your request and a team member will respond within ${hours} hours (business hours, ${ticket.priority} priority).`,
+        { table: [['Reference', ticket.reference], ['Subject', ticket.subject], ['Category', ticket.category], ['Priority', ticket.priority]] },
+        { button: 'View your ticket', href: `/portal/support/${ticket.id}` },
+        { note: 'Never send passwords, card numbers or banking details in a ticket.' },
+      ],
+      reason: 'You’re receiving this because you opened a support ticket in the Hipcastle client portal.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, ticket: { id: 1, reference: 'TCK-4F2A9C', subject: 'Checkout button not working on mobile', category: 'technical', priority: 'high' }, hours: 24 },
+  },
+  'ticket.notify': {
+    audience: 'Team', description: 'New support ticket alert',
+    build: ({ user, ticket, body, hours }) => ({
+      subject: `${ticket.priority === 'urgent' ? '🚨' : '🎫'} [${ticket.reference}] ${ticket.subject} — ${user.name}`,
+      preheader: body.slice(0, 90),
+      heading: `New ${ticket.priority} support ticket`,
+      blocks: [
+        { table: [['Client', `${user.name} (${user.email})`], ['Category', ticket.category], ['Priority', ticket.priority], ['First response due', `within ${hours} hours`]] },
+        { quote: body },
+        { button: 'Open the support desk', href: '/admin/support' },
+      ],
+      signoff: false,
+    }),
+    sample: { user: { name: 'Thandi Mokoena', email: 'thandi@example.com' }, ticket: { reference: 'TCK-4F2A9C', subject: 'Checkout button not working on mobile', category: 'technical', priority: 'high' }, body: 'Customers say the checkout button does nothing on iPhone.', hours: 24 },
+  },
+  'ticket.reply': {
+    audience: 'Client / Team', description: 'New reply on a support ticket',
+    build: ({ to, author, ticket, body, staffView }) => ({
+      subject: `Re: [${ticket.reference}] ${ticket.subject}`,
+      preheader: body.slice(0, 90),
+      heading: `${author.name} replied`,
+      blocks: [
+        `Hi ${first(to.name)}, there’s a new reply on ticket ${ticket.reference}.`,
+        { quote: body },
+        { button: 'Reply in the portal', href: staffView ? '/admin/support' : `/portal/support/${ticket.id}` },
+      ],
+      signoff: !staffView,
+      reason: 'Support update for your Hipcastle account.',
+    }),
+    sample: { to: { name: 'Thandi Mokoena' }, author: { name: 'Lerato (Hipcastle)' }, ticket: { id: 1, reference: 'TCK-4F2A9C', subject: 'Checkout button not working on mobile' }, body: 'We found the issue — a script conflict on Safari. A fix is live; please try again.' },
+  },
+  'ticket.resolved': {
+    audience: 'Client', description: 'Ticket resolved — ask the client to rate the help (CSAT)',
+    build: ({ user, ticket }) => ({
+      subject: `Resolved: [${ticket.reference}] ${ticket.subject}`,
+      preheader: 'How did we do? Rate the help in one click.',
+      heading: 'Your request has been resolved',
+      blocks: [
+        `Hi ${first(user.name)}, we’ve marked ticket ${ticket.reference} as resolved. If anything is still not right, just reply in the portal and it reopens automatically.`,
+        'How happy were you with the help you received?',
+        { button: 'Rate the help (1–5)', href: `/portal/support/${ticket.id}#rate` },
+      ],
+      reason: 'Support update for your Hipcastle account.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, ticket: { id: 1, reference: 'TCK-4F2A9C', subject: 'Checkout button not working on mobile' } },
+  },
+  'ticket.sla': {
+    audience: 'Team', description: 'Support tickets past their first-response target',
+    build: ({ tickets }) => ({
+      subject: `⏰ ${tickets.length} support ticket${tickets.length === 1 ? '' : 's'} past the response target`,
+      preheader: tickets.map((t) => t.reference).join(', '),
+      heading: 'Response targets missed',
+      blocks: [
+        { table: tickets.map((t) => [`${t.reference} (${t.priority})`, `${t.subject} — ${t.client_name}, due ${t.sla_due_at}`]) },
+        { button: 'Open the support desk', href: '/admin/support' },
+      ],
+      signoff: false,
+    }),
+    sample: { tickets: [{ reference: 'TCK-4F2A9C', priority: 'high', subject: 'Checkout button not working', client_name: 'Thandi Mokoena', sla_due_at: '2026-11-16 09:00' }] },
+  },
+  'chat.handoff': {
+    audience: 'Team', description: 'Website chat visitor asked to talk to a person',
+    build: ({ lead, transcript }) => ({
+      subject: `💬 Chat handoff: ${lead.name} wants to talk to a person`,
+      preheader: lead.message.slice(0, 90),
+      heading: 'A chat visitor asked for a person',
+      blocks: [
+        { table: [['Name', lead.name], ['Email', lead.email], ['Phone', lead.phone || '—'], ['Prefers', lead.preferred_contact || 'email']] },
+        { quote: lead.message },
+        ...(transcript.length ? [{ p: 'Recent conversation:' }, { list: transcript.map((m) => `${m.role === 'user' ? 'Visitor' : 'Assistant'}: ${m.content.slice(0, 300)}`) }] : []),
+        { button: 'Open in Command Centre', href: '/admin/leads' },
+      ],
+      signoff: false,
+      replyTo: lead.email,
+    }),
+    sample: { lead: { name: 'Sipho Ndlovu', email: 'sipho@example.com', phone: '', preferred_contact: 'email', message: 'Can you build a booking system for my salon?' },
+      transcript: [{ role: 'user', content: 'Do you build booking systems?' }, { role: 'assistant', content: 'Yes — our Web & App Development packages…' }] },
+  },
   'system.test': {
     audience: 'Admin', description: 'Test email from the Command Centre',
     build: () => ({

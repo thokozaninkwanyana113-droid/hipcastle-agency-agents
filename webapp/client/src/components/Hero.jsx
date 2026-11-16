@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useFetch } from '../useFetch.js';
 import { money } from '../format.js';
+import { openChat } from './ChatWidget.jsx';
 
 const ORBIT = [
   { e: '🖥️', n: 'Web Developer' }, { e: '🎨', n: 'Brand Designer' }, { e: '📈', n: 'SEO & Growth' },
@@ -29,6 +30,7 @@ export default function Hero() {
             <Link to="/contact" className="btn btn--primary btn--lg">Book a free strategy session</Link>
             <Link to="/pricing" className="btn btn--outline-light btn--lg">See rand pricing</Link>
           </div>
+          <button type="button" className="hero__ask" onClick={() => openChat()}>💬 Not sure where to start? <u>Ask our assistant</u> — instant answers on services, prices and payments.</button>
           <ul className="hero__trust">
             <li>✓ No lock-in on retainers</li>
             <li>✓ 50% deposit, balance on delivery</li>

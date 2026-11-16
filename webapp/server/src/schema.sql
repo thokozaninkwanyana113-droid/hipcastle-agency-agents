@@ -290,6 +290,66 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Website chatbot conversations (kept 180 days, then deleted by the retention job)
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id              TEXT PRIMARY KEY,                    -- random UUID held by the browser
+  mode            TEXT NOT NULL DEFAULT 'faq' CHECK (mode IN ('ai','faq')),
+  page            TEXT,
+  ip_hash         TEXT,
+  message_count   INTEGER NOT NULL DEFAULT 0,
+  handoff_lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id    TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  role          TEXT NOT NULL CHECK (role IN ('user','assistant')),
+  content       TEXT NOT NULL,
+  source        TEXT,                                  -- ai | faq | fallback (assistant only)
+  kb_ids        TEXT,                                  -- JSON: knowledge entries used (faq mode)
+  answered      INTEGER NOT NULL DEFAULT 1,            -- 0 = the bot could not answer
+  helpful       INTEGER,                               -- visitor feedback: 1 / 0 / NULL
+  model         TEXT,
+  input_tokens  INTEGER,
+  output_tokens INTEGER,
+  cache_read_tokens INTEGER,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Client support desk
+CREATE TABLE IF NOT EXISTS tickets (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  reference         TEXT NOT NULL UNIQUE,
+  user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_id          INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+  subject           TEXT NOT NULL,
+  category          TEXT NOT NULL CHECK (category IN ('project','billing','technical','account','other')),
+  priority          TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
+  status            TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','pending_client','resolved','closed')),
+  assigned_to       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  sla_due_at        TEXT NOT NULL,                     -- first-response target
+  first_response_at TEXT,
+  resolved_at       TEXT,
+  csat_score        INTEGER CHECK (csat_score BETWEEN 1 AND 5),
+  csat_comment      TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id  INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  author_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL,
+  internal   INTEGER NOT NULL DEFAULT 0,               -- staff-only note
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_created ON chat_sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, sla_due_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
+
 CREATE INDEX IF NOT EXISTS idx_emails_status ON emails(status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_emails_created ON emails(created_at);
 CREATE INDEX IF NOT EXISTS idx_tiers_service   ON service_tiers(service_id);

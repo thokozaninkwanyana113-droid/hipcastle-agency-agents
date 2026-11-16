@@ -24,7 +24,13 @@ import { Privacy, Terms } from './pages/Legal.jsx';
 import PaymentReturn from './pages/PaymentReturn.jsx';
 import PaymentSimulate from './pages/PaymentSimulate.jsx';
 import WhatsAppButton from './components/WhatsAppButton.jsx';
+import ChatWidget from './components/ChatWidget.jsx';
+import Help from './pages/Help.jsx';
+import { SupportList, SupportTicket } from './pages/Support.jsx';
 import NotFound from './pages/NotFound.jsx';
+
+// The assistant lives on the homepage (and the Help Centre); WhatsApp is offered inside it there.
+const CHAT_PAGES = ['/', '/help'];
 
 function RequireAuth({ children, staff = false }) {
   const { user, ready, isStaff } = useAuth();
@@ -58,6 +64,7 @@ export default function App() {
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/payment/return" element={<RequireAuth><PaymentReturn /></RequireAuth>} />
           <Route path="/payment/simulate" element={<RequireAuth><PaymentSimulate /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
@@ -68,12 +75,14 @@ export default function App() {
           <Route path="/portal" element={<RequireAuth><Portal /></RequireAuth>} />
           <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+          <Route path="/portal/support" element={<RequireAuth><SupportList /></RequireAuth>} />
+          <Route path="/portal/support/:id" element={<RequireAuth><SupportTicket /></RequireAuth>} />
           <Route path="/admin/*" element={<RequireAuth staff><CommandCentre /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       {!pathname.startsWith('/admin') && <Footer />}
-      <WhatsAppButton />
+      {CHAT_PAGES.includes(pathname) ? <ChatWidget /> : <WhatsAppButton />}
     </div>
   );
 }

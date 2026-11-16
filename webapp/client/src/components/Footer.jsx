@@ -74,6 +74,7 @@ export default function Footer() {
             <li><Link to="/blog">Blog & guides</Link></li>
             <li><Link to="/pricing">Pricing</Link></li>
             <li><Link to="/contact">Contact us</Link></li>
+            <li><Link to="/help">Help Centre</Link></li>
             <li><Link to="/portal">Client portal</Link></li>
           </ul>
           <h2 className="footer__h mt">Get in touch</h2>

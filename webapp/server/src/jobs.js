@@ -8,6 +8,7 @@ import { expireStalePayments } from './payments/service.js';
 import { processQueue } from './email/mailer.js';
 import { onInvoiceOverdue } from './email/notify.js';
 import { runRetainerCycles, watchPipelines } from './pipeline.js';
+import { slaDigest } from './email/support-notify.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -64,6 +65,25 @@ const definitions = [
       for (const f of old) unlinkSync(join(dir, f));
       return `Backup written: ${file.split(/[\\/]/).pop()}`;
     },
+  },
+  {
+    id: 'support-sla', name: 'Support desk SLA watch', every: 15 * MIN,
+    description: 'Warns the team about tickets past their first-response target (once per ticket) and closes resolved tickets after 7 days without a reply.',
+    run: () => {
+      const late = db.prepare(`SELECT t.id, t.reference, t.priority, t.subject, t.sla_due_at, u.name AS client_name FROM tickets t JOIN users u ON u.id = t.user_id
+        WHERE t.status = 'open' AND t.first_response_at IS NULL AND t.sla_due_at < datetime('now')
+        AND NOT EXISTS (SELECT 1 FROM events e WHERE e.type = 'support.sla_breach' AND e.ref = t.reference)`).all();
+      for (const t of late) logEvent('support.sla_breach', `${t.reference} (${t.priority}) missed its first-response target`, { level: 'warn', ref: t.reference });
+      if (late.length) slaDigest(late);
+      const closed = db.prepare(`UPDATE tickets SET status = 'closed', updated_at = datetime('now')
+        WHERE status = 'resolved' AND resolved_at < datetime('now', '-7 days')`).run().changes;
+      return `${late.length} newly late, ${closed} auto-closed`;
+    },
+  },
+  {
+    id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,
+    description: 'Deletes website-chat conversations older than 180 days (POPIA: keep personal information no longer than needed).',
+    run: () => `${db.prepare("DELETE FROM chat_sessions WHERE updated_at < datetime('now', '-180 days')").run().changes} old conversation(s) removed`,
   },
   {
     id: 'prune-events', name: 'Activity log retention', every: 24 * HOUR,

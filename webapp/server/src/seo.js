@@ -10,6 +10,7 @@ import { db, row, rows } from './db.js';
 import { getSettings } from './settings.js';
 import { generalFaqs, serviceFaqs, rand, billingText } from './content.js';
 import { canonicalUrl as siteUrl } from './urls.js';
+import { buildChunks, CATEGORIES } from './kb.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const DIST = resolve(here, '../../client/dist');
@@ -126,7 +127,7 @@ function offer(base, service, t) {
 // ---------------------------------------------------------------- snapshot HTML fragments
 const faqHtml = (faqs, heading = 'Frequently asked questions') =>
   `<section><h2>${esc(heading)}</h2>${faqs.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</section>`;
-const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">AI playbooks</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a></nav>`;
+const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">AI playbooks</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a> · <a href="/help">Help Centre</a></nav>`;
 const footer = (s) => `<footer><p><a href="${esc(siteUrl())}/">${esc(siteUrl().replace(/^https?:\/\//, ''))}</a> · ${esc(s.business_name)} — ${esc(s.tagline)}. ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa. Email ${esc(s.email)} · Phone ${esc(s.phone)} · ${esc(s.office_hours)}.</p><p>Secure payments by PayFast and Ozow. Prices in South African rand (ZAR).</p></footer>`;
 const tierList = (svc, tiers) => `<ul>${tiers.map((t) => `<li><strong>${esc(t.name)}</strong> — ${esc(rand(t.price_cents))} ${billingText(t.billing)}: ${esc(t.summary)} Includes ${esc(t.features.join(', '))}.</li>`).join('')}</ul>`;
 
@@ -234,6 +235,21 @@ export function resolvePage(pathname) {
       description: `Contact ${brand} for a free 30-minute strategy session. Email ${s.email}, call ${s.phone} or WhatsApp us. We reply within one business day.`,
       schema: [org, breadcrumbs(base, [{ name: 'Contact', path: '/contact' }]), { '@context': 'https://schema.org', '@type': 'ContactPage', url: `${base}/contact`, mainEntity: { '@id': `${base}/#organization` } }],
       body: `<h1>Contact ${esc(brand)}</h1><p>Website: ${esc(base)}. Email: ${esc(s.email)}. Phone: ${esc(s.phone)}. WhatsApp: +${esc(s.whatsapp)}. Hours: ${esc(s.office_hours)}. Location: ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa.</p>`,
+    });
+  } else if (parts[0] === 'help' && parts.length === 1) {
+    const chunks = buildChunks();
+    const faqs = chunks.slice(0, 40).map((c) => ({ q: c.title, a: c.body }));
+    Object.assign(page, {
+      title: titled('Help Centre: Services, Prices, Payments & Support'),
+      description: `Answers about ${brand}'s services, packages and rand prices, PayFast and Ozow payments, delivery, the client portal, support response times and POPIA.`,
+      schema: [org, breadcrumbs(base, [{ name: 'Help Centre', path: '/help' }]), {
+        '@context': 'https://schema.org', '@type': 'FAQPage',
+        mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+      }],
+      body: `<h1>Help Centre</h1>${CATEGORIES.map(([key, label]) => {
+        const items = chunks.filter((c) => c.category === key);
+        return items.length ? `<section><h2>${esc(label)}</h2>${items.map((c) => `<h3>${esc(c.title)}</h3><p>${esc(c.body)}</p>`).join('')}</section>` : '';
+      }).join('')}`,
     });
   } else if (parts[0] === 'testimonials') {
     const ts = approvedTestimonials();
@@ -355,7 +371,7 @@ export function sitemapXml() {
     { loc: '/', priority: '1.0', changefreq: 'weekly' },
     { loc: '/services', priority: '0.9' }, { loc: '/pricing', priority: '0.9' },
     ...services().map((v) => ({ loc: `/services/${v.slug}`, priority: '0.9' })),
-    { loc: '/about', priority: '0.7' }, { loc: '/contact', priority: '0.7' }, { loc: '/testimonials', priority: '0.6' },
+    { loc: '/about', priority: '0.7' }, { loc: '/contact', priority: '0.7' }, { loc: '/help', priority: '0.6' }, { loc: '/testimonials', priority: '0.6' },
     { loc: '/blog', priority: '0.8', changefreq: 'weekly' },
     ...publishedPosts().map((p) => ({ loc: `/blog/${p.slug}`, priority: '0.7', lastmod: isoDate(p.updated_at)?.slice(0, 10) })),
     { loc: '/agents', priority: '0.5' },
@@ -402,6 +418,7 @@ export function llmsTxt({ full = false } = {}) {
     `- [About us](${base}/about): who we are and how we work`,
     `- [Client reviews](${base}/testimonials)`,
     `- [Contact](${base}/contact): free 30-minute strategy session`,
+    `- [Help Centre](${base}/help): answers about services, payments, delivery, support and policies`,
     `- [AI playbooks](${base}/agents): the specialist AI playbooks our team works with`, '',
     '## Frequently asked questions', '');
   for (const f of generalFaqs()) lines.push(`- **${f.q}** ${f.a}`);
@@ -443,7 +460,7 @@ ${posts.map((p) => `  <item>
 // ---------------------------------------------------------------- audit for the Command Centre
 export function seoAudit() {
   const s = getSettings();
-  const paths = ['/', '/services', '/pricing', '/about', '/contact', '/testimonials', '/blog', '/agents',
+  const paths = ['/', '/services', '/pricing', '/about', '/contact', '/help', '/testimonials', '/blog', '/agents',
     ...services().map((v) => `/services/${v.slug}`), ...publishedPosts().map((p) => `/blog/${p.slug}`)];
   const pages = paths.map((p) => {
     const pg = resolvePage(p);

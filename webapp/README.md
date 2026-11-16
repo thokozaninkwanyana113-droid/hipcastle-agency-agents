@@ -16,7 +16,9 @@ A full-stack web app for running a services agency, built for **South African en
 - **Header**: announcement bar, services mega-menu, Pricing, Specialists, Blog, About, Contact.
 - **Hero**: written for the SA market, with live stats and a "from R…" price.
 - **Footer**: social icons, newsletter, contact details, payment badges, legal links, CIPC and VAT numbers.
-- **Floating WhatsApp button** on every public page.
+- **Ask Hipcastle assistant** on the homepage: a chat widget that answers questions about every service, package, rand price, payment method, delivery step, portal feature, support process and policy. It suggests a package, links to the right page, takes 👍/👎 feedback and hands the conversation to a person (creates a lead with the transcript). WhatsApp is offered inside the panel.
+- **Help Centre** (`/help`): every article the assistant knows, searchable, with FAQPage structured data.
+- **Floating WhatsApp button** on every other public page.
 - **Services**: 14 lines × 3 tiers in rand. Each service page has a comparison table, specialists, client reviews and question-led FAQs ("How much does X cost in South Africa?").
 - **About us**: story, operating model, values, sectors served, reviews and FAQ, with AboutPage and FAQPage structured data.
 - **Contact**: WhatsApp, email, phone and hours cards. The strategy-session form captures province, budget and preferred channel, and requires POPIA consent.
@@ -28,6 +30,7 @@ A full-stack web app for running a services agency, built for **South African en
 - Register, choose a tier and submit a brief. The order then gets milestones and an invoice automatically.
 - **Pay invoices online** with PayFast or Ozow. The return page waits for the gateway's confirmation before showing the result.
 - Track progress, see payment history and message the team.
+- **Support desk** (`/portal/support`): open tickets by topic and priority, linked to an engagement; threaded replies with email notifications; resolve, reopen and rate the help (CSAT).
 - **VAT support**: when the business is VAT registered, invoices show subtotal, VAT and total.
 
 ### Command Centre (`/admin`, for staff and admins)
@@ -38,6 +41,8 @@ A full-stack web app for running a services agency, built for **South African en
 | **System & processes** | Uptime, memory, API request rates and p95 latency, busiest routes and recent errors. PayFast and Ozow status with notify URLs, database table sizes, config checks, and **background jobs** you can run or pause (expire abandoned payments, overdue invoice watch, daily database backup, log retention) |
 | **Activity log** | Searchable audit trail: orders, payments, rejected gateway notifications, sign-ins and failed sign-ins, admin changes, exports |
 | **Payments** | Every transaction, its raw gateway notification and manual reconciliation (with an audit note). CSV export |
+| **Support desk** | Ticket queue with first-response targets (urgent 4 h, high 24 h, normal 48 h, low 72 h), SLA-breach flags, assignees, internal notes, response-target %, average first response and CSAT |
+| **Assistant chats** | Whether the assistant is in AI or FAQ mode, conversations, helpful %, unanswered questions to improve on, handoffs and AI token usage; full transcripts |
 | **Engagements / Leads / Users / Invoices** | Order pipeline, CRM with WhatsApp/call/email shortcuts, role management, invoice status. CSV exports |
 | **Blog** | Markdown editor with preview, Google result preview and an SEO/AEO checklist; draft or publish |
 | **Testimonials** | Approve, reject, feature or delete reviews |
@@ -45,6 +50,21 @@ A full-stack web app for running a services agency, built for **South African en
 | **Subscribers** | Newsletter list (remove on request for POPIA), CSV export |
 | **SEO, AEO & GEO** | Readiness score, per-page title, description and schema audit, links to crawler files |
 | **Settings** | Business details (kept consistent with Google Business Profile), WhatsApp, social profiles, VAT, payment gateway toggles, pause orders, announcement bar |
+
+## Customer service: assistant, Help Centre and support desk
+
+**One knowledge base** ([`server/src/kb.js`](server/src/kb.js)) is generated from live data: the catalog and prices, delivery playbooks, settings, FAQs, policies and published blog posts. Edit a price or publish an article and the assistant and Help Centre know about it immediately — there is nothing separate to train.
+
+**Two answer engines** ([`server/src/chat.js`](server/src/chat.js)):
+
+| Mode | When | How |
+|---|---|---|
+| **AI** | `ANTHROPIC_API_KEY` is set | Claude answers from the knowledge base only (sent as a prompt-cached system prompt), streams the reply, quotes rand prices exactly, never asks for passwords or card details and offers a person when unsure. `CHATBOT_MODEL` (default `claude-opus-5-5`) and `CHATBOT_EFFORT` (default `low`) are configurable. |
+| **FAQ** | No key, or the AI call fails | Keyword retrieval over the same knowledge base. Free, instant, and the automatic fallback so visitors always get an answer. |
+
+Conversations are logged (with tokens used), rated by visitors and deleted after 180 days by the **chat retention** job. "Talk to a person" creates a lead (`source = chatbot`) with the transcript, sends the visitor a confirmation and the team a `chat.handoff` email. `/api/chat` is rate limited to 20 messages per 5 minutes per IP and 60 messages per conversation.
+
+**Support desk** ([`server/src/routes/support.js`](server/src/routes/support.js)): tickets get a first-response target from their priority; the first staff reply records the response time and sets *pending client*; a client reply reopens; resolved tickets ask for a 1–5 rating and close after 7 days. The **support SLA** job warns the team (once per ticket) when a target is missed. Emails: `ticket.created`, `ticket.notify`, `ticket.reply`, `ticket.resolved`, `ticket.sla`.
 
 ## Delivery pipelines: onboarding → delivery
 
@@ -225,7 +245,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 20 API integration test groups, run against an in-memory database. They cover:
+There are 48 API integration tests, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -240,6 +260,7 @@ There are 20 API integration test groups, run against an in-memory database. The
 - Password reset (no account enumeration, single-use tokens)
 - Signed newsletter unsubscribe
 - Delivery pipelines: full project journey, revision limits, balance invoice, feedback, retainer cycles, watch job and board
+- Customer service: knowledge base covers every service and price, FAQ answers, a mocked Claude stream (model, prompt caching, fallbacks, refusals, error fallback), feedback, handoff, ticket lifecycle with SLA, CSAT, access control and retention jobs
 
 ## Database schema
 
@@ -253,6 +274,7 @@ users ─┬─< orders >── service_tiers >── services >─< service_age
 leads >── services     testimonials >── services     posts     settings     events (audit log)
 newsletter_subscribers     emails (outbox queue)     password_resets
 orders ─< onboarding_items (questionnaire & checklist)
+users ─< tickets ─< ticket_messages     chat_sessions ─< chat_messages (→ leads on handoff)
 ```
 
 ## Before launch checklist
@@ -268,4 +290,5 @@ orders ─< onboarding_items (questionnaire & checklist)
 - [ ] Replace the four sample testimonials with real client reviews.
 - [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.
 - [ ] Create a Google Business Profile with the same name, address and phone, and submit `/sitemap.xml` in Google Search Console.
+- [ ] Optional: add `ANTHROPIC_API_KEY` to switch the assistant to AI answers, then check Command Centre → Assistant chats.
 - [ ] Back up `data/` regularly; a daily snapshot is also written to `data/backups`.
