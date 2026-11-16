@@ -13,12 +13,14 @@ import Catalog from './Catalog.jsx';
 import Settings from './Settings.jsx';
 import SeoCentre from './SeoCentre.jsx';
 import Emails from './Emails.jsx';
+import PipelineBoard from './PipelineBoard.jsx';
+import Playbooks from './Playbooks.jsx';
 
 const NAV = [
   ['Monitor', [['', 'Overview', '📊'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️']]],
-  ['Operate', [['engagements', 'Engagements', '📁'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
+  ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
-  ['Configure', [['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
+  ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
 ];
 
 export default function CommandCentre() {
@@ -51,6 +53,8 @@ export default function CommandCentre() {
           <Route path="activity" element={<Activity />} />
           <Route path="payments" element={<Payments />} />
           <Route path="emails" element={<Emails />} />
+          <Route path="pipeline" element={<PipelineBoard />} />
+          <Route path="playbooks" element={<Playbooks />} />
           <Route path="engagements" element={<Engagements />} />
           <Route path="orders" element={<Engagements />} />
           <Route path="leads" element={<Leads />} />

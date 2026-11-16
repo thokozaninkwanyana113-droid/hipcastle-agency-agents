@@ -90,17 +90,65 @@ CREATE TABLE IF NOT EXISTS orders (
   progress      INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
   assigned_to   INTEGER REFERENCES users(id) ON DELETE SET NULL,
   due_date      TEXT,
+  pipeline_kind TEXT    NOT NULL DEFAULT 'project' CHECK (pipeline_kind IN ('project','retainer')),
+  revisions_allowed INTEGER,                           -- client revision rounds per deliverable (NULL = unlimited)
+  kickoff_at    TEXT,
+  onboarding_completed_at TEXT,
+  onboarding_reminded_at  TEXT,
+  delivered_at  TEXT,
+  current_cycle INTEGER NOT NULL DEFAULT 0,
+  next_cycle_at TEXT,
+  nps_score     INTEGER CHECK (nps_score BETWEEN 0 AND 10),
+  nps_comment   TEXT,
+  feedback_at   TEXT,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS milestones (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id   INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  title      TEXT    NOT NULL,
-  position   INTEGER NOT NULL,
-  is_done    INTEGER NOT NULL DEFAULT 0,
-  done_at    TEXT
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id          INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  title             TEXT    NOT NULL,
+  position          INTEGER NOT NULL,
+  is_done           INTEGER NOT NULL DEFAULT 0,
+  done_at           TEXT,
+  -- delivery pipeline (see playbooks.js)
+  key               TEXT,
+  stage             TEXT,
+  cycle             INTEGER NOT NULL DEFAULT 0,             -- retainer month (0 = not part of a cycle)
+  agent_slug        TEXT,                                   -- owner specialist
+  days              INTEGER NOT NULL DEFAULT 1,
+  due_date          TEXT,
+  status            TEXT    NOT NULL DEFAULT 'todo'
+                    CHECK (status IN ('todo','in_progress','awaiting_client','changes_requested','blocked','done')),
+  requires_approval INTEGER NOT NULL DEFAULT 0,
+  client_task       INTEGER NOT NULL DEFAULT 0,
+  deliverable       TEXT,                                   -- what the client receives
+  deliverable_url   TEXT,
+  deliverable_note  TEXT,
+  client_feedback   TEXT,
+  revisions_used    INTEGER NOT NULL DEFAULT 0,
+  started_at        TEXT,
+  submitted_at      TEXT,
+  approved_at       TEXT,
+  last_reminded_at  TEXT
+);
+
+-- Onboarding checklist & intake questionnaire per engagement
+CREATE TABLE IF NOT EXISTS onboarding_items (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  key          TEXT    NOT NULL,
+  kind         TEXT    NOT NULL CHECK (kind IN ('question','access','asset','meeting','legal')),
+  label        TEXT    NOT NULL,
+  field_type   TEXT    NOT NULL DEFAULT 'text',
+  options      TEXT,                                        -- JSON array for selects
+  required     INTEGER NOT NULL DEFAULT 0,
+  response     TEXT,
+  status       TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','done')),
+  completed_at TEXT,
+  position     INTEGER NOT NULL,
+  UNIQUE (order_id, key)
 );
 
 CREATE TABLE IF NOT EXISTS invoices (
@@ -241,6 +289,9 @@ CREATE INDEX IF NOT EXISTS idx_tiers_service   ON service_tiers(service_id);
 CREATE INDEX IF NOT EXISTS idx_agents_division ON agents(division);
 CREATE INDEX IF NOT EXISTS idx_orders_user     ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_milestones_order ON milestones(order_id, position);
+CREATE INDEX IF NOT EXISTS idx_milestones_due ON milestones(status, due_date);
+CREATE INDEX IF NOT EXISTS idx_onboarding_order ON onboarding_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_messages_order  ON messages(order_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_order  ON invoices(order_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status    ON leads(status);
