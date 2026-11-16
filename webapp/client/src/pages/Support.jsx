@@ -7,6 +7,7 @@ import { useFetch } from '../useFetch.js';
 import { api } from '../api.js';
 import { dateTime, timeAgo } from '../format.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { CareUsage } from '../components/Care.jsx';
 
 export const RESPONSE = { urgent: '4 business hours', high: '1 business day', normal: '2 business days', low: '3 business days' };
 const CATEGORIES = [['project', 'My project / deliverables'], ['billing', 'Invoices & payments'], ['technical', 'Website or technical issue'], ['account', 'Account & login'], ['other', 'Something else']];
@@ -80,7 +81,7 @@ export function SupportList() {
             {!creating && <button className="btn btn--primary" onClick={() => setCreating(true)}>New ticket</button>}
           </div>
         </div>
-        <p className="muted">Response targets: urgent within {RESPONSE.urgent}, high within {RESPONSE.high}, normal within {RESPONSE.normal}. You’ll get an email whenever we reply.</p>
+        <p className="muted">Response targets: urgent within {RESPONSE.urgent}, high within {RESPONSE.high}, normal within {RESPONSE.normal}. You’ll get an email whenever we reply. Clients on a <Link to="/care">care plan</Link> get their plan’s faster response automatically.</p>
         {creating && <NewTicket orders={myOrders} onCreated={(t) => nav(`/portal/support/${t.id}`)} />}
         {loading && <Loader />}
         <ErrorBox error={error} />
@@ -95,6 +96,7 @@ export function SupportList() {
                 <strong>{t.subject}</strong>
                 <small>{t.reference} · {t.category}{t.order_ref ? ` · ${t.order_ref}` : ''} · updated {timeAgo(t.updated_at)}</small>
               </div>
+              {t.care_ref && <span className="care-pill" title="Covered by your care plan">🛟 Care</span>}
               <PriorityBadge value={t.priority} />
               <Status value={t.status === 'pending_client' ? 'awaiting_you' : t.status} />
             </Link>
@@ -153,7 +155,9 @@ export function SupportTicket() {
           {t.order_ref && <Link to={`/portal/orders/${t.order_id}`}>{t.order_ref}</Link>}
           <span>Opened {dateTime(t.created_at)}</span>
           {!t.first_response_at && t.status === 'open' && <span>First response within {RESPONSE[t.priority]}</span>}
+          {t.care_ref && <span className="care-pill">🛟 Care plan {t.care_ref}</span>}
         </div>
+        {t.care_usage && <div className="card"><CareUsage usage={t.care_usage} compact /></div>}
         <ol className="thread">
           {t.messages.map((m) => (
             <li key={m.id} className={`thread__msg ${m.author_id === user.id ? 'thread__msg--mine' : ''} ${m.internal ? 'thread__msg--internal' : ''}`}>

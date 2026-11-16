@@ -14,21 +14,26 @@ import { botCheck, turnstileSiteKey } from '../botcheck.js';
 import { sendEmail } from '../email/mailer.js';
 import { confirmUrl, verifyConfirm, verifyUnsubscribe } from '../email/mailer.js';
 import express from 'express';
+import { CARE, CARE_EXTRA_HOUR_CENTS, CARE_TERMS } from '../care.js';
 import { canonicalUrl } from '../urls.js';
 
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const r = Router();
 
-const tiersFor = (serviceId) =>
-  rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ?
-    ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(serviceId), ['features']);
+const tiersFor = (serviceId, plan = 'core') =>
+  rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ? AND plan = ?
+    ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(serviceId, plan), ['features']);
+const careFor = (s) => ({ title: CARE[s.slug]?.title || 'Care plan', blurb: CARE[s.slug]?.blurb || '', tiers: tiersFor(s.id, 'care') });
 
 r.get('/services', (req, res) => {
   const services = rows(db.prepare(`
     SELECT s.*, (SELECT COUNT(*) FROM service_agents sa WHERE sa.service_id = s.id) AS agent_count,
-           (SELECT MIN(price_cents) FROM service_tiers t WHERE t.service_id = s.id) AS from_price_cents
+           (SELECT MIN(price_cents) FROM service_tiers t WHERE t.service_id = s.id AND t.plan = 'core') AS from_price_cents,
+           (SELECT MIN(price_cents) FROM service_tiers t WHERE t.service_id = s.id AND t.plan = 'care') AS care_from_cents
     FROM services s WHERE s.is_active = 1 ORDER BY s.sort_order`).all(), ['outcomes']);
-  if (req.query.include === 'tiers') for (const s of services) s.tiers = tiersFor(s.id);
+  const include = String(req.query.include || '').split(',');
+  if (include.includes('tiers')) for (const s of services) s.tiers = tiersFor(s.id);
+  if (include.includes('care')) for (const s of services) s.care = careFor(s);
   res.json(services);
 });
 
@@ -38,6 +43,7 @@ r.get('/services/:slug', (req, res) => {
   s.tiers = tiersFor(s.id);
   s.faqs = serviceFaqs(s);
   s.journey = journey(s.slug, s.tiers);
+  s.care = careFor(s);
   s.testimonials = rows(db.prepare(`SELECT id, author, role, company, location, quote, rating FROM testimonials
     WHERE status = 'approved' AND service_id = ? ORDER BY is_featured DESC, id DESC LIMIT 3`).all(s.id));
   s.agents = rows(db.prepare(`SELECT a.slug, a.name, a.emoji, a.description, a.vibe, a.division
@@ -127,11 +133,20 @@ r.get('/posts/:slug', (req, res) => {
   res.json(p);
 });
 
+// Care plans (aftercare, maintenance & hosting) for every service
+r.get('/care', (_req, res) => {
+  const services = rows(db.prepare('SELECT id, slug, name, icon FROM services WHERE is_active = 1 ORDER BY sort_order').all());
+  res.json({
+    terms: CARE_TERMS, extra_hour_cents: CARE_EXTRA_HOUR_CENTS,
+    services: services.map((s) => ({ slug: s.slug, name: s.name, icon: s.icon, ...careFor(s) })).filter((s) => s.tiers.length),
+  });
+});
+
 r.get('/stats', (_req, res) => {
   const one = (sql) => db.prepare(sql).get().n;
   res.json({
     services: one('SELECT COUNT(*) n FROM services WHERE is_active = 1'),
-    tiers: one('SELECT COUNT(*) n FROM service_tiers'),
+    tiers: one("SELECT COUNT(*) n FROM service_tiers WHERE plan = 'core'"),
     agents: one('SELECT COUNT(*) n FROM agents'),
   });
 });

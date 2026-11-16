@@ -9,6 +9,7 @@ import { processQueue } from './email/mailer.js';
 import { onInvoiceOverdue } from './email/notify.js';
 import { runRetainerCycles, watchPipelines } from './pipeline.js';
 import { slaDigest } from './email/support-notify.js';
+import { offerCarePlans } from './careops.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -79,6 +80,11 @@ const definitions = [
         WHERE status = 'resolved' AND resolved_at < datetime('now', '-7 days')`).run().changes;
       return `${late.length} newly late, ${closed} auto-closed`;
     },
+  },
+  {
+    id: 'care-offers', name: 'Care plan offers', every: 6 * HOUR,
+    description: 'Seven days before a delivered project’s free post-launch support ends, emails the client the matching care plans (once per project).',
+    run: () => offerCarePlans(),
   },
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,

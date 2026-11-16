@@ -472,6 +472,54 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Sizwe Dlamini' }, order: { reference: 'HC-1E1AC5', service_name: 'Design & Brand', tier_name: 'Growth', nps_score: 9, nps_comment: 'Brilliant team.' } },
   },
+  // ------------------------------------------------------------------ Care plans
+  'care.offer': {
+    audience: 'Client', description: 'Free post-launch support ends in 7 days — offer a care plan',
+    build: ({ user, order, offer }) => ({
+      subject: `Your free support for ${order.service_name} ends soon — keep it looked after`,
+      preheader: `${offer.title} from ${rand(offer.tiers[0].price_cents)}/month. No lock-in.`,
+      heading: 'Keep what we built running smoothly',
+      blocks: [
+        `Hi ${first(user.name)}, your free post-launch support on ${order.reference} ends${offer.support_ends_at ? ` on ${offer.support_ends_at.slice(0, 10)}` : ' soon'}. After that, changes and fixes are quoted per job.`,
+        `${offer.title}: ${offer.blurb}`,
+        { table: offer.tiers.map((t) => [`${t.name} — ${rand(t.price_cents)}/month`, t.features.slice(0, 3).join(' · ')]) },
+        'Month-to-month, cancel with 30 days’ notice. Care clients’ support tickets get a faster response.',
+        { button: 'Choose a care plan', href: `/portal/orders/${order.id}#care` },
+      ],
+      reason: 'Project update for your Hipcastle engagement.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-1E1AC5', service_name: 'Software Engineering' },
+      offer: { title: 'Website & App Care', blurb: 'Hosting, updates, backups and fixes for your website, online store or app.', support_ends_at: '2026-12-01 10:00:00',
+        tiers: [{ name: 'Essential Care', price_cents: 59500, features: ['South African hosting & SSL certificate', 'Weekly off-site backups', 'Monthly updates'] },
+          { name: 'Growth Care', price_cents: 145000, features: ['Fast SSD hosting with CDN', 'Daily backups', 'Updates tested on staging first'] }] } },
+  },
+  'care.hours': {
+    audience: 'Client', description: 'Care plan: this month’s included hours are used up',
+    build: ({ user, order, usage }) => ({
+      subject: `You’ve used this month’s care hours on ${order.reference}`,
+      preheader: 'We’ll quote before doing any extra work.',
+      heading: 'This month’s included time is used up',
+      blocks: [
+        `Hi ${first(user.name)}, we’ve now spent ${Math.round(usage.used_minutes / 6) / 10} of the ${Math.round(usage.included_minutes / 6) / 10} hours included in your ${usage.title} (${order.tier_name}) this month.`,
+        `Monitoring, backups and urgent fixes for outages continue as normal. For any other changes this month we’ll send you a quote first (${rand(usage.extra_hour_cents)}/hour), or we can schedule them for next month when your hours reset.`,
+        { button: 'See your care plan', href: `/portal/orders/${order.id}` },
+      ],
+      reason: 'Care plan update for your Hipcastle account.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-7C2B10', tier_name: 'Growth Care' }, usage: { title: 'Website & App Care', used_minutes: 135, included_minutes: 120, extra_hour_cents: 65000 } },
+  },
+  'care.hours.team': {
+    audience: 'Team', description: 'Care plan allowance used up — quote before more work',
+    build: ({ user, order, usage }) => ({
+      subject: `⏱ ${order.reference} (${user.name}) has used this month’s care hours`,
+      preheader: `${usage.used_minutes} of ${usage.included_minutes} minutes`,
+      heading: 'Care allowance used up',
+      blocks: [{ table: [['Client', user.name], ['Plan', `${usage.title} — ${order.tier_name}`], ['Used', `${usage.used_minutes} of ${usage.included_minutes} minutes`]] },
+        { note: 'Quote any further non-urgent work before starting it.' }, { button: 'Open care plans', href: '/admin/care' }],
+      signoff: false,
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { reference: 'HC-7C2B10', tier_name: 'Growth Care' }, usage: { title: 'Website & App Care', used_minutes: 135, included_minutes: 120 } },
+  },
   // ------------------------------------------------------------------ Support desk
   'ticket.created': {
     audience: 'Client', description: 'Support ticket acknowledgement with the response target',

@@ -11,6 +11,7 @@ import { getSettings } from './settings.js';
 import { generalFaqs, serviceFaqs, rand, billingText } from './content.js';
 import { canonicalUrl as siteUrl } from './urls.js';
 import { buildChunks, CATEGORIES } from './kb.js';
+import { CARE, CARE_TERMS } from './care.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const DIST = resolve(here, '../../client/dist');
@@ -56,13 +57,13 @@ const plain = (md) => md.replace(/```[\s\S]*?```/g, '').replace(/[#*`>]/g, '').r
 
 // ---------------------------------------------------------------- data access
 const services = () => rows(db.prepare('SELECT * FROM services WHERE is_active = 1 ORDER BY sort_order').all(), ['outcomes']);
-const tiersFor = (sid) => rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ?
-  ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(sid), ['features']);
+const tiersFor = (sid, plan = 'core') => rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ? AND plan = ?
+  ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(sid, plan), ['features']);
 const publishedPosts = () => rows(db.prepare(`SELECT * FROM posts WHERE status = 'published' AND published_at <= datetime('now')
   ORDER BY published_at DESC`).all(), ['tags']);
 const approvedTestimonials = () => rows(db.prepare(`SELECT * FROM testimonials WHERE status = 'approved' ORDER BY is_featured DESC, id DESC`).all());
 const priceRange = () => {
-  const r = db.prepare('SELECT MIN(price_cents) lo, MAX(price_cents) hi FROM service_tiers st JOIN services s ON s.id = st.service_id WHERE s.is_active = 1').get();
+  const r = db.prepare('SELECT MIN(price_cents) lo, MAX(price_cents) hi FROM service_tiers st JOIN services s ON s.id = st.service_id WHERE s.is_active = 1 AND st.plan = \'core\'').get();
   return `${rand(r.lo)} – ${rand(r.hi)}`;
 };
 const realSocials = (s) => Object.values(s.social || {}).filter((u) => u && /^https?:\/\/[^/]+\/.+/.test(u));
@@ -127,7 +128,7 @@ function offer(base, service, t) {
 // ---------------------------------------------------------------- snapshot HTML fragments
 const faqHtml = (faqs, heading = 'Frequently asked questions') =>
   `<section><h2>${esc(heading)}</h2>${faqs.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}</section>`;
-const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/agents">AI playbooks</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a> · <a href="/help">Help Centre</a></nav>`;
+const nav = () => `<nav aria-label="Primary"><a href="/">Home</a> · <a href="/services">Services</a> · <a href="/pricing">Pricing</a> · <a href="/care">Care plans</a> · <a href="/agents">AI playbooks</a> · <a href="/blog">Blog</a> · <a href="/testimonials">Reviews</a> · <a href="/about">About us</a> · <a href="/contact">Contact</a> · <a href="/help">Help Centre</a></nav>`;
 const footer = (s) => `<footer><p><a href="${esc(siteUrl())}/">${esc(siteUrl().replace(/^https?:\/\//, ''))}</a> · ${esc(s.business_name)} — ${esc(s.tagline)}. ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa. Email ${esc(s.email)} · Phone ${esc(s.phone)} · ${esc(s.office_hours)}.</p><p>Secure payments by PayFast and Ozow. Prices in South African rand (ZAR).</p></footer>`;
 const tierList = (svc, tiers) => `<ul>${tiers.map((t) => `<li><strong>${esc(t.name)}</strong> — ${esc(rand(t.price_cents))} ${billingText(t.billing)}: ${esc(t.summary)} Includes ${esc(t.features.join(', '))}.</li>`).join('')}</ul>`;
 
@@ -235,6 +236,23 @@ export function resolvePage(pathname) {
       description: `Contact ${brand} for a free 30-minute strategy session. Email ${s.email}, call ${s.phone} or WhatsApp us. We reply within one business day.`,
       schema: [org, breadcrumbs(base, [{ name: 'Contact', path: '/contact' }]), { '@context': 'https://schema.org', '@type': 'ContactPage', url: `${base}/contact`, mainEntity: { '@id': `${base}/#organization` } }],
       body: `<h1>Contact ${esc(brand)}</h1><p>Website: ${esc(base)}. Email: ${esc(s.email)}. Phone: ${esc(s.phone)}. WhatsApp: +${esc(s.whatsapp)}. Hours: ${esc(s.office_hours)}. Location: ${esc(s.address_locality)}, ${esc(s.address_region)}, South Africa.</p>`,
+    });
+  } else if (parts[0] === 'care' && parts.length === 1) {
+    const svcs = services().filter((v) => CARE[v.slug]);
+    const all = svcs.map((v) => ({ v, care: tiersFor(v.id, 'care') })).filter((x) => x.care.length);
+    const lo = Math.min(...all.flatMap((x) => x.care.map((t) => t.price_cents)));
+    Object.assign(page, {
+      title: titled('Website Maintenance, Hosting & Care Plans in South Africa'),
+      description: `Monthly care plans for websites, apps, brands, marketing and more — maintenance, hosting, updates and support from ${rand(lo)}/month. Month-to-month, no lock-in.`,
+      schema: [org, breadcrumbs(base, [{ name: 'Care plans', path: '/care' }]),
+        ...all.map(({ v, care }) => ({
+          '@context': 'https://schema.org', '@type': 'Service', name: `${CARE[v.slug].title} — ${brand}`, serviceType: `${v.name} maintenance & aftercare`,
+          description: CARE[v.slug].blurb, provider: { '@id': `${base}/#organization` }, areaServed: { '@type': 'Country', name: 'South Africa' }, url: `${base}/care#${v.slug}`,
+          offers: care.map((t) => ({ '@type': 'Offer', name: `${CARE[v.slug].title} — ${t.name}`, price: (t.price_cents / 100).toFixed(2), priceCurrency: 'ZAR',
+            priceSpecification: { '@type': 'UnitPriceSpecification', price: (t.price_cents / 100).toFixed(2), priceCurrency: 'ZAR', unitCode: 'MON', unitText: 'month', valueAddedTaxIncluded: false } })),
+        }))],
+      body: `<h1>Care plans: maintenance, hosting & aftercare</h1><p>Keep what we build working after launch. Every service has a monthly care plan.</p><ul>${CARE_TERMS.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>${all.map(({ v, care }) =>
+        `<section id="${v.slug}"><h2>${esc(CARE[v.slug].title)} (${esc(v.name)})</h2><p>${esc(CARE[v.slug].blurb)}</p><ul>${care.map((t) => `<li><strong>${esc(t.name)}</strong> — ${esc(rand(t.price_cents))} per month: ${esc(t.summary)} Includes ${esc(t.features.join(', '))}.</li>`).join('')}</ul></section>`).join('')}`,
     });
   } else if (parts[0] === 'help' && parts.length === 1) {
     const chunks = buildChunks();
@@ -371,7 +389,7 @@ export function sitemapXml() {
     { loc: '/', priority: '1.0', changefreq: 'weekly' },
     { loc: '/services', priority: '0.9' }, { loc: '/pricing', priority: '0.9' },
     ...services().map((v) => ({ loc: `/services/${v.slug}`, priority: '0.9' })),
-    { loc: '/about', priority: '0.7' }, { loc: '/contact', priority: '0.7' }, { loc: '/help', priority: '0.6' }, { loc: '/testimonials', priority: '0.6' },
+    { loc: '/about', priority: '0.7' }, { loc: '/contact', priority: '0.7' }, { loc: '/help', priority: '0.6' }, { loc: '/care', priority: '0.7' }, { loc: '/testimonials', priority: '0.6' },
     { loc: '/blog', priority: '0.8', changefreq: 'weekly' },
     ...publishedPosts().map((p) => ({ loc: `/blog/${p.slug}`, priority: '0.7', lastmod: isoDate(p.updated_at)?.slice(0, 10) })),
     { loc: '/agents', priority: '0.5' },
@@ -409,6 +427,8 @@ export function llmsTxt({ full = false } = {}) {
     if (full) {
       lines.push('', `### ${v.name}`, '', v.description, '');
       for (const t of tiers) lines.push(`- **${t.name}** — ${rand(t.price_cents)} ${billingText(t.billing)}${t.billing === 'once' ? `, about ${t.delivery_days} days` : ''}. ${t.summary} Includes: ${t.features.join('; ')}.`);
+      const care = tiersFor(v.id, 'care');
+      if (care.length) lines.push(`- **${CARE[v.slug]?.title || 'Care plan'}** (monthly aftercare): ${care.map((t) => `${t.name} ${rand(t.price_cents)}/month — ${t.features.slice(0, 3).join('; ')}`).join('; ')}.`);
       lines.push('');
       for (const f of serviceFaqs({ ...v, tiers })) lines.push(`**Q: ${f.q}**`, `A: ${f.a}`, '');
     }
@@ -418,6 +438,7 @@ export function llmsTxt({ full = false } = {}) {
     `- [About us](${base}/about): who we are and how we work`,
     `- [Client reviews](${base}/testimonials)`,
     `- [Contact](${base}/contact): free 30-minute strategy session`,
+    `- [Care plans](${base}/care): monthly maintenance, hosting & aftercare for every service`,
     `- [Help Centre](${base}/help): answers about services, payments, delivery, support and policies`,
     `- [AI playbooks](${base}/agents): the specialist AI playbooks our team works with`, '',
     '## Frequently asked questions', '');
@@ -460,7 +481,7 @@ ${posts.map((p) => `  <item>
 // ---------------------------------------------------------------- audit for the Command Centre
 export function seoAudit() {
   const s = getSettings();
-  const paths = ['/', '/services', '/pricing', '/about', '/contact', '/help', '/testimonials', '/blog', '/agents',
+  const paths = ['/', '/services', '/pricing', '/care', '/about', '/contact', '/help', '/testimonials', '/blog', '/agents',
     ...services().map((v) => `/services/${v.slug}`), ...publishedPosts().map((p) => `/blog/${p.slug}`)];
   const pages = paths.map((p) => {
     const pg = resolvePage(p);

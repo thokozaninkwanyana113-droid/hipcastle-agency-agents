@@ -13,6 +13,31 @@ db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeou
 
 // Upgrade databases created by earlier versions before applying the schema
 // (indexes in schema.sql may reference the new columns).
+// service_tiers gained a `plan` column that is part of its UNIQUE key (core packages vs care
+// plans). SQLite can't change a constraint in place, so rebuild the table once, keeping ids
+// (orders reference them).
+const tierCols = db.prepare('PRAGMA table_info(service_tiers)').all().map((c) => c.name);
+if (tierCols.length && !tierCols.includes('plan')) {
+  db.exec('PRAGMA foreign_keys = OFF');
+  db.exec(`BEGIN;
+    CREATE TABLE service_tiers__new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+      tier TEXT NOT NULL CHECK (tier IN ('essential','growth','enterprise')),
+      plan TEXT NOT NULL DEFAULT 'core' CHECK (plan IN ('core','care')),
+      name TEXT NOT NULL, price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+      billing TEXT NOT NULL CHECK (billing IN ('once','monthly')), delivery_days INTEGER NOT NULL,
+      summary TEXT NOT NULL, features TEXT NOT NULL DEFAULT '[]', is_popular INTEGER NOT NULL DEFAULT 0,
+      care_minutes INTEGER, support_priority TEXT,
+      UNIQUE (service_id, tier, plan));
+    INSERT INTO service_tiers__new (id, service_id, tier, plan, name, price_cents, billing, delivery_days, summary, features, is_popular)
+      SELECT id, service_id, tier, 'core', name, price_cents, billing, delivery_days, summary, features, is_popular FROM service_tiers;
+    DROP TABLE service_tiers;
+    ALTER TABLE service_tiers__new RENAME TO service_tiers;
+    COMMIT;`);
+  db.exec('PRAGMA foreign_keys = ON');
+}
+
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
   users: { token_version: 'INTEGER NOT NULL DEFAULT 0' },
@@ -28,8 +53,9 @@ const MIGRATIONS = {
   orders: {
     pipeline_kind: "TEXT NOT NULL DEFAULT 'project'", revisions_allowed: 'INTEGER', kickoff_at: 'TEXT', onboarding_completed_at: 'TEXT',
     onboarding_reminded_at: 'TEXT', delivered_at: 'TEXT', current_cycle: 'INTEGER NOT NULL DEFAULT 0', next_cycle_at: 'TEXT',
-    nps_score: 'INTEGER', nps_comment: 'TEXT', feedback_at: 'TEXT',
+    nps_score: 'INTEGER', nps_comment: 'TEXT', feedback_at: 'TEXT', covers_order_id: 'INTEGER',
   },
+  tickets: { care_order_id: 'INTEGER' },
   testimonials: {
     company: 'TEXT', location: 'TEXT', service_id: 'INTEGER', user_id: 'INTEGER', email: 'TEXT',
     status: "TEXT NOT NULL DEFAULT 'approved'", is_featured: 'INTEGER NOT NULL DEFAULT 0', created_at: 'TEXT',

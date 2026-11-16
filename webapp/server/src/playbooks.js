@@ -13,6 +13,8 @@
 //   approval  client must approve           client    the client completes it (e.g. questionnaire)
 //   tiers     'e','g','x' subset (default all) for essential / growth / enterprise
 
+import { CARE } from './care.js';
+
 export const STAGES = {
   onboarding: { label: 'Onboarding', order: 1 },
   discovery: { label: 'Discovery', order: 2 },
@@ -29,7 +31,7 @@ export const TIER_KEY = { essential: 'e', growth: 'g', enterprise: 'x' };
 /** Client revision rounds included per deliverable (null = unlimited). */
 export const REVISIONS = { essential: 2, growth: 3, enterprise: null };
 /** Post-launch support days for once-off projects. */
-const SUPPORT_DAYS = { essential: 14, growth: 30, enterprise: 60 };
+export const SUPPORT_DAYS = { essential: 14, growth: 30, enterprise: 60 };
 
 const m = (stage, key, title, agent, days, opts = {}) => ({ stage, key, title, agent, days, ...opts });
 
@@ -447,13 +449,51 @@ for (const pb of Object.values(PLAYBOOKS)) {
   }
 }
 
+// ---------------------------------------------------------------- care plans (aftercare)
+/** The specialist who looks after a service's deliverables: its first build/production owner. */
+function careAgent(serviceSlug) {
+  const pb = PLAYBOOKS[serviceSlug] || PLAYBOOKS.strategy;
+  return [...pb.project, ...pb.cycle].find((x) => ['production', 'cycle'].includes(x.stage) && x.agent && x.agent !== 'project-manager-senior')?.agent || 'support-support-responder';
+}
+function careCycle(serviceSlug, tier, n) {
+  const tk = TIER_KEY[tier] || 'g';
+  const agent = careAgent(serviceSlug);
+  const tasks = (CARE[serviceSlug]?.tasks || [['Monthly care tasks', '']]).filter(([, tiers]) => !tiers || tiers.includes(tk));
+  return [
+    ...tasks.map(([title], i) => m('cycle', `care${i + 1}`, title, agent, i === 0 ? 20 : 4)),
+    m('cycle', 'care_report', 'Monthly care report', 'support-analytics-reporter', 2, { deliverable: 'What we did, time used and recommendations' }),
+  ].map((x) => ({ ...x, key: `${x.key}_c${n}`, title: `${x.title} (month ${n})`, cycle: n }));
+}
+function buildCarePlan(serviceSlug, tier) {
+  const milestones = [
+    m('onboarding', 'intake', 'Complete the care onboarding form', null, 2, { client: true }),
+    m('setup', 'care_handover', 'Access handover & baseline health check', careAgent(serviceSlug), 3, { deliverable: 'Baseline health report and care checklist' }),
+    ...careCycle(serviceSlug, tier, 1),
+  ];
+  return {
+    kind: 'retainer',
+    milestones: milestones.map((x, i) => ({ ...x, cycle: x.stage === 'cycle' ? x.cycle ?? 1 : 0, position: i })),
+    intake: [
+      { key: 'care_scope', label: 'What should we look after? Add links (website, app store page, shared folder, ad account name).', type: 'textarea', required: true },
+      { key: 'care_priorities', label: 'What matters most to keep working (e.g. checkout, booking form, Google listing)?', type: 'textarea', required: true },
+      { key: 'care_contact', label: 'Who should we call for urgent issues? (name, WhatsApp number)', type: 'text', required: true },
+    ],
+    checklist: [
+      { key: 'care_access', label: 'Invite us to the hosting, domain, accounts or tools we will maintain (never send passwords — use invites).', kind: 'access', required: true },
+    ],
+    revisions: null,
+    summary: 'Onboarding → access handover & health check → monthly care cycle (maintenance, changes, report).',
+  };
+}
+
 const includes = (ms, tierKey) => !ms.tiers || ms.tiers.includes(tierKey);
 
 /**
  * Build the concrete milestone plan for a service tier.
  * @returns {{ kind: 'project'|'retainer', milestones: object[], intake: object[], checklist: object[], revisions: number|null }}
  */
-export function buildPlan(serviceSlug, tier, billing, deliveryDays) {
+export function buildPlan(serviceSlug, tier, billing, deliveryDays, plan = 'core') {
+  if (plan === 'care') return buildCarePlan(serviceSlug, tier);
   const pb = PLAYBOOKS[serviceSlug] || PLAYBOOKS.strategy;
   const tk = TIER_KEY[tier] || 'g';
   let milestones;
@@ -482,7 +522,8 @@ export function buildPlan(serviceSlug, tier, billing, deliveryDays) {
 }
 
 /** Milestones for monthly cycle number `n` of a retainer. */
-export function cyclePlan(serviceSlug, tier, n) {
+export function cyclePlan(serviceSlug, tier, n, plan = 'core') {
+  if (plan === 'care') return careCycle(serviceSlug, tier, n);
   const pb = PLAYBOOKS[serviceSlug] || PLAYBOOKS.strategy;
   const tk = TIER_KEY[tier] || 'g';
   return pb.cycle.filter((x) => includes(x, tk)).map((x) => ({ ...x, key: `${x.key}_c${n}`, title: `${x.title} (month ${n})`, cycle: n }));

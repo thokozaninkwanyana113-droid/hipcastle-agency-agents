@@ -1032,3 +1032,34 @@ html, body { overflow-x: clip; }
 .gap-list li { margin-bottom: .35rem; }
 .chat-transcript { display: flex; flex-direction: column; gap: .6rem; margin-top: 1rem; background: var(--bg); }
 @media (max-width: 600px) { .chat__form textarea, .chat__handoff input, .chat__handoff select, .chat__handoff textarea { font-size: 16px; } } /* no iOS zoom-on-focus */
+
+/* ==========================================================================
+   Care plans
+   ========================================================================== */
+.care-section { margin-top: 3rem; padding-top: 2.5rem; border-top: 1px solid var(--line); }
+.care-offer .care-section, .care-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.care-section__head { text-align: center; max-width: 720px; margin: 0 auto 1.75rem; }
+.care-section__head p { color: var(--ink-soft); }
+.tier--care { border-top: 4px solid var(--success); }
+.care-terms { list-style: none; padding: 0; margin: 0 0 1.5rem; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; color: var(--ink-soft); font-size: .93rem; }
+.care-offer { margin: 1.25rem 0; }
+.care-offer__note { background: var(--success-bg); color: var(--success); padding: .75rem 1rem; border-radius: 10px; font-weight: 600; }
+.care-offer__covered { margin: 1rem 0; color: var(--success); font-weight: 600; }
+.care-pill { display: inline-block; background: var(--success-bg); color: var(--success); padding: .15rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; text-transform: none; }
+.care-usage { display: flex; flex-direction: column; gap: .4rem; }
+.care-usage__head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: .92rem; }
+.meter { height: 10px; background: var(--alt); border-radius: 999px; overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--success); border-radius: 999px; }
+.meter--warn span { background: var(--gold-500); }
+.meter--over span { background: var(--error); }
+.care-usage__log { list-style: none; padding: 0; margin: .5rem 0 0; font-size: .88rem; }
+.care-usage__log li { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-top: 1px solid var(--line); }
+.care-time { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .75rem; margin-bottom: 1rem; }
+.care-time__form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .6rem; font-size: .88rem; }
+.care-time__form input[name=note] { flex: 1; min-width: 180px; }
+.care-board { display: flex; flex-direction: column; }
+.care-board__row { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 1.25rem; padding: 1rem 0; border-top: 1px solid var(--line); align-items: start; }
+.care-board__who { display: flex; flex-direction: column; gap: .25rem; align-items: flex-start; }
+.care-board__who small { color: var(--muted); }
+.catalog-tier--care { border-style: dashed; }
+@media (max-width: 860px) { .care-board__row { grid-template-columns: 1fr; } }

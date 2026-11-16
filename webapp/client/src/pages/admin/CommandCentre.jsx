@@ -16,10 +16,11 @@ import Emails from './Emails.jsx';
 import PipelineBoard from './PipelineBoard.jsx';
 import Playbooks from './Playbooks.jsx';
 import { Conversations, SupportDesk } from './CustomerCare.jsx';
+import CarePlans from './CarePlans.jsx';
 
 const NAV = [
   ['Monitor', [['', 'Overview', '📊'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️']]],
-  ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['support', 'Support desk', '🎧'], ['conversations', 'Assistant chats', '💬'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
+  ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['support', 'Support desk', '🎧'], ['care', 'Care plans', '🛟'], ['conversations', 'Assistant chats', '💬'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
   ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
 ];
@@ -60,6 +61,7 @@ export default function CommandCentre() {
           <Route path="orders" element={<Engagements />} />
           <Route path="leads" element={<Leads />} />
           <Route path="support" element={<SupportDesk />} />
+          <Route path="care" element={<CarePlans />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="clients" element={<Users />} />
           <Route path="invoices" element={<Invoices />} />
