@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS service_tiers (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   service_id     INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
   tier           TEXT    NOT NULL CHECK (tier IN ('essential','growth','enterprise')),
+  plan           TEXT    NOT NULL DEFAULT 'core' CHECK (plan IN ('core','care')),  -- 'care' = monthly aftercare plan
   name           TEXT    NOT NULL,
   price_cents    INTEGER NOT NULL CHECK (price_cents >= 0),
   billing        TEXT    NOT NULL CHECK (billing IN ('once','monthly')),
@@ -38,7 +39,9 @@ CREATE TABLE IF NOT EXISTS service_tiers (
   summary        TEXT    NOT NULL,
   features       TEXT    NOT NULL DEFAULT '[]',  -- JSON array of strings
   is_popular     INTEGER NOT NULL DEFAULT 0,
-  UNIQUE (service_id, tier)
+  care_minutes   INTEGER,                        -- care plans: hands-on time included per month
+  support_priority TEXT,                         -- care plans: first-response target for tickets
+  UNIQUE (service_id, tier, plan)
 );
 
 -- AI specialists, imported from the agent markdown files in this repository
@@ -102,6 +105,7 @@ CREATE TABLE IF NOT EXISTS orders (
   nps_score     INTEGER CHECK (nps_score BETWEEN 0 AND 10),
   nps_comment   TEXT,
   feedback_at   TEXT,
+  covers_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL, -- care plans: the delivered project being looked after
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -333,9 +337,11 @@ CREATE TABLE IF NOT EXISTS tickets (
   resolved_at       TEXT,
   csat_score        INTEGER CHECK (csat_score BETWEEN 1 AND 5),
   csat_comment      TEXT,
+  care_order_id     INTEGER REFERENCES orders(id) ON DELETE SET NULL,  -- raised under a care plan (faster target)
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
 CREATE TABLE IF NOT EXISTS ticket_messages (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id  INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -349,6 +355,20 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_created ON chat_sessions(created_at
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, sla_due_at);
 CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
+
+-- Care plans: hands-on time logged against the monthly allowance
+CREATE TABLE IF NOT EXISTS care_time (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id   INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  cycle      INTEGER NOT NULL,                         -- the order's month number when the work was done
+  ticket_id  INTEGER REFERENCES tickets(id) ON DELETE SET NULL,
+  staff_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  minutes    INTEGER NOT NULL CHECK (minutes > 0 AND minutes <= 1440),
+  note       TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_care_time_order ON care_time(order_id, cycle);
+CREATE INDEX IF NOT EXISTS idx_service_tiers_plan ON service_tiers(plan);
 
 CREATE INDEX IF NOT EXISTS idx_emails_status ON emails(status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_emails_created ON emails(created_at);

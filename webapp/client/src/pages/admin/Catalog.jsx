@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ErrorBox, Loader } from '../../components/ui.jsx';
-import { billingLabel, money } from '../../format.js';
+import { billingLabel, hoursLabel, money } from '../../format.js';
 import { useFetch } from '../../useFetch.js';
 import { PanelHead } from './shared.jsx';
 
@@ -10,11 +10,11 @@ export default function Catalog() {
   const { user } = useAuth();
   const admin = user.role === 'admin';
   const { data: services, error, loading, reload } = useFetch('/admin/services');
-  const { data: tiers, reload: reloadTiers } = useFetch('/services?include=tiers');
+  const { data: tiers, reload: reloadTiers } = useFetch('/services?include=tiers,care');
   const [editing, setEditing] = useState(null);
   const [err, setErr] = useState(null);
   if (loading && !services) return <Loader />;
-  const tiersBySlug = Object.fromEntries((tiers || []).map((s) => [s.slug, s.tiers]));
+  const tiersBySlug = Object.fromEntries((tiers || []).map((s) => [s.slug, [...s.tiers, ...(s.care?.tiers || [])]]));
 
   const toggle = async (s) => {
     if (s.is_active && !window.confirm(`Hide ${s.name} from the website? Existing engagements are unaffected.`)) return;
@@ -27,6 +27,7 @@ export default function Catalog() {
       await api(`/admin/tiers/${editing.id}`, { method: 'PATCH', body: {
         name: editing.name, price_cents: Math.round(Number(editing.price) * 100), delivery_days: Number(editing.delivery_days),
         summary: editing.summary, features: editing.featuresText.split('\n').map((f) => f.trim()).filter(Boolean), is_popular: editing.is_popular,
+        ...(editing.plan === 'care' && { care_minutes: Math.round(Number(editing.hours) * 60) }),
       } });
       setEditing(null); reloadTiers();
     } catch (e2) { setErr(e2); }
@@ -34,7 +35,7 @@ export default function Catalog() {
 
   return (
     <>
-      <PanelHead title="Services & pricing" sub="Switch service lines on or off and edit tier prices (in rand, excl. VAT), scope and features. Changes are live immediately." />
+      <PanelHead title="Services & pricing" sub="Switch service lines on or off and edit package and 🛟 care plan prices (in rand, excl. VAT), scope, features and care hours. Changes are live immediately." />
       <ErrorBox error={error || err} />
       {!admin && <p className="muted">Only admins can change the catalog.</p>}
       {services?.map((s) => (
@@ -50,11 +51,11 @@ export default function Catalog() {
           </div>
           <div className="catalog-row__tiers">
             {(tiersBySlug[s.slug] || []).map((t) => (
-              <div key={t.id} className={`catalog-tier ${t.is_popular ? 'catalog-tier--popular' : ''}`}>
-                <strong>{t.name}</strong>
+              <div key={t.id} className={`catalog-tier ${t.is_popular ? 'catalog-tier--popular' : ''} ${t.plan === 'care' ? 'catalog-tier--care' : ''}`}>
+                <strong>{t.plan === 'care' ? '🛟 ' : ''}{t.name}</strong>
                 <span>{money(t.price_cents)} {billingLabel(t.billing)}</span>
-                <small>{t.features.length} features · {t.delivery_days} days</small>
-                {admin && <button className="btn btn--text btn--sm" onClick={() => setEditing({ ...t, price: t.price_cents / 100, featuresText: t.features.join('\n') })}>Edit</button>}
+                <small>{t.features.length} features · {t.plan === 'care' ? `${hoursLabel(t.care_minutes)} / month` : `${t.delivery_days} days`}</small>
+                {admin && <button className="btn btn--text btn--sm" onClick={() => setEditing({ ...t, price: t.price_cents / 100, hours: (t.care_minutes || 0) / 60, featuresText: t.features.join('\n') })}>Edit</button>}
               </div>
             ))}
             {!s.is_active && <p className="muted small">Hidden services keep their tiers; reactivate to show them again.</p>}
@@ -69,7 +70,9 @@ export default function Catalog() {
             <label className="field"><span className="field__label">Name</span><input className="input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></label>
             <div className="form__row">
               <label className="field"><span className="field__label">Price (R, excl. VAT) {billingLabel(editing.billing)}</span><input className="input" type="number" min="0" step="100" value={editing.price} onChange={(e) => setEditing({ ...editing, price: e.target.value })} /></label>
-              <label className="field"><span className="field__label">Delivery days</span><input className="input" type="number" min="1" value={editing.delivery_days} onChange={(e) => setEditing({ ...editing, delivery_days: e.target.value })} /></label>
+              {editing.plan === 'care'
+                ? <label className="field"><span className="field__label">Hours included per month</span><input className="input" type="number" min="0" step="0.5" value={editing.hours} onChange={(e) => setEditing({ ...editing, hours: e.target.value })} /></label>
+                : <label className="field"><span className="field__label">Delivery days</span><input className="input" type="number" min="1" value={editing.delivery_days} onChange={(e) => setEditing({ ...editing, delivery_days: e.target.value })} /></label>}
             </div>
             <label className="field"><span className="field__label">Summary</span><input className="input" value={editing.summary} onChange={(e) => setEditing({ ...editing, summary: e.target.value })} /></label>
             <label className="field"><span className="field__label">Features (one per line)</span><textarea className="input" rows={7} value={editing.featuresText} onChange={(e) => setEditing({ ...editing, featuresText: e.target.value })} /></label>

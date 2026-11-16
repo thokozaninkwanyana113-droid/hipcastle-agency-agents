@@ -6,6 +6,7 @@ import { body, id, z } from '../validate.js';
 import { authenticate, isStaff, requireRole } from '../auth.js';
 import { logEvent } from '../events.js';
 import * as mail from '../email/support-notify.js';
+import { carePriorityFor, careUsage, logCareTime } from '../careops.js';
 
 const r = Router();
 r.use(authenticate);
@@ -14,11 +15,12 @@ r.use(authenticate);
 export const SLA_HOURS = { urgent: 4, high: 24, normal: 48, low: 72 };
 
 const SELECT = `SELECT t.*, u.name AS client_name, u.email AS client_email, u.company AS client_company,
-    a.name AS assignee_name, o.reference AS order_ref,
+    a.name AS assignee_name, o.reference AS order_ref, co.reference AS care_ref, cst.name AS care_tier_name,
     (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id AND m.internal = 0) AS message_count,
     (SELECT MAX(created_at) FROM ticket_messages m WHERE m.ticket_id = t.id AND m.internal = 0) AS last_message_at,
     CASE WHEN t.first_response_at IS NULL AND t.status IN ('open') AND t.sla_due_at < datetime('now') THEN 1 ELSE 0 END AS sla_breached
-  FROM tickets t JOIN users u ON u.id = t.user_id LEFT JOIN users a ON a.id = t.assigned_to LEFT JOIN orders o ON o.id = t.order_id`;
+  FROM tickets t JOIN users u ON u.id = t.user_id LEFT JOIN users a ON a.id = t.assigned_to LEFT JOIN orders o ON o.id = t.order_id
+  LEFT JOIN orders co ON co.id = t.care_order_id LEFT JOIN service_tiers cst ON cst.id = co.tier_id`;
 
 function load(req, res) {
   const tid = id(req.params.id);
@@ -31,6 +33,7 @@ function load(req, res) {
 }
 const detail = (t, staff) => ({
   ...row(db.prepare(`${SELECT} WHERE t.id = ?`).get(t.id)),
+  ...(t.care_order_id && { care_usage: staff ? careUsage(t.care_order_id) : (({ entries, ...u }) => u)(careUsage(t.care_order_id) || {}) }),
   messages: rows(db.prepare(`SELECT m.*, u.name AS author_name, u.role AS author_role FROM ticket_messages m JOIN users u ON u.id = m.author_id
     WHERE m.ticket_id = ? AND (? = 1 OR m.internal = 0) ORDER BY m.id`).all(t.id, staff ? 1 : 0)),
 });
@@ -55,10 +58,13 @@ r.post('/', body(z.object({
   if (b.order_id && !db.prepare('SELECT 1 FROM orders WHERE id = ? AND (user_id = ? OR ? = 1)').get(b.order_id, req.user.id, isStaff(req.user) ? 1 : 0)) {
     return res.status(400).json({ error: 'That engagement is not on your account' });
   }
+  // Care-plan clients get their plan's (faster) response target.
+  const care = carePriorityFor(req.user.id, b.priority, b.order_id || null);
   const t = tx(() => {
-    const created = row(db.prepare(`INSERT INTO tickets (reference, user_id, order_id, subject, category, priority, sla_due_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now', ?)) RETURNING *`)
-      .get(`TCK-${randomBytes(3).toString('hex').toUpperCase()}`, req.user.id, b.order_id || null, b.subject, b.category, b.priority, `+${SLA_HOURS[b.priority]} hours`));
+    const created = row(db.prepare(`INSERT INTO tickets (reference, user_id, order_id, subject, category, priority, sla_due_at, care_order_id)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now', ?), ?) RETURNING *`)
+      .get(`TCK-${randomBytes(3).toString('hex').toUpperCase()}`, req.user.id, b.order_id || null, b.subject, b.category, care.priority,
+        `+${SLA_HOURS[care.priority]} hours`, care.care_order_id));
     db.prepare('INSERT INTO ticket_messages (ticket_id, author_id, body) VALUES (?, ?, ?)').run(created.id, req.user.id, b.body);
     return created;
   });
@@ -127,6 +133,18 @@ r.post('/:id/csat', body(z.object({ score: z.number().int().min(1).max(5), comme
 });
 
 // ---- Staff
+// Log hands-on time against the client's care plan allowance.
+r.post('/:id/time', requireRole('admin', 'staff'), body(z.object({
+  minutes: z.number().int().min(5, 'Log at least 5 minutes').max(1440),
+  note: z.string().trim().min(3, 'Say what was done').max(300),
+})), (req, res) => {
+  const t = load(req, res);
+  if (!t) return;
+  if (!t.care_order_id) return res.status(409).json({ error: 'This ticket is not covered by a care plan' });
+  logCareTime(t.care_order_id, { minutes: req.body.minutes, note: req.body.note, staffId: req.user.id, ticketId: t.id });
+  res.status(201).json(detail(t, true));
+});
+
 r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
   status: z.enum(['open', 'pending_client', 'resolved', 'closed']).optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),

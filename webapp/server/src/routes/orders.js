@@ -1,3 +1,4 @@
+import { careOfferFor, careUsage, supportEndsAt } from '../careops.js';
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { db, row, rows, tx } from '../db.js';
@@ -14,7 +15,8 @@ r.use(authenticate);
 const ref = (prefix) => `${prefix}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
 const ORDER_SELECT = `
-  SELECT o.*, st.tier, st.name AS tier_name, st.billing, st.delivery_days,
+  SELECT o.*, st.tier, st.plan, st.name AS tier_name, st.billing, st.delivery_days, st.care_minutes, st.support_priority,
+         c.reference AS covers_reference,
          s.slug AS service_slug, s.name AS service_name, s.icon AS service_icon,
          u.name AS client_name, u.email AS client_email, u.company AS client_company,
          m.name AS manager_name
@@ -22,7 +24,8 @@ const ORDER_SELECT = `
   JOIN service_tiers st ON st.id = o.tier_id
   JOIN services s ON s.id = st.service_id
   JOIN users u ON u.id = o.user_id
-  LEFT JOIN users m ON m.id = o.assigned_to`;
+  LEFT JOIN users m ON m.id = o.assigned_to
+  LEFT JOIN orders c ON c.id = o.covers_order_id`;
 
 /** Load an order the current user may see, or send 404. */
 function loadOrder(req, res) {
@@ -38,24 +41,33 @@ function loadOrder(req, res) {
 r.post('/', body(z.object({
   tier_id: z.number().int().positive(),
   brief: z.string().trim().min(20, 'Please describe your project in at least 20 characters').max(5000),
+  covers_order_id: z.number().int().positive().nullable().optional(),
 })), (req, res) => {
   const settings = getSettings();
   if (!settings.orders_enabled) return res.status(503).json({ error: 'We are not taking new online orders right now — please contact us.' });
   const tier = row(db.prepare(`SELECT st.*, s.name AS service_name FROM service_tiers st JOIN services s ON s.id = st.service_id
     WHERE st.id = ? AND s.is_active = 1`).get(req.body.tier_id));
   if (!tier) return res.status(404).json({ error: 'Service tier not found' });
+  // Care plans can be linked to the delivered project they look after (must be the client's, same service).
+  let covers = null;
+  if (req.body.covers_order_id) {
+    if (tier.plan !== 'care') return res.status(400).json({ error: 'Only care plans can cover another engagement' });
+    covers = db.prepare(`SELECT o.id FROM orders o JOIN service_tiers st ON st.id = o.tier_id
+      WHERE o.id = ? AND o.user_id = ? AND st.service_id = ? AND st.plan = 'core'`).get(req.body.covers_order_id, req.user.id, tier.service_id)?.id;
+    if (!covers) return res.status(400).json({ error: 'That engagement is not on your account' });
+  }
 
   const order = tx(() => {
-    const o = row(db.prepare(`INSERT INTO orders (reference, user_id, tier_id, brief, price_cents, due_date)
-      VALUES (?, ?, ?, ?, ?, date('now', ?)) RETURNING *`)
-      .get(ref('HC'), req.user.id, tier.id, req.body.brief, tier.price_cents, `+${tier.delivery_days} days`));
+    const o = row(db.prepare(`INSERT INTO orders (reference, user_id, tier_id, brief, price_cents, due_date, covers_order_id)
+      VALUES (?, ?, ?, ?, ?, date('now', ?), ?) RETURNING *`)
+      .get(ref('HC'), req.user.id, tier.id, req.body.brief, tier.price_cents, `+${tier.delivery_days} days`, covers));
     P.instantiatePipeline(o.id);
     // Projects: 50% deposit up front. Retainers: first month up front.
     const subtotal = tier.billing === 'once' ? Math.round(tier.price_cents / 2) : tier.price_cents;
     const vat = vatFor(subtotal, settings);
     db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, due_at)
       VALUES (?, ?, ?, ?, ?, ?, date('now', '+7 days'))`)
-      .run(ref('INV'), o.id, subtotal, vat, subtotal + vat, tier.billing === 'once' ? 'Deposit (50%)' : 'First month (in advance)');
+      .run(ref('INV'), o.id, subtotal, vat, subtotal + vat, tier.billing === 'once' ? 'Deposit (50%)' : tier.plan === 'care' ? 'Care plan — first month (in advance)' : 'First month (in advance)');
     return o;
   });
   logEvent('order.created', `${req.user.name} ordered ${tier.service_name} — ${tier.name} (${order.reference})`, { actor: req.user.id, ref: order.reference });
@@ -83,6 +95,8 @@ r.get('/:id', (req, res) => {
     FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.order_id = ? ORDER BY p.created_at DESC, p.id DESC`).all(o.id));
   o.messages = rows(db.prepare(`SELECT m.*, u.name AS author_name, u.role AS author_role
     FROM messages m JOIN users u ON u.id = m.author_id WHERE m.order_id = ? ORDER BY m.created_at, m.id`).all(o.id));
+  if (o.plan === 'care') o.care_usage = careUsage(o.id);
+  else { o.care_offer = careOfferFor(o); o.support_ends_at = supportEndsAt(o); }
   res.json(o);
 });
 
@@ -125,6 +139,8 @@ r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
   db.prepare(`UPDATE orders SET status = ?, progress = ?, assigned_to = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(b.status ?? o.status, progress, b.assigned_to !== undefined ? b.assigned_to : o.assigned_to,
       b.due_date !== undefined ? b.due_date : o.due_date, o.id);
+  // A project marked completed by hand counts as delivered: starts its free-support window (and care offer).
+  if (b.status === 'completed') db.prepare("UPDATE orders SET delivered_at = COALESCE(delivered_at, datetime('now')) WHERE id = ?").run(o.id);
   if (b.status && b.status !== o.status) onOrderStatus(o.id, b.status);
   res.json(row(db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(o.id)));
 });

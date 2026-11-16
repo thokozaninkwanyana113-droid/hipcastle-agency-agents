@@ -12,7 +12,7 @@ const ymd = (d) => d.toISOString().slice(0, 10);
 const addDays = (date, n) => { const d = new Date(`${date}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return ymd(d); };
 export const today = () => ymd(new Date());
 
-const ORDER = `SELECT o.*, st.tier, st.name AS tier_name, st.billing, st.delivery_days, s.slug AS service_slug, s.name AS service_name
+const ORDER = `SELECT o.*, st.tier, st.plan, st.name AS tier_name, st.billing, st.delivery_days, st.care_minutes, st.support_priority, s.slug AS service_slug, s.name AS service_name
   FROM orders o JOIN service_tiers st ON st.id = o.tier_id JOIN services s ON s.id = st.service_id WHERE o.id = ?`;
 export const loadOrder = (id) => row(db.prepare(ORDER).get(id));
 export const milestonesOf = (orderId) => rows(db.prepare(`SELECT m.*, a.name AS agent_name, a.emoji AS agent_emoji
@@ -39,7 +39,7 @@ const insertMilestone = db.prepare(`INSERT INTO milestones (order_id, title, pos
 /** Create the onboarding checklist and milestone plan for a new order. */
 export function instantiatePipeline(orderId) {
   const o = loadOrder(orderId);
-  const plan = buildPlan(o.service_slug, o.tier, o.billing, o.delivery_days);
+  const plan = buildPlan(o.service_slug, o.tier, o.billing, o.delivery_days, o.plan);
   const start = today();
   const setupEnd = addDays(start, plan.milestones.filter((m) => m.stage !== 'cycle').reduce((a, m) => a + m.days, 0));
   const scheduled = schedule(plan.milestones.map((m) => ({ ...m, cycleStart: m.stage === 'cycle' ? setupEnd : null })), start);
@@ -279,7 +279,7 @@ export function startNextCycle(orderId, actor = null) {
   if (o.pipeline_kind !== 'retainer' || !['active', 'in_review'].includes(o.status)) return null;
   const n = o.current_cycle + 1;
   const start = today();
-  const list = schedule(cyclePlan(o.service_slug, o.tier, n).map((m) => ({ ...m, cycleStart: start })), start);
+  const list = schedule(cyclePlan(o.service_slug, o.tier, n, o.plan).map((m) => ({ ...m, cycleStart: start })), start);
   const pos = db.prepare('SELECT COALESCE(MAX(position), 0) n FROM milestones WHERE order_id = ?').get(orderId).n;
   const vat = vatFor(o.price_cents);
   const inv = tx(() => {
@@ -287,7 +287,7 @@ export function startNextCycle(orderId, actor = null) {
       m.approval ? 1 : 0, 0, m.deliverable || null));
     db.prepare('UPDATE orders SET current_cycle = ?, next_cycle_at = ?, due_date = ? WHERE id = ?').run(n, addDays(start, 30), addDays(start, 30), o.id);
     return row(db.prepare(`INSERT INTO invoices (number, order_id, subtotal_cents, vat_cents, amount_cents, description, due_at)
-      VALUES (?, ?, ?, ?, ?, ?, date('now','+7 days')) RETURNING *`).get(ref('INV'), o.id, o.price_cents, vat, o.price_cents + vat, `Month ${n} retainer`));
+      VALUES (?, ?, ?, ?, ?, ?, date('now','+7 days')) RETURNING *`).get(ref('INV'), o.id, o.price_cents, vat, o.price_cents + vat, o.plan === 'care' ? `Month ${n} care plan` : `Month ${n} retainer`));
   });
   syncOrder(o.id);
   logEvent('pipeline.cycle', `${o.reference}: month ${n} started; ${inv.number} issued`, { actor: actor?.id, ref: o.reference });
@@ -297,7 +297,7 @@ export function startNextCycle(orderId, actor = null) {
 
 // ---------------------------------------------------------------- board & watch
 export function boardData() {
-  const orders = rows(db.prepare(`SELECT o.*, st.tier, st.name AS tier_name, st.billing, s.slug AS service_slug, s.name AS service_name, s.icon AS service_icon,
+  const orders = rows(db.prepare(`SELECT o.*, st.tier, st.plan, st.name AS tier_name, st.billing, s.slug AS service_slug, s.name AS service_name, s.icon AS service_icon,
       u.name AS client_name, u.company AS client_company
     FROM orders o JOIN service_tiers st ON st.id = o.tier_id JOIN services s ON s.id = st.service_id JOIN users u ON u.id = o.user_id
     WHERE o.status <> 'cancelled' AND (o.status <> 'completed' OR o.updated_at > datetime('now','-30 days'))

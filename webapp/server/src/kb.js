@@ -10,6 +10,8 @@ import { getSettings } from './settings.js';
 import { generalFaqs, rand, billingText } from './content.js';
 import { buildPlan, journey, PLAYBOOKS } from './playbooks.js';
 import { canonicalUrl } from './urls.js';
+import { CARE, CARE_EXTRA_HOUR_CENTS, CARE_TERMS, hoursLabel } from './care.js';
+import { SUPPORT_DAYS } from './playbooks.js';
 
 export const CATEGORIES = [
   ['about', 'About Hipcastle'],
@@ -18,6 +20,7 @@ export const CATEGORIES = [
   ['payments', 'Payments'],
   ['delivery', 'Onboarding & delivery'],
   ['portal', 'Client portal & account'],
+  ['care', 'Care plans, maintenance & hosting'],
   ['support', 'Support & contact'],
   ['policies', 'Privacy & terms'],
   ['guides', 'Guides & articles'],
@@ -29,7 +32,9 @@ const chunk = (id, category, title, body, { keywords = '', link = null, links = 
 function services() {
   return rows(db.prepare('SELECT * FROM services WHERE is_active = 1 ORDER BY sort_order').all(), ['outcomes']).map((s) => ({
     ...s,
-    tiers: rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ?
+    tiers: rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ? AND plan = 'core'
+      ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(s.id), ['features']),
+    care: rows(db.prepare(`SELECT * FROM service_tiers WHERE service_id = ? AND plan = 'care'
       ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(s.id), ['features']),
   }));
 }
@@ -97,6 +102,29 @@ export function buildChunks() {
   out.push(chunk('cancel', 'pricing', 'Can I cancel? What is your refund policy?',
     `You can cancel an order free of charge before paying the deposit (Cancel order in your portal). Retainers can be cancelled with 30 days' written notice — message your team or open a support ticket. Deposits cover work already scheduled and are non-refundable once work has started, except where the Consumer Protection Act requires otherwise. If you were charged twice for the same invoice, we refund the duplicate.`,
     { keywords: 'cancel cancellation refund money back stop retainer notice terminate', link: '/terms' }));
+  // ---------------------------------------------------------------- care plans (aftercare)
+  const withCare = svc.filter((x) => x.care.length);
+  const careMin = Math.min(...withCare.flatMap((x) => x.care.map((t) => t.price_cents)));
+  out.push(chunk('care-overview', 'care', 'What happens after my project launches? Who maintains and hosts it?',
+    `Every once-off project includes free post-launch support: ${SUPPORT_DAYS.essential} days on Essential, ${SUPPORT_DAYS.growth} days on Growth and ${SUPPORT_DAYS.enterprise} days on Enterprise packages (some packages list longer support). Hipcastle's team that built it fixes launch issues during that window.
+After that, you can keep it looked after with a monthly care plan — every service has one, from ${rand(careMin)} per month (${vat}). Care plans cover maintenance, updates, hosting where relevant, a monthly allowance of hands-on time for changes, monitoring and a faster support response. A week before your free support ends we email you the matching plans, and you can add one any time from your client portal or the Care plans page.
+Without a care plan, changes and fixes are quoted per job.
+${CARE_TERMS.map((t) => `- ${t}`).join('\n')}`,
+    { keywords: 'maintenance maintain hosting host updates after launch aftercare care plan support after website app keep running who handles retainer monthly fixes changes', link: '/care' }));
+  out.push(chunk('care-hours', 'care', 'How do care plan hours work, and what if I need more?',
+    `Each care plan includes hands-on time every month (for example ${withCare.find((x) => x.slug === 'engineering') ? withCare.find((x) => x.slug === 'engineering').care.map((t) => `${t.name} ${hoursLabel(t.care_minutes)}`).join(', ') : ''} for Website & App Care). Time is logged against your plan and visible in your client portal. Hours reset monthly and don't roll over. When the month's hours are used up we tell you; monitoring, backups and urgent outage fixes continue, and any other work is quoted first at ${rand(CARE_EXTRA_HOUR_CENTS)} per hour or scheduled for next month.`,
+    { keywords: 'hours time allowance extra hours rollover roll over overage additional work rate per hour', link: '/care' }));
+  out.push(chunk('care-hosting', 'care', 'Do you host websites and apps? How much does hosting cost?',
+    `Yes. Hosting is included in Website & App Care: Essential Care (${rand(withCare.find((x) => x.slug === 'engineering')?.care[0]?.price_cents)} per month) includes South African hosting, an SSL certificate, weekly off-site backups, monthly updates and uptime monitoring; Growth Care adds faster SSD hosting with a CDN and daily backups; Enterprise Care includes load-shedding-resilient cloud hosting (cloud usage above R1 500 a month is passed on at cost). Game, XR and automation care plans also include hosting where listed. Hosting, domains and accounts are set up in your name, so you always own them. If you prefer your own hosting provider, we can maintain the site there.`,
+    { keywords: 'hosting host server domain ssl cloud load-shedding uptime backups where hosted own my website', link: '/care' }));
+  for (const x of withCare) {
+    const c = CARE[x.slug];
+    out.push(chunk(`care-${x.slug}`, 'care', `${c.title}: care plan for ${x.name} — what's included and how much?`,
+      `${c.blurb}\nMonthly care plans for ${x.name} (${vat}, month-to-month):\n${x.care.map((t) =>
+        `- ${t.name}: ${rand(t.price_cents)} per month, ${hoursLabel(t.care_minutes)} of hands-on time included, ${t.support_priority} support priority. ${t.summary} Includes: ${t.features.join('; ')}.${t.is_popular ? ' (Most popular)' : ''}`).join('\n')}`,
+      { keywords: `${c.title} ${x.name} ${x.slug} care plan maintenance aftercare upkeep monthly after launch price cost`, link: `/care#${x.slug}` }));
+  }
+
   out.push(chunk('revisions', 'delivery', 'How many revisions do I get?',
     `Deliverables that need your sign-off come with revision rounds: Essential 2, Growth 3, Enterprise unlimited (per deliverable). You approve or request changes in your portal. If you need more rounds than your package includes, your team will arrange it with you.`,
     { keywords: 'revisions changes edits rounds feedback approve', link: '/pricing' }));

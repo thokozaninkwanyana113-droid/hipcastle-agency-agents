@@ -63,7 +63,7 @@ export default function Header() {
                 </div>
                 <div className="mega__foot">
                   <span>Every service: Essential, Growth & Enterprise tiers, priced in rand.</span>
-                  <Link to="/pricing">Compare all pricing →</Link>
+                  <span><Link to="/care">Care plans & hosting</Link> · <Link to="/pricing">Compare all pricing →</Link></span>
                 </div>
               </div>
             )}

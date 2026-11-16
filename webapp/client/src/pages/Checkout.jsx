@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { ErrorBox, Field, Loader } from '../components/ui.jsx';
 import Seo from '../components/Seo.jsx';
@@ -12,7 +12,10 @@ export default function Checkout() {
   const { tierId } = useParams();
   const navigate = useNavigate();
   const site = useSite();
-  const { data: services, error, loading } = useFetch('/services?include=tiers');
+  const [params] = useSearchParams();
+  const { data: services, error, loading } = useFetch('/services?include=tiers,care');
+  const { data: orders } = useFetch('/orders');
+  const [covers, setCovers] = useState(params.get('covers') || '');
   const [brief, setBrief] = useState('');
   const [agree, setAgree] = useState(false);
   const [err, setErr] = useState(null);
@@ -20,11 +23,19 @@ export default function Checkout() {
 
   const found = useMemo(() => {
     for (const s of services || []) {
-      const t = s.tiers.find((x) => x.id === Number(tierId));
+      const t = [...s.tiers, ...(s.care?.tiers || [])].find((x) => x.id === Number(tierId));
       if (t) return { service: s, tier: t };
     }
     return null;
   }, [services, tierId]);
+
+  const care = found?.tier.plan === 'care';
+  // Care plans: the client's delivered projects for this service that the plan can look after.
+  const coverable = (orders || []).filter((o) => care && o.service_slug === found.service.slug && o.plan !== 'care' && o.status !== 'cancelled');
+  const coverRef = coverable.find((o) => String(o.id) === String(covers))?.reference;
+  useEffect(() => {
+    if (care && coverRef && !brief) setBrief(`Please look after ${coverRef} (built by Hipcastle). `);
+  }, [care, coverRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Loader />;
   if (error) return <div className="container section"><ErrorBox error={error} /></div>;
@@ -38,7 +49,7 @@ export default function Checkout() {
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
-      const order = await api('/orders', { method: 'POST', body: { tier_id: tier.id, brief } });
+      const order = await api('/orders', { method: 'POST', body: { tier_id: tier.id, brief, covers_order_id: care && covers ? Number(covers) : null } });
       navigate(`/portal/orders/${order.id}?new=1`);
     } catch (e2) { setErr(e2.fields?.brief ? { message: e2.fields.brief } : e2); setBusy(false); }
   };
@@ -49,11 +60,23 @@ export default function Checkout() {
       <div className="container layout-sidebar">
         <form className="card form" onSubmit={submit}>
           <nav className="breadcrumb breadcrumb--dark"><Link to={`/services/${service.slug}`}>{service.name}</Link> / <span>Checkout</span></nav>
-          <h1>Start your engagement</h1>
-          <p className="muted">Tell us about the project. Your dedicated lead will confirm scope at kick-off. You’ll pay the {tier.billing === 'once' ? 'deposit' : 'first month'} securely on the next screen.</p>
+          <h1>{care ? `Add ${service.care.title}` : 'Start your engagement'}</h1>
+          <p className="muted">{care
+            ? 'Tell us what to look after. We’ll confirm access and send a baseline health report, then your monthly care starts. You’ll pay the first month securely on the next screen.'
+            : <>Tell us about the project. Your dedicated lead will confirm scope at kick-off. You’ll pay the {tier.billing === 'once' ? 'deposit' : 'first month'} securely on the next screen.</>}</p>
           {!site.orders_enabled && <div className="alert alert--error">We’re not taking new online orders right now — please <Link to="/contact">contact us</Link>.</div>}
           <ErrorBox error={err} />
-          <Field label="Project brief *" hint="What do you sell, who are your customers, deadlines, and links to existing website or socials.">
+          {care && coverable.length > 0 && (
+            <Field label="Which engagement should this plan look after?">
+              <select className="input" value={covers} onChange={(e) => setCovers(e.target.value)}>
+                <option value="">Something else (describe below)</option>
+                {coverable.map((o) => <option key={o.id} value={o.id}>{o.reference} — {o.service_name} ({o.tier_name})</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label={care ? 'What should we look after? *' : 'Project brief *'} hint={care
+            ? 'Links to the website, app, ad account, documents or tools, and anything that must keep working (e.g. checkout, booking form).'
+            : 'What do you sell, who are your customers, deadlines, and links to existing website or socials.'}>
             <textarea className="input" rows={8} value={brief} onChange={(e) => setBrief(e.target.value)} required minLength={20} />
           </Field>
           <label className="checkbox">
@@ -67,10 +90,10 @@ export default function Checkout() {
           <div className="card summary">
             <span className="summary__icon" aria-hidden="true">{service.icon}</span>
             <h2 className="h3">{service.name}</h2>
-            <p className="tag">{tier.name} tier</p>
+            <p className="tag">{care ? `${service.care.title} · ${tier.name}` : `${tier.name} tier`}</p>
             <ul className="tier__features">{tier.features.map((f) => <li key={f}>{f}</li>)}</ul>
             <dl className="summary__lines">
-              <div><dt>Package price</dt><dd>{money(tier.price_cents)} <small>{billingLabel(tier.billing)}</small></dd></div>
+              <div><dt>{care ? 'Care plan' : 'Package price'}</dt><dd>{money(tier.price_cents)} <small>{billingLabel(tier.billing)}</small></dd></div>
               <div><dt>{tier.billing === 'once' ? 'Deposit (50%)' : 'First month'}</dt><dd>{moneyExact(subtotal)}</dd></div>
               {site.vat_registered && <div><dt>VAT ({site.vat_rate}%)</dt><dd>{moneyExact(vat)}</dd></div>}
               <div className="summary__total"><dt>Due now</dt><dd><strong>{moneyExact(subtotal + vat)}</strong></dd></div>

@@ -11,7 +11,7 @@ export function generalFaqs() {
   const s = getSettings();
   const vat = s.vat_registered ? `in rand, excluding VAT at ${s.vat_rate}%` : 'in South African rand';
   const min = (billing) => db.prepare(`SELECT MIN(st.price_cents) n FROM service_tiers st JOIN services sv ON sv.id = st.service_id
-    WHERE sv.is_active = 1 AND st.billing = ?`).get(billing).n;
+    WHERE sv.is_active = 1 AND st.plan = 'core' AND st.billing = ?`).get(billing).n;
   return [
     { q: 'What does Hipcastle Agency do?',
       a: `${s.business_name} is a South African digital agency that gives entrepreneurs and growing businesses specialist teams for software engineering, design, digital marketing and SEO, paid advertising, sales, operations and strategy. Every service is sold in three fixed-price tiers: Essential, Growth and Enterprise.` },

@@ -11,6 +11,7 @@ import { MODE, notifyBase, ozowConfig, payfastConfig, simulatedAllowed, siteUrl 
 import { applyPaymentStatus, findPayment } from '../payments/service.js';
 import { seoAudit } from '../seo.js';
 import { chatMode, MODEL as CHAT_MODEL } from '../chat.js';
+import { careBoard, careUsage, logCareTime, loadCareOrder } from '../careops.js';
 import { buildChunks, knowledgeText, knowledgeVersion } from '../kb.js';
 import { canonicalUrl } from '../urls.js';
 import { onTestimonialApproved } from '../email/notify.js';
@@ -45,6 +46,8 @@ r.get('/overview', (_req, res) => {
     open_tickets: n("SELECT COUNT(*) n FROM tickets WHERE status IN ('open','pending_client')"),
     tickets_breached: n("SELECT COUNT(*) n FROM tickets WHERE status = 'open' AND first_response_at IS NULL AND sla_due_at < datetime('now')"),
     csat_avg: db.prepare("SELECT ROUND(AVG(csat_score),1) n FROM tickets WHERE csat_score IS NOT NULL AND created_at >= datetime('now','-90 days')").get().n,
+    care_active: n("SELECT COUNT(*) n FROM orders o JOIN service_tiers st ON st.id = o.tier_id WHERE st.plan = 'care' AND o.status IN ('active','in_review')"),
+    care_mrr_cents: n("SELECT COALESCE(SUM(o.price_cents),0) n FROM orders o JOIN service_tiers st ON st.id = o.tier_id WHERE st.plan = 'care' AND o.status IN ('active','in_review')"),
     chats_7d: n("SELECT COUNT(*) n FROM chat_sessions WHERE created_at >= datetime('now','-7 days') AND message_count > 0"),
     revenue_by_day: rows(db.prepare(`WITH RECURSIVE d(day) AS (SELECT date('now','-29 days') UNION ALL SELECT date(day,'+1 day') FROM d WHERE day < date('now'))
       SELECT d.day, COALESCE(SUM(i.amount_cents),0) AS cents FROM d
@@ -132,13 +135,15 @@ r.patch('/tiers/:id', requireRole('admin'), body(z.object({
   summary: z.string().trim().min(5).max(300).optional(),
   features: z.array(z.string().trim().min(1).max(200)).min(1).max(15).optional(),
   is_popular: z.boolean().optional(),
+  care_minutes: z.number().int().min(0).max(6000).optional(),
 })), (req, res) => {
   const t = row(db.prepare('SELECT * FROM service_tiers WHERE id = ?').get(id(req.params.id)), ['features']);
   if (!t) return res.status(404).json({ error: 'Tier not found' });
   const b = { ...t, ...req.body };
   const out = row(db.prepare(`UPDATE service_tiers SET name = ?, price_cents = ?, delivery_days = ?, summary = ?,
-    features = ?, is_popular = ? WHERE id = ? RETURNING *`)
-    .get(b.name, b.price_cents, b.delivery_days, b.summary, JSON.stringify(b.features), b.is_popular ? 1 : 0, t.id), ['features']);
+    features = ?, is_popular = ?, care_minutes = ? WHERE id = ? RETURNING *`)
+    .get(b.name, b.price_cents, b.delivery_days, b.summary, JSON.stringify(b.features), b.is_popular ? 1 : 0,
+      t.plan === 'care' ? b.care_minutes ?? t.care_minutes : null, t.id), ['features']);
   logEvent('catalog.tier', `Tier #${t.id} (${out.name}) updated`, { actor: req.user.id });
   res.json(out);
 });
@@ -149,7 +154,7 @@ r.get('/staff', (_req, res) =>
 // ======================= Command Centre =======================
 
 const tableCounts = () => Object.fromEntries(
-  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'emails', 'events', 'tickets', 'chat_sessions', 'chat_messages']
+  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'emails', 'events', 'tickets', 'chat_sessions', 'chat_messages', 'care_time']
     .map((t) => [t, db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n]));
 
 function dbSize() {
@@ -423,6 +428,18 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
   res.send('﻿' + csv);
 });
 
+// Care plans
+r.get('/care', (_req, res) => res.json(careBoard()));
+r.post('/care/:id/time', body(z.object({
+  minutes: z.number().int().min(5, 'Log at least 5 minutes').max(1440),
+  note: z.string().trim().min(3, 'Say what was done').max(300),
+})), (req, res) => {
+  const o = loadCareOrder(id(req.params.id));
+  if (!o) return res.status(404).json({ error: 'Care plan not found' });
+  logCareTime(o.id, { minutes: req.body.minutes, note: req.body.note, staffId: req.user.id });
+  res.status(201).json(careUsage(o.id));
+});
+
 // Support desk metrics (tickets themselves are served by /api/support)
 r.get('/support/stats', (_req, res) => {
   const n = (sql) => db.prepare(sql).get().n ?? 0;
@@ -484,7 +501,7 @@ r.get('/pipeline', (_req, res) => res.json({ ...P.boardData(), stages: STAGES })
 r.get('/playbooks', (_req, res) => {
   const services = rows(db.prepare('SELECT id, slug, name, icon FROM services ORDER BY sort_order').all());
   res.json(services.map((s) => {
-    const tiers = rows(db.prepare(`SELECT tier, name, billing, delivery_days FROM service_tiers WHERE service_id = ?
+    const tiers = rows(db.prepare(`SELECT tier, name, billing, delivery_days FROM service_tiers WHERE service_id = ? AND plan = 'core'
       ORDER BY CASE tier WHEN 'essential' THEN 1 WHEN 'growth' THEN 2 ELSE 3 END`).all(s.id));
     const agents = Object.fromEntries(rows(db.prepare('SELECT slug, name, emoji FROM agents').all()).map((a) => [a.slug, a]));
     return {

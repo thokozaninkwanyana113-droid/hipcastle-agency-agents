@@ -37,6 +37,7 @@ export default function Overview() {
       <div className="kpis kpis--small">
         <div className="kpi"><span>Open support tickets</span><strong>{d.open_tickets}</strong>{d.tickets_breached > 0 ? <small className="text-error">⚠ {d.tickets_breached} past response target</small> : <small><Link to="/admin/support">support desk</Link></small>}</div>
         <div className="kpi"><span>Support CSAT (90d)</span><strong>{d.csat_avg ?? '—'}{d.csat_avg !== null && '/5'}</strong></div>
+        <div className="kpi"><span>Care plans</span><strong>{d.care_active}</strong><small>{money(d.care_mrr_cents)}/month · <Link to="/admin/care">manage</Link></small></div>
         <div className="kpi"><span>Assistant chats (7d)</span><strong>{d.chats_7d}</strong><small><Link to="/admin/conversations">view conversations</Link></small></div>
       </div>
       <div className="card"><RevenueChart data={d.revenue_by_day} /></div>

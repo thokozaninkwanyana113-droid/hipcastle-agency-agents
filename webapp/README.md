@@ -17,6 +17,7 @@ A full-stack web app for running a services agency, built for **South African en
 - **Hero**: written for the SA market, with live stats and a "from R…" price.
 - **Footer**: social icons, newsletter, contact details, payment badges, legal links, CIPC and VAT numbers.
 - **Ask Hipcastle assistant** on the homepage: a chat widget that answers questions about every service, package, rand price, payment method, delivery step, portal feature, support process and policy. It suggests a package, links to the right page, takes 👍/👎 feedback and hands the conversation to a person (creates a lead with the transcript). WhatsApp is offered inside the panel.
+- **Care plans** (`/care`): monthly aftercare, maintenance & hosting for every service (3 tiers each), also shown on each service page and offered in the client portal when a project is delivered.
 - **Help Centre** (`/help`): every article the assistant knows, searchable, with FAQPage structured data.
 - **Floating WhatsApp button** on every other public page.
 - **Services**: 14 lines × 3 tiers in rand. Each service page has a comparison table, specialists, client reviews and question-led FAQs ("How much does X cost in South Africa?").
@@ -30,6 +31,7 @@ A full-stack web app for running a services agency, built for **South African en
 - Register, choose a tier and submit a brief. The order then gets milestones and an invoice automatically.
 - **Pay invoices online** with PayFast or Ozow. The return page waits for the gateway's confirmation before showing the result.
 - Track progress, see payment history and message the team.
+- **Care plans**: add one to a delivered project, see this month's hours used and the work log.
 - **Support desk** (`/portal/support`): open tickets by topic and priority, linked to an engagement; threaded replies with email notifications; resolve, reopen and rate the help (CSAT).
 - **VAT support**: when the business is VAT registered, invoices show subtotal, VAT and total.
 
@@ -42,6 +44,7 @@ A full-stack web app for running a services agency, built for **South African en
 | **Activity log** | Searchable audit trail: orders, payments, rejected gateway notifications, sign-ins and failed sign-ins, admin changes, exports |
 | **Payments** | Every transaction, its raw gateway notification and manual reconciliation (with an audit note). CSV export |
 | **Support desk** | Ticket queue with first-response targets (urgent 4 h, high 24 h, normal 48 h, low 72 h), SLA-breach flags, assignees, internal notes, response-target %, average first response and CSAT |
+| **Care plans** | Care revenue per month, active plans, hours used vs included (log time here or on tickets), plans over their allowance, and delivered projects whose free support is ending |
 | **Assistant chats** | Whether the assistant is in AI or FAQ mode, conversations, helpful %, unanswered questions to improve on, handoffs and AI token usage; full transcripts |
 | **Engagements / Leads / Users / Invoices** | Order pipeline, CRM with WhatsApp/call/email shortcuts, role management, invoice status. CSV exports |
 | **Blog** | Markdown editor with preview, Google result preview and an SEO/AEO checklist; draft or publish |
@@ -65,6 +68,28 @@ A full-stack web app for running a services agency, built for **South African en
 Conversations are logged (with tokens used), rated by visitors and deleted after 180 days by the **chat retention** job. "Talk to a person" creates a lead (`source = chatbot`) with the transcript, sends the visitor a confirmation and the team a `chat.handoff` email. `/api/chat` is rate limited to 20 messages per 5 minutes per IP and 60 messages per conversation.
 
 **Support desk** ([`server/src/routes/support.js`](server/src/routes/support.js)): tickets get a first-response target from their priority; the first staff reply records the response time and sets *pending client*; a client reply reopens; resolved tickets ask for a 1–5 rating and close after 7 days. The **support SLA** job warns the team (once per ticket) when a target is missed. Emails: `ticket.created`, `ticket.notify`, `ticket.reply`, `ticket.resolved`, `ticket.sla`.
+
+## Care plans: maintenance, hosting & aftercare
+
+Every service has three monthly care tiers ([`server/src/care.js`](server/src/care.js)), stored as service tiers with `plan = 'care'`, so checkout, invoices, payments and pipelines work as for any retainer.
+
+**Pricing** (ZAR, excl. VAT) is benchmarked against the South African market: basic website care plans are typically R300–R800/month and managed hosting with maintenance about R1 500+, local hosting is R99–R360/month, and small-agency rates are R500–R1 500/hour. Entry plans start at R395–R1 450 depending on the service (Website & App Care: R595 / R1 450 / R3 950). Every tier's price per included hour stays within R383–R1 190, and most tiers also include hosting, monitoring or backups. Edit prices and included hours in Command Centre → Services & pricing.
+
+| | Essential Care | Growth Care | Enterprise Care |
+|---|---|---|---|
+| Hands-on time / month | 30 min – 1.5 h | 1.5 – 4 h | 4 – 10 h |
+| Support tickets | normal (2 business days) | high (1 business day) | urgent (4 business hours) |
+
+**How it runs:**
+
+| Step | What happens |
+|---|---|
+| Free support | Once-off projects get 14, 30 or 60 days of free support after delivery (Essential, Growth, Enterprise). |
+| Offer | The **care-offers** job emails the matching care plans 7 days before that window ends. The order page also offers them, and the Command Centre lists windows that are ending. |
+| Ordering | A care order can *cover* the delivered project. Its pipeline is: care onboarding form, then access handover and baseline health check, then a monthly cycle (service-specific upkeep tasks and a care report). It is billed monthly in advance. |
+| Tickets | Tickets from active care clients get the better of the priority they chose and their plan's priority. |
+| Time tracking | Staff log time on the ticket, or in Care plans for proactive work. When the month's hours run out, the client and team get one email: extra work is quoted first at **R650/hour** (`CARE_EXTRA_HOUR_CENTS`). |
+| New month | The hours reset each month. Unused hours don't roll over. |
 
 ## Delivery pipelines: onboarding → delivery
 
@@ -245,7 +270,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 48 API integration tests, run against an in-memory database. They cover:
+There are 56 API integration tests, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -260,6 +285,7 @@ There are 48 API integration tests, run against an in-memory database. They cove
 - Password reset (no account enumeration, single-use tokens)
 - Signed newsletter unsubscribe
 - Delivery pipelines: full project journey, revision limits, balance invoice, feedback, retainer cycles, watch job and board
+- Care plans: three monthly tiers per service within SA price bands, checkout covering a delivered project, care pipeline and monthly reset, ticket priority boost, time logging and allowance emails, offer job, migration-safe catalog, SEO and assistant knowledge
 - Customer service: knowledge base covers every service and price, FAQ answers, a mocked Claude stream (model, prompt caching, fallbacks, refusals, error fallback), feedback, handoff, ticket lifecycle with SLA, CSAT, access control and retention jobs
 
 ## Database schema
@@ -274,6 +300,7 @@ users ─┬─< orders >── service_tiers >── services >─< service_age
 leads >── services     testimonials >── services     posts     settings     events (audit log)
 newsletter_subscribers     emails (outbox queue)     password_resets
 orders ─< onboarding_items (questionnaire & checklist)
+orders ─< care_time (care plan hours)     orders.covers_order_id → the project a care plan looks after
 users ─< tickets ─< ticket_messages     chat_sessions ─< chat_messages (→ leads on handoff)
 ```
 
@@ -290,5 +317,6 @@ users ─< tickets ─< ticket_messages     chat_sessions ─< chat_messages (�
 - [ ] Replace the four sample testimonials with real client reviews.
 - [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.
 - [ ] Create a Google Business Profile with the same name, address and phone, and submit `/sitemap.xml` in Google Search Console.
+- [ ] Review the care plan prices and included hours in Command Centre → Services & pricing, and decide who on the team owns care work.
 - [ ] Optional: add `ANTHROPIC_API_KEY` to switch the assistant to AI answers, then check Command Centre → Assistant chats.
 - [ ] Back up `data/` regularly; a daily snapshot is also written to `data/backups`.

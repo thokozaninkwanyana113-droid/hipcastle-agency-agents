@@ -1,6 +1,7 @@
 import { siteUrl } from '../siteUrl.js';
 import { Link, useParams } from 'react-router-dom';
 import TierCard from '../components/TierCard.jsx';
+import { CareSection } from '../components/Care.jsx';
 import { ErrorBox, Loader } from '../components/ui.jsx';
 import { useFetch } from '../useFetch.js';
 import NotFound from './NotFound.jsx';
@@ -57,6 +58,7 @@ export default function ServiceDetail() {
               </tbody>
             </table>
           </div>
+          <CareSection care={s.care} id="care" />
         </div>
       </section>
 

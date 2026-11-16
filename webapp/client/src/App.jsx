@@ -26,11 +26,12 @@ import PaymentSimulate from './pages/PaymentSimulate.jsx';
 import WhatsAppButton from './components/WhatsAppButton.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
 import Help from './pages/Help.jsx';
+import Care from './pages/Care.jsx';
 import { SupportList, SupportTicket } from './pages/Support.jsx';
 import NotFound from './pages/NotFound.jsx';
 
-// The assistant lives on the homepage (and the Help Centre); WhatsApp is offered inside it there.
-const CHAT_PAGES = ['/', '/help'];
+// The assistant lives on the homepage (and the Help Centre and care plans page); WhatsApp is offered inside it there.
+const CHAT_PAGES = ['/', '/help', '/care'];
 
 function RequireAuth({ children, staff = false }) {
   const { user, ready, isStaff } = useAuth();
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/care" element={<Care />} />
           <Route path="/payment/return" element={<RequireAuth><PaymentReturn /></RequireAuth>} />
           <Route path="/payment/simulate" element={<RequireAuth><PaymentSimulate /></RequireAuth>} />
           <Route path="/login" element={<Login />} />

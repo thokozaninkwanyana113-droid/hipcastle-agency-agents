@@ -9,6 +9,7 @@ import { api } from '../../api.js';
 import { dateTime, timeAgo } from '../../format.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { LiveDot, PanelHead, StatusFilter, usePolling } from './shared.jsx';
+import { CareUsage } from '../../components/Care.jsx';
 
 const TICKET_STATUSES = ['open', 'pending_client', 'resolved', 'closed'];
 
@@ -43,8 +44,24 @@ function TicketPanel({ id, staff, onChange }) {
         <label>Priority <select className="input input--sm" value={t.priority} disabled={busy} onChange={(e) => patch({ priority: e.target.value })}>{Object.keys(RESPONSE).map((p) => <option key={p}>{p}</option>)}</select></label>
         <label>Assignee <select className="input input--sm" value={t.assigned_to || ''} disabled={busy} onChange={(e) => patch({ assigned_to: e.target.value ? Number(e.target.value) : null })}>
           <option value="">Unassigned</option>{staff?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+        {t.care_ref && <span className="care-pill">🛟 {t.care_ref} · {t.care_tier_name}</span>}
         {t.csat_score && <span className="csat-pill">CSAT {t.csat_score}/5{t.csat_comment ? ` — “${t.csat_comment}”` : ''}</span>}
       </div>
+      {t.care_usage && (
+        <div className="care-time">
+          <CareUsage usage={t.care_usage} compact />
+          <form className="care-time__form" onSubmit={(e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            const form = e.currentTarget;
+            act(async () => { const r = await api(`/support/${t.id}/time`, { method: 'POST', body: { minutes: Number(f.get('minutes')), note: String(f.get('note')) } }); form.reset(); return r; });
+          }}>
+            <label>Log time <input className="input input--sm" name="minutes" type="number" min={5} max={1440} step={5} required placeholder="min" aria-label="Minutes" /></label>
+            <input className="input input--sm" name="note" required minLength={3} maxLength={300} placeholder="What was done" aria-label="What was done" />
+            <button className="btn btn--outline btn--sm" disabled={busy}>Log</button>
+          </form>
+        </div>
+      )}
       <ol className="thread">
         {t.messages.map((m) => (
           <li key={m.id} className={`thread__msg ${m.author_role !== 'client' ? 'thread__msg--mine' : ''} ${m.internal ? 'thread__msg--internal' : ''}`}>
@@ -101,7 +118,7 @@ export function SupportDesk() {
           <tbody>
             {data?.map((t) => (
               <tr key={t.id} className={open === t.id ? 'is-selected' : ''}>
-                <td><button className="btn--link" onClick={() => setOpen(open === t.id ? null : t.id)}>{t.subject}</button><small>{t.reference} · {t.category} · {t.message_count} msg</small></td>
+                <td><button className="btn--link" onClick={() => setOpen(open === t.id ? null : t.id)}>{t.subject}</button><small>{t.reference} · {t.category} · {t.message_count} msg{t.care_ref ? ` · 🛟 ${t.care_ref}` : ''}</small></td>
                 <td>{t.client_name}<small>{t.client_company}</small></td>
                 <td><PriorityBadge value={t.priority} /></td>
                 <td><Status value={t.status} /></td>

@@ -73,6 +73,7 @@ export default function Footer() {
             <li><Link to="/testimonials">Client reviews</Link></li>
             <li><Link to="/blog">Blog & guides</Link></li>
             <li><Link to="/pricing">Pricing</Link></li>
+            <li><Link to="/care">Care plans & hosting</Link></li>
             <li><Link to="/contact">Contact us</Link></li>
             <li><Link to="/help">Help Centre</Link></li>
             <li><Link to="/portal">Client portal</Link></li>

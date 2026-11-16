@@ -17,7 +17,7 @@ export default function Pricing() {
       <Seo title="Agency Pricing in Rand — 42 Fixed-Price Packages" description="Transparent agency pricing for South African businesses: Essential, Growth and Enterprise packages for every service, priced in rand. Pay by card or instant EFT."
         schema={[breadcrumbSchema([{ name: 'Pricing', path: '/pricing' }])]} />
       <PageHeader eyebrow="Pricing" title="Transparent rand pricing, three tiers per service">
-        <p>All prices in South African rand{site.vat_registered ? `, excluding ${site.vat_rate}% VAT` : ''}. Projects: 50% deposit, balance on delivery. Retainers: billed monthly, cancel with 30 days’ notice. No hidden fees.</p>
+        <p>All prices in South African rand{site.vat_registered ? `, excluding ${site.vat_rate}% VAT` : ''}. Projects: 50% deposit, balance on delivery. Retainers: billed monthly, cancel with 30 days’ notice. No hidden fees. After launch, keep it running with a <Link to="/care">care plan</Link>.</p>
         <div className="mt"><PaymentBadges /></div>
       </PageHeader>
       <section className="section">

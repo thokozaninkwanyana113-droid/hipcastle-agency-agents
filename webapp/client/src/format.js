@@ -18,3 +18,10 @@ export const timeAgo = (s) => {
 };
 export const statusLabel = (s) => String(s).replace(/_/g, ' ');
 export const waLink = (number, text = '') => `https://wa.me/${number}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+/** 90 → "1.5 hours", 30 → "30 min". */
+export const hoursLabel = (minutes = 0) => {
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes % 30) return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  const h = minutes / 60;
+  return `${h} hour${h === 1 ? '' : 's'}`;
+};

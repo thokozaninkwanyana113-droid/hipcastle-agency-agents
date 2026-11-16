@@ -1,3 +1,4 @@
+import { CareSection, CareUsage } from '../components/Care.jsx';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -96,7 +97,21 @@ export default function OrderDetail() {
           </div>
         )}
 
+        {o.care_usage && <div className="card"><CareUsage usage={o.care_usage} /></div>}
+
         {o.status === 'completed' && isClient && <FeedbackPanel order={o} onSaved={reload} />}
+
+        {o.care_offer && !o.care_offer.existing && (o.delivered_at || o.status === 'completed') && (
+          <section className="card care-offer" id="care" aria-label="Care plans">
+            <p className="care-offer__note">{o.support_ends_at
+              ? (o.support_ends_at > new Date().toISOString().replace('T', ' ') ? `🛟 Your free post-launch support runs until ${date(o.support_ends_at)}.` : `🛟 Your free post-launch support ended on ${date(o.support_ends_at)}.`)
+              : '🛟 Your project is live.'} Keep it maintained with a monthly care plan:</p>
+            <CareSection care={o.care_offer} covers={isClient ? o.id : null} heading="h2" />
+          </section>
+        )}
+        {o.care_offer?.existing && o.plan !== 'care' && (
+          <p className="care-offer__covered">🛟 Looked after by care plan <Link to={`/portal/orders/${o.care_offer.existing.id}`}>{o.care_offer.existing.reference}</Link> ({o.care_offer.existing.status}).</p>
+        )}
 
         {o.onboarding?.length > 0 && o.status !== 'cancelled' && (
           <OnboardingPanel order={o} items={o.onboarding} canEdit={isClient || isStaff} isStaff={isStaff} onSaved={reload} />
