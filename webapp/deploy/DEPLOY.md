@@ -45,6 +45,33 @@ There are three ready-to-use hosting options. Pick one:
 
 ## Option A — Fly.io (Johannesburg)
 
+### A1. One-click deploy from GitHub (recommended)
+
+The workflow [`.github/workflows/deploy-fly.yml`](../../.github/workflows/deploy-fly.yml) does everything on its first run:
+- creates the app and the 1 GB database volume in `jnb`
+- generates `JWT_SECRET` and copies your secrets to Fly
+- builds and deploys a single machine
+- requests HTTPS certificates for `www.hipcastle.agency` and `hipcastle.agency`
+- runs a health check and prints the exact GoDaddy DNS records in the run summary
+
+1. Create a Fly.io account at <https://fly.io> and add a payment method (Fly requires one for apps with volumes).
+2. Create an **org token**: either run `fly tokens create org personal`, or go to the Fly dashboard → **Tokens** → create an organisation token. A deploy token isn't enough for the first run, because the app has to be created.
+3. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+   - `FLY_API_TOKEN`: the org token
+   - `ADMIN_PASSWORD`: the password for `admin@hipcastle.agency`
+   - optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, PayFast and Ozow keys (they can be added later; just re-run the workflow)
+4. Go to **Actions → Deploy Hipcastle to Fly.io → Run workflow**.
+5. Open the finished run's **Summary** and add the DNS records it lists in GoDaddy. HTTPS starts working once DNS has propagated.
+6. Optional: set the repository variable `FLY_DEPLOY=true` to redeploy automatically on every push to `main` that changes `webapp/`.
+
+Optional repository **variables**:
+- `FLY_APP`, if the name `hipcastle` is taken on Fly
+- `FLY_ORG`
+- `FLY_REGION`, default `jnb`
+- `PAYMENTS_MODE`, default `sandbox`; set to `live` with live keys
+
+### A2. Manual deploy from your computer
+
 1. Install the CLI and sign in: <https://fly.io/docs/flyctl/install/>, then run `fly auth login`.
 2. From the **repository root**, create the app and its storage volume:
    ```bash

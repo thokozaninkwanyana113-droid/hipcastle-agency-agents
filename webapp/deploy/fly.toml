@@ -3,7 +3,7 @@
 # First deploy (run from the REPOSITORY ROOT):
 #   fly apps create hipcastle
 #   fly volumes create hipcastle_data --region jnb --size 1 --config webapp/deploy/fly.toml
-#   fly secrets set JWT_SECRET=$(openssl rand -hex 32) ADMIN_PASSWORD='…' --config webapp/deploy/fly.toml
+#   fly secrets set JWT_SECRET=$(openssl rand -hex 32) ADMIN_PASSWORD='…' PAYMENTS_MODE=sandbox --config webapp/deploy/fly.toml
 #   fly deploy . --config webapp/deploy/fly.toml --dockerfile webapp/Dockerfile
 #   fly certs add www.hipcastle.agency --config webapp/deploy/fly.toml
 #   fly certs add hipcastle.agency --config webapp/deploy/fly.toml
@@ -20,7 +20,7 @@ kill_timeout = "10s"
   SITE_URL = "https://www.hipcastle.agency"
   DATABASE_PATH = "/data/hipcastle.db"
   SEED_DEMO = "false"
-  PAYMENTS_MODE = "sandbox"   # switch to "live" once live PayFast/Ozow credentials are set as secrets
+  # PAYMENTS_MODE is set as a Fly secret by the deploy workflow (repository variable PAYMENTS_MODE, default "sandbox")
   TRUST_PROXY = "1"
 
 # SQLite needs one machine with a persistent volume (do not scale beyond 1 machine).
