@@ -15,10 +15,11 @@ import SeoCentre from './SeoCentre.jsx';
 import Emails from './Emails.jsx';
 import PipelineBoard from './PipelineBoard.jsx';
 import Playbooks from './Playbooks.jsx';
+import { Conversations, SupportDesk } from './CustomerCare.jsx';
 
 const NAV = [
   ['Monitor', [['', 'Overview', '📊'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️']]],
-  ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
+  ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['support', 'Support desk', '🎧'], ['conversations', 'Assistant chats', '💬'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
   ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
 ];
@@ -27,7 +28,7 @@ export default function CommandCentre() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const { data: ov } = useFetch('/admin/overview');
-  const badges = { leads: ov?.new_leads, testimonials: ov?.pending_testimonials, invoices: ov?.overdue_invoices };
+  const badges = { support: ov?.open_tickets, leads: ov?.new_leads, testimonials: ov?.pending_testimonials, invoices: ov?.overdue_invoices };
   return (
     <div className="cc">
       <Seo title="Command Centre" noindex />
@@ -58,6 +59,8 @@ export default function CommandCentre() {
           <Route path="engagements" element={<Engagements />} />
           <Route path="orders" element={<Engagements />} />
           <Route path="leads" element={<Leads />} />
+          <Route path="support" element={<SupportDesk />} />
+          <Route path="conversations" element={<Conversations />} />
           <Route path="clients" element={<Users />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="blog/*" element={<BlogAdmin />} />

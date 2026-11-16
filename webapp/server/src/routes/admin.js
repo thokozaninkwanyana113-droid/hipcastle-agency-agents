@@ -10,6 +10,8 @@ import { listJobs, runJob, setJobEnabled } from '../jobs.js';
 import { MODE, notifyBase, ozowConfig, payfastConfig, simulatedAllowed, siteUrl } from '../payments/config.js';
 import { applyPaymentStatus, findPayment } from '../payments/service.js';
 import { seoAudit } from '../seo.js';
+import { chatMode, MODEL as CHAT_MODEL } from '../chat.js';
+import { buildChunks, knowledgeText, knowledgeVersion } from '../kb.js';
 import { canonicalUrl } from '../urls.js';
 import { onTestimonialApproved } from '../email/notify.js';
 import { emailConfig, processQueue, renderTemplate, retryEmail, sendEmail, verifyTransport } from '../email/mailer.js';
@@ -40,6 +42,10 @@ r.get('/overview', (_req, res) => {
     published_posts: n("SELECT COUNT(*) n FROM posts WHERE status = 'published'"),
     leads_won: n("SELECT COUNT(*) n FROM leads WHERE status = 'won'"),
     leads_total: n('SELECT COUNT(*) n FROM leads'),
+    open_tickets: n("SELECT COUNT(*) n FROM tickets WHERE status IN ('open','pending_client')"),
+    tickets_breached: n("SELECT COUNT(*) n FROM tickets WHERE status = 'open' AND first_response_at IS NULL AND sla_due_at < datetime('now')"),
+    csat_avg: db.prepare("SELECT ROUND(AVG(csat_score),1) n FROM tickets WHERE csat_score IS NOT NULL AND created_at >= datetime('now','-90 days')").get().n,
+    chats_7d: n("SELECT COUNT(*) n FROM chat_sessions WHERE created_at >= datetime('now','-7 days') AND message_count > 0"),
     revenue_by_day: rows(db.prepare(`WITH RECURSIVE d(day) AS (SELECT date('now','-29 days') UNION ALL SELECT date(day,'+1 day') FROM d WHERE day < date('now'))
       SELECT d.day, COALESCE(SUM(i.amount_cents),0) AS cents FROM d
       LEFT JOIN invoices i ON i.status = 'paid' AND date(i.paid_at) = d.day GROUP BY d.day ORDER BY d.day`).all()),
@@ -143,7 +149,7 @@ r.get('/staff', (_req, res) =>
 // ======================= Command Centre =======================
 
 const tableCounts = () => Object.fromEntries(
-  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'emails', 'events']
+  ['users', 'services', 'service_tiers', 'agents', 'orders', 'invoices', 'payments', 'leads', 'messages', 'posts', 'testimonials', 'newsletter_subscribers', 'emails', 'events', 'tickets', 'chat_sessions', 'chat_messages']
     .map((t) => [t, db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n]));
 
 function dbSize() {
@@ -415,6 +421,62 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="hipcastle-${req.params.kind}-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send('﻿' + csv);
+});
+
+// Support desk metrics (tickets themselves are served by /api/support)
+r.get('/support/stats', (_req, res) => {
+  const n = (sql) => db.prepare(sql).get().n ?? 0;
+  res.json({
+    open: n("SELECT COUNT(*) n FROM tickets WHERE status = 'open'"),
+    pending_client: n("SELECT COUNT(*) n FROM tickets WHERE status = 'pending_client'"),
+    breached: n("SELECT COUNT(*) n FROM tickets WHERE status = 'open' AND first_response_at IS NULL AND sla_due_at < datetime('now')"),
+    resolved_30d: n("SELECT COUNT(*) n FROM tickets WHERE resolved_at >= datetime('now','-30 days')"),
+    sla_met_pct_30d: db.prepare(`SELECT ROUND(100.0 * SUM(CASE WHEN first_response_at <= sla_due_at THEN 1 ELSE 0 END) / COUNT(*)) n
+      FROM tickets WHERE first_response_at IS NOT NULL AND created_at >= datetime('now','-30 days')`).get().n,
+    avg_first_response_hours_30d: db.prepare(`SELECT ROUND(AVG((julianday(first_response_at) - julianday(created_at)) * 24), 1) n
+      FROM tickets WHERE first_response_at IS NOT NULL AND created_at >= datetime('now','-30 days')`).get().n,
+    csat_avg_90d: db.prepare("SELECT ROUND(AVG(csat_score),1) n FROM tickets WHERE csat_score IS NOT NULL AND created_at >= datetime('now','-90 days')").get().n,
+    csat_count_90d: n("SELECT COUNT(*) n FROM tickets WHERE csat_score IS NOT NULL AND created_at >= datetime('now','-90 days')"),
+  });
+});
+
+// Website assistant: conversations, quality and cost signals
+r.get('/chats/stats', (_req, res) => {
+  const n = (sql) => db.prepare(sql).get().n ?? 0;
+  const text = knowledgeText();
+  res.json({
+    mode: chatMode(),
+    model: chatMode() === 'ai' ? CHAT_MODEL : null,
+    knowledge: { articles: buildChunks().length, version: knowledgeVersion(text), approx_tokens: Math.round(text.length / 4) },
+    conversations_7d: n("SELECT COUNT(*) n FROM chat_sessions WHERE created_at >= datetime('now','-7 days') AND message_count > 0"),
+    questions_7d: n("SELECT COUNT(*) n FROM chat_messages WHERE role = 'user' AND created_at >= datetime('now','-7 days')"),
+    unanswered_7d: n("SELECT COUNT(*) n FROM chat_messages WHERE role = 'assistant' AND answered = 0 AND created_at >= datetime('now','-7 days')"),
+    helpful_pct_30d: db.prepare("SELECT ROUND(100.0 * SUM(helpful) / COUNT(*)) n FROM chat_messages WHERE helpful IS NOT NULL AND created_at >= datetime('now','-30 days')").get().n,
+    rated_30d: n("SELECT COUNT(*) n FROM chat_messages WHERE helpful IS NOT NULL AND created_at >= datetime('now','-30 days')"),
+    handoffs_30d: n("SELECT COUNT(*) n FROM chat_sessions WHERE handoff_lead_id IS NOT NULL AND created_at >= datetime('now','-30 days')"),
+    fallbacks_7d: n("SELECT COUNT(*) n FROM chat_messages WHERE source = 'fallback' AND created_at >= datetime('now','-7 days')"),
+    tokens_30d: row(db.prepare(`SELECT COALESCE(SUM(input_tokens),0) AS input, COALESCE(SUM(output_tokens),0) AS output, COALESCE(SUM(cache_read_tokens),0) AS cache_read
+      FROM chat_messages WHERE source = 'ai' AND created_at >= datetime('now','-30 days')`).get()),
+    unanswered_recent: rows(db.prepare(`SELECT q.content AS question, a.created_at, a.session_id FROM chat_messages a
+      JOIN chat_messages q ON q.id = (SELECT MAX(id) FROM chat_messages WHERE session_id = a.session_id AND role = 'user' AND id < a.id)
+      WHERE a.role = 'assistant' AND (a.answered = 0 OR a.helpful = 0) ORDER BY a.id DESC LIMIT 15`).all()),
+  });
+});
+r.get('/chats', (req, res) => {
+  const filter = String(req.query.filter || '');
+  res.json(rows(db.prepare(`SELECT s.*, l.name AS lead_name,
+      (SELECT content FROM chat_messages WHERE session_id = s.id AND role = 'user' ORDER BY id LIMIT 1) AS first_question,
+      (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND helpful = 0) AS unhelpful,
+      (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND answered = 0) AS unanswered
+    FROM chat_sessions s LEFT JOIN leads l ON l.id = s.handoff_lead_id
+    WHERE s.message_count > 0 AND (? = '' OR (? = 'handoff' AND s.handoff_lead_id IS NOT NULL)
+      OR (? = 'issues' AND EXISTS (SELECT 1 FROM chat_messages m WHERE m.session_id = s.id AND (m.helpful = 0 OR m.answered = 0))))
+    ORDER BY s.updated_at DESC LIMIT 200`).all(filter, filter, filter)));
+});
+r.get('/chats/:sid', (req, res) => {
+  const s = row(db.prepare('SELECT * FROM chat_sessions WHERE id = ?').get(req.params.sid));
+  if (!s) return res.status(404).json({ error: 'Conversation not found' });
+  res.json({ ...s, messages: rows(db.prepare('SELECT * FROM chat_messages WHERE session_id = ? ORDER BY id').all(s.id), ['kb_ids']) });
 });
 
 // Delivery pipelines

@@ -9,6 +9,8 @@ import authRoutes from './routes/auth.js';
 import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payments.js';
+import chatRoutes from './routes/chat.js';
+import supportRoutes from './routes/support.js';
 import { metricsMiddleware, recordError } from './events.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
 import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml } from './seo.js';
@@ -43,6 +45,8 @@ export function createApp() {
   app.use(express.json({ limit: '200kb' }));
 
   const limiter = (max) => rateLimit({ windowMs: 15 * 60 * 1000, max, standardHeaders: true, legacyHeaders: false });
+  const chatLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false,
+    message: { error: 'You’re sending messages quickly — please wait a minute and try again.' } });
   if (process.env.NODE_ENV !== 'test') {
     app.use('/api/auth/login', limiter(20));
     app.use('/api/auth/register', limiter(20));
@@ -52,13 +56,19 @@ export function createApp() {
     app.use('/api/newsletter', limiter(10));
     app.use('/api/testimonials', (req, res, next) => (req.method === 'POST' ? limiter(10)(req, res, next) : next()));
     app.use('/api/payments/checkout', limiter(40));
+    // Chatbot: each message can call the AI model, so keep a tight per-IP budget.
+    app.use('/api/chat', (req, res, next) => (req.method === 'POST' ? chatLimiter(req, res, next) : next()));
+    app.use('/api/chat/:sid/handoff', limiter(5));
+    app.use('/api/support', (req, res, next) => (req.method === 'POST' ? limiter(60)(req, res, next) : next()));
   }
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api', publicRoutes);
+  app.use('/api', chatRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api/payments', paymentRoutes);
+  app.use('/api/support', supportRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 

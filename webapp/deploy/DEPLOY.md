@@ -60,6 +60,7 @@ The workflow [`.github/workflows/deploy-fly.yml`](../../.github/workflows/deploy
    - `FLY_API_TOKEN`: the org token
    - `ADMIN_PASSWORD`: the password for `admin@hipcastle.agency`, at least 10 characters (the server refuses to start in production without it)
    - optional: `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` to turn on Cloudflare Turnstile bot protection
+   - optional: `ANTHROPIC_API_KEY` to switch the homepage assistant from FAQ mode to AI answers (repository *variables* `CHATBOT_MODEL` and `CHATBOT_EFFORT` tune it)
    - optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, PayFast and Ozow keys (they can be added later; just re-run the workflow)
 4. Go to **Actions → Deploy Hipcastle to Fly.io → Run workflow**.
 5. Open the finished run's **Summary** and add the DNS records it lists in GoDaddy. HTTPS starts working once DNS has propagated.

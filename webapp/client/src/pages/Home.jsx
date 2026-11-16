@@ -7,6 +7,16 @@ import { Faq, TestimonialCard } from '../components/Testimonials.jsx';
 import { PaymentBadges } from '../components/icons.jsx';
 import { useFetch } from '../useFetch.js';
 import { useSite } from '../context/SiteContext.jsx';
+import { openChat } from '../components/ChatWidget.jsx';
+
+const ASK = [
+  'I sell on Instagram — which package gets me a proper online store?',
+  'What’s the difference between Essential, Growth and Enterprise?',
+  'Can I pay with instant EFT or SnapScan?',
+  'What happens after I pay the deposit?',
+  'How do I get help once my project is live?',
+  'Do you handle POPIA compliance?',
+];
 
 const PAINS = [
   ['😩', 'Quotes that change every week', 'Every package has a fixed rand price and a clear scope — published on our site.'],
@@ -132,6 +142,20 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <section className="section ask" aria-labelledby="ask-h">
+        <div className="container ask__inner">
+          <div>
+            <span className="eyebrow">Ask Hipcastle</span>
+            <h2 id="ask-h">Got a question? Get an answer in seconds.</h2>
+            <p>Our assistant knows every service, package, rand price, payment option and step of our delivery process — and hands you to a person whenever you want one.</p>
+            <p className="ask__more">Prefer reading? Browse the <Link to="/help">Help Centre</Link>.</p>
+          </div>
+          <ul className="ask__chips">
+            {ASK.map((q) => <li key={q}><button type="button" onClick={() => openChat(q)}>{q}</button></li>)}
+          </ul>
+        </div>
+      </section>
 
       {faqs && (
         <section className="section" aria-labelledby="faq-h">
