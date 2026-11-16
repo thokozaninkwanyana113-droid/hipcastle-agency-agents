@@ -12,7 +12,13 @@ export default function PayButton({ invoice, onError }) {
   const [busy, setBusy] = useState(null);
   const pay = async (gateway) => {
     setBusy(gateway);
-    try { await startPayment(invoice.id, gateway, navigate); } catch (e) { onError?.(e); setBusy(null); }
+    try { await startPayment(invoice.id, gateway, navigate); }
+    catch (e) {
+      if (e.status === 409 && e.message.includes('30 minutes')) {
+        onError?.({ message: `${e.message} If you closed the payment page without paying, wait until the attempt expires or contact us.` });
+      } else onError?.(e);
+      setBusy(null);
+    }
   };
   if (!methods.length) return <span className="muted small">Online payment unavailable — please EFT using reference {invoice.number}</span>;
   return (

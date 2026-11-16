@@ -24,6 +24,7 @@ export default function PaymentReturn() {
   useEffect(() => {
     if (!ref) return;
     let stop = false;
+    const gatewayStatus = params.get('gateway_status');
     const poll = async (n) => {
       try {
         const r = await api(`/payments/status/${ref}`);
@@ -32,7 +33,8 @@ export default function PaymentReturn() {
         if (!r.terminal && n < 20) setTimeout(() => poll(n + 1), 3000);
       } catch (e) { if (!stop) setError(e); }
     };
-    poll(0);
+    // The customer pressed Cancel at the gateway: abandon this attempt (only they can, while signed in).
+    (gatewayStatus === 'cancelled' ? api(`/payments/${ref}/cancel`, { method: 'POST' }).catch(() => {}) : Promise.resolve()).then(() => poll(0));
     return () => { stop = true; };
   }, [ref]);
 

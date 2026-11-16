@@ -64,6 +64,13 @@ export function verifyUnsubscribe(email, token) {
   const b = Buffer.from(String(token || ''));
   return a.length === b.length && timingSafeEqual(a, b);
 }
+const confirmToken = (email) => createHmac('sha256', secret()).update(`confirm:${email.toLowerCase()}`).digest('hex').slice(0, 32);
+export function verifyConfirm(email, token) {
+  const a = Buffer.from(confirmToken(email));
+  const b = Buffer.from(String(token || ''));
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+export const confirmUrl = (email) => `${canonicalUrl()}/api/newsletter/confirm?email=${encodeURIComponent(email)}&token=${confirmToken(email)}`;
 export const unsubscribeUrl = (email) => `${canonicalUrl()}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}&token=${unsubscribeToken(email)}`;
 
 // ---------------------------------------------------------------- rendering

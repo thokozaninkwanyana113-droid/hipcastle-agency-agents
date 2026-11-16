@@ -22,8 +22,8 @@ export default function Hero() {
             <em>Small-business pricing.</em>
           </h1>
           <p className="hero__lead">
-            Websites, online stores, marketing, SEO, ads and operations — delivered by senior strategists and {stats?.agents ?? '160+'} specialist
-            AI agents. Fixed prices in rand{from ? `, from ${money(from)}` : ''}, a portal that shows every milestone, and checkout with PayFast or Ozow.
+            Websites, online stores, marketing, SEO, ads and operations — delivered by a human-led team working with a library of {stats?.agents ?? '160+'}{' '}
+            specialist AI playbooks. Fixed prices in rand{from ? `, from ${money(from)}` : ''}, a portal that shows every milestone, and checkout with PayFast or Ozow.
           </p>
           <div className="hero__actions">
             <Link to="/contact" className="btn btn--primary btn--lg">Book a free strategy session</Link>
@@ -37,7 +37,7 @@ export default function Hero() {
           <dl className="hero__stats">
             <div><dt>Service lines</dt><dd>{stats?.services ?? 14}</dd></div>
             <div><dt>Fixed-price packages</dt><dd>{stats?.tiers ?? 42}</dd></div>
-            <div><dt>Specialists</dt><dd>{stats?.agents ?? '160+'}</dd></div>
+            <div><dt>AI playbooks</dt><dd>{stats?.agents ?? '160+'}</dd></div>
           </dl>
         </div>
         <div className="hero__visual" aria-hidden="true">

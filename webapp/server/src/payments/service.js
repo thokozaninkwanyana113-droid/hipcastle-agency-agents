@@ -2,10 +2,11 @@
 import { randomBytes } from 'node:crypto';
 import { db, row, tx } from '../db.js';
 import { logEvent } from '../events.js';
-import { onPayment } from '../email/notify.js';
+import { onPayment, onDuplicatePayment } from '../email/notify.js';
 import { onActivated } from '../pipeline.js';
 
-export const newReference = () => `HCP-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
+// 64 random bits: references appear in URLs, so they must not be guessable.
+export const newReference = () => `HCP-${Date.now().toString(36).toUpperCase()}-${randomBytes(8).toString('hex').toUpperCase()}`;
 
 export const findPayment = (reference) => row(db.prepare('SELECT * FROM payments WHERE reference = ?').get(reference));
 
@@ -23,13 +24,19 @@ export function applyPaymentStatus(payment, status, { txnId = null, message = nu
 
     if (status === 'complete') {
       const inv = row(db.prepare('SELECT * FROM invoices WHERE id = ?').get(current.invoice_id));
-      if (inv.status !== 'paid') {
-        db.prepare("UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(inv.id);
-        const wasPending = db.prepare("SELECT status FROM orders WHERE id = ?").get(inv.order_id).status === 'pending';
-        db.prepare("UPDATE orders SET status = CASE WHEN status = 'pending' THEN 'active' ELSE status END, updated_at = datetime('now') WHERE id = ?")
-          .run(inv.order_id);
-        if (wasPending) onActivated(inv.order_id);
+      if (inv.status === 'paid') {
+        // The invoice was already settled by another payment: this one must be refunded.
+        db.prepare('UPDATE payments SET needs_refund = 1 WHERE id = ?').run(current.id);
+        logEvent('payment.duplicate', `Duplicate payment ${current.reference} on already-paid ${inv.number} — REFUND NEEDED (R${(current.amount_cents / 100).toFixed(2)})`,
+          { level: 'error', actor: current.user_id, ref: current.reference });
+        onDuplicatePayment(current.reference);
+        return findPayment(current.reference);
       }
+      db.prepare("UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(inv.id);
+      const wasPending = db.prepare('SELECT status FROM orders WHERE id = ?').get(inv.order_id).status === 'pending';
+      db.prepare("UPDATE orders SET status = CASE WHEN status = 'pending' THEN 'active' ELSE status END, updated_at = datetime('now') WHERE id = ?")
+        .run(inv.order_id);
+      if (wasPending) onActivated(inv.order_id);
       logEvent('payment.complete', `${current.gateway} payment ${current.reference} for ${inv.number} completed (R${(current.amount_cents / 100).toFixed(2)})`,
         { actor: current.user_id, ref: current.reference });
     } else if (['failed', 'cancelled', 'abandoned'].includes(status)) {

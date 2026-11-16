@@ -6,9 +6,10 @@ import Seo, { breadcrumbSchema } from '../components/Seo.jsx';
 import { Stars, TestimonialCard } from '../components/Testimonials.jsx';
 import { useFetch } from '../useFetch.js';
 import { useSite } from '../context/SiteContext.jsx';
+import { Captcha, Honeypot } from '../components/BotGuard.jsx';
 
 function ReviewForm({ services }) {
-  const [f, setF] = useState({ author: '', email: '', role: '', company: '', location: '', service: '', rating: 5, quote: '', consent: false });
+  const [f, setF] = useState({ author: '', email: '', role: '', company: '', location: '', service: '', rating: 5, quote: '', consent: false, website: '', captcha_token: '' });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState('idle');
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -56,6 +57,8 @@ function ReviewForm({ services }) {
         <span>I agree that my name, role, business and review may be published on this website. *</span>
       </label>
       {errors.consent && <small className="field__error">{errors.consent}</small>}
+      <Honeypot value={f.website} onChange={(v) => setF((x) => ({ ...x, website: v }))} />
+      <Captcha onToken={(t) => setF((x) => ({ ...x, captcha_token: t }))} />
       <button className="btn btn--primary" disabled={status === 'loading'}>{status === 'loading' ? 'Submitting…' : 'Submit review'}</button>
     </form>
   );

@@ -13,10 +13,10 @@ export default function AgentDetail() {
   if (error) return <div className="container section"><ErrorBox error={error} /></div>;
   return (
     <>
-      <Seo title={`${a.name} — Specialist`} description={(a.description || '').slice(0, 160)} schema={[breadcrumbSchema([{ name: 'Specialists', path: '/agents' }, { name: a.name, path: `/agents/${a.slug}` }])]} />
+      <Seo title={`${a.name} — AI Playbook`} description={(a.description || '').slice(0, 160)} schema={[breadcrumbSchema([{ name: 'AI playbooks', path: '/agents' }, { name: a.name, path: `/agents/${a.slug}` }])]} />
       <section className="page-header">
         <div className="container">
-          <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/agents">Specialists</Link> / <span>{a.name}</span></nav>
+          <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/agents">AI playbooks</Link> / <span>{a.name}</span></nav>
           <span className="page-header__icon" aria-hidden="true">{a.emoji}</span>
           <h1>{a.name}</h1>
           <p className="page-header__lead">{a.description}</p>
@@ -32,7 +32,7 @@ export default function AgentDetail() {
               <ul className="link-list">
                 {a.services.map((s) => <li key={s.slug}><Link to={`/services/${s.slug}`}>{s.icon} {s.name}</Link></li>)}
               </ul>
-              <Link to={`/contact?service=${a.services[0]?.slug ?? ''}`} className="btn btn--primary btn--block mt">Work with this specialist</Link>
+              <Link to={`/contact?service=${a.services[0]?.slug ?? ''}`} className="btn btn--primary btn--block mt">Start a project in this area</Link>
             </div>
           </aside>
         </div>

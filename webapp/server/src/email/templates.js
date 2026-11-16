@@ -226,6 +226,21 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Sizwe Dlamini' }, order: { id: 1 }, invoice: { number: 'INV-EE3612' }, payment: { amount_cents: 1200000, gateway: 'ozow' } },
   },
+  'payment.duplicate': {
+    audience: 'Team', description: 'Duplicate payment on an already-paid invoice — refund needed',
+    build: ({ user, order, invoice, payment }) => ({
+      subject: `⚠️ Refund needed: duplicate payment of ${rand(payment.amount_cents)} on ${invoice.number}`,
+      preheader: `${user.name} paid ${invoice.number} twice.`,
+      heading: 'Duplicate payment — refund needed',
+      blocks: [
+        { table: [['Client', `${user.name} (${user.email})`], ['Invoice', invoice.number], ['Duplicate payment', payment.reference], ['Gateway', payment.gateway], ['Gateway transaction', payment.gateway_txn_id || '—'], ['Amount', rand(payment.amount_cents)]] },
+        { note: 'Refund this payment in the gateway dashboard, then mark it refunded in Command Centre → Payments. Let the client know.' },
+        { button: 'Open Payments', href: '/admin/payments?status=complete' },
+      ],
+      signoff: false,
+    }),
+    sample: { user: { name: 'Sizwe Dlamini', email: 'sizwe@example.com' }, order: { reference: 'HC-1E1AC5' }, invoice: { number: 'INV-EE3612' }, payment: { amount_cents: 1200000, reference: 'HCP-MWIB-163BB9', gateway: 'ozow', gateway_txn_id: 'abc-123' } },
+  },
   'payment.notify': {
     audience: 'Team', description: 'Payment received alert for the team',
     build: ({ user, order, invoice, payment }) => ({
@@ -281,6 +296,18 @@ export const TEMPLATES = {
       reason: 'You’re receiving this because you submitted a review on our website.',
     }),
     sample: { t: { author: 'Nomsa K.' } },
+  },
+  'newsletter.confirm': {
+    audience: 'Subscriber', description: 'Confirm newsletter subscription (double opt-in)',
+    build: ({ url }) => ({
+      subject: 'Please confirm your Hipcastle newsletter subscription',
+      preheader: 'One click to confirm — ignore this email if it wasn’t you.',
+      heading: 'Confirm your subscription',
+      blocks: ['Someone (hopefully you) asked to receive Hipcastle’s monthly growth guides for South African entrepreneurs at this address.',
+        { button: 'Yes, subscribe me', href: url }, 'If you didn’t ask for this, simply ignore this email — you won’t be subscribed.'],
+      reason: 'You’re receiving this one-off email because this address was entered in our newsletter form.',
+    }),
+    sample: { url: '/api/newsletter/confirm?email=reader%40example.com&token=sample' },
   },
   'newsletter.welcome': {
     audience: 'Subscriber', description: 'Confirmation after subscribing to the newsletter',

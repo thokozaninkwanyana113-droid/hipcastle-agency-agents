@@ -15,6 +15,9 @@ db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeou
 // (indexes in schema.sql may reference the new columns).
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
+  users: { token_version: 'INTEGER NOT NULL DEFAULT 0' },
+  newsletter_subscribers: { status: "TEXT NOT NULL DEFAULT 'active'", confirmed_at: 'TEXT', confirm_sent_at: 'TEXT' },
+  payments: { needs_refund: 'INTEGER NOT NULL DEFAULT 0', refunded_at: 'TEXT', refund_note: 'TEXT' },
   leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT' },
   milestones: {
     key: 'TEXT', stage: 'TEXT', cycle: 'INTEGER NOT NULL DEFAULT 0', agent_slug: 'TEXT', days: 'INTEGER NOT NULL DEFAULT 1', due_date: 'TEXT',

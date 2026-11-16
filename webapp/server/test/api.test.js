@@ -295,12 +295,18 @@ test('emails: password reset flow', async () => {
   assert.ok(await login('client@example.com', 'NewPass123!'));
 });
 
-test('emails: newsletter welcome + signed unsubscribe', async () => {
-  await call('POST', '/newsletter', { body: { email: 'reader@example.com' } });
-  const { unsubscribeToken } = await import('../src/email/mailer.js');
+test('emails: newsletter double opt-in + signed unsubscribe', async () => {
+  const sub = await call('POST', '/newsletter', { body: { email: 'reader@example.com' } });
+  assert.equal(sub.data.status, 'pending');
+  const { unsubscribeToken, confirmUrl } = await import('../src/email/mailer.js');
   const admin = await login('admin@hipcastle.agency', 'ChangeMe123!');
-  const mail = (await call('GET', '/admin/emails?q=reader@example.com', { token: admin })).data[0];
-  const full = (await call('GET', `/admin/emails/${mail.id}`, { token: admin })).data;
+  const confirmMail = (await call('GET', '/admin/emails?q=reader@example.com', { token: admin })).data[0];
+  assert.equal(confirmMail.template, 'newsletter.confirm');
+  const link = new URL(confirmUrl('reader@example.com'));
+  assert.equal((await fetch(`${root}${link.pathname}${link.search}`)).status, 200);
+  await new Promise((r) => setTimeout(r, 50));
+  const welcome = (await call('GET', '/admin/emails?q=reader@example.com', { token: admin })).data.find((e) => e.template === 'newsletter.welcome');
+  const full = (await call('GET', `/admin/emails/${welcome.id}`, { token: admin })).data;
   assert.match(JSON.parse(full.headers)['List-Unsubscribe'], /unsubscribe\?email=reader%40example\.com/);
   assert.equal((await call('GET', '/newsletter/unsubscribe?email=reader@example.com&token=bad')).status, 400);
   const ok = await call('GET', `/newsletter/unsubscribe?email=reader@example.com&token=${unsubscribeToken('reader@example.com')}`);

@@ -10,7 +10,9 @@ const loadUser = (id) => row(db.prepare('SELECT id, name, email, company, role F
 const safe = (fn) => (...args) => { try { return fn(...args); } catch (err) { console.error('email hook failed', err); return null; } };
 
 export const onLead = safe((lead, service) => {
-  sendEmail('lead.autoreply', lead.email, { lead, service }, { name: lead.name, ref: `lead-${lead.id}` });
+  // At most one auto-reply per address per 24h, so the form can't be used to email-bomb someone.
+  const recent = db.prepare("SELECT 1 FROM emails WHERE template = 'lead.autoreply' AND to_email = ? AND created_at > datetime('now','-1 day')").get(lead.email.toLowerCase());
+  if (!recent) sendEmail('lead.autoreply', lead.email, { lead, service }, { name: lead.name, ref: `lead-${lead.id}` });
   notifyTeam('lead.notify', { lead, service }, { ref: `lead-${lead.id}` });
 });
 
@@ -66,6 +68,13 @@ export const onMessage = safe((orderId, author, body) => {
   } else {
     sendEmail('message.new', client.email, { recipient: client, author, order, body, toTeam: false }, { name: client.name, ref: order.reference });
   }
+});
+
+export const onDuplicatePayment = safe((paymentRef) => {
+  const payment = row(db.prepare('SELECT * FROM payments WHERE reference = ?').get(paymentRef));
+  const invoice = row(db.prepare('SELECT * FROM invoices WHERE id = ?').get(payment.invoice_id));
+  const order = loadOrder(invoice.order_id);
+  notifyTeam('payment.duplicate', { user: loadUser(order.user_id), order, invoice, payment }, { ref: payment.reference });
 });
 
 export const onTestimonialSubmitted = safe((t) => notifyTeam('testimonial.notify', { t }, { ref: `review-${t.id}` }));

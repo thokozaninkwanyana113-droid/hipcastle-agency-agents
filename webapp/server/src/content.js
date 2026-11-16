@@ -20,13 +20,13 @@ export function generalFaqs() {
     { q: 'How do I pay?',
       a: 'Pay securely online from your client portal by card, instant EFT, SnapScan or Zapper through PayFast, or by instant EFT from all major South African banks through Ozow. Projects require a 50% deposit with the balance on delivery; retainers are billed monthly in advance.' },
     { q: 'Do you only work with businesses in Johannesburg?',
-      a: `No. We are based in ${s.address_locality}, ${s.address_region}, and work remotely with businesses across all nine provinces of South Africa — including Cape Town, Durban, Pretoria, Gqeberha and Bloemfontein — as well as clients elsewhere in Africa.` },
+      a: `No. We are based in ${s.address_locality}, ${s.address_region}, and can work remotely with businesses anywhere in South Africa — Cape Town, Durban, Pretoria, Gqeberha, Bloemfontein and beyond.` },
     { q: 'How quickly can you start?',
       a: 'Most engagements kick off within five working days of the deposit being paid. Your milestones, invoices and messages are visible in the client portal from day one.' },
     { q: 'Is my data safe and POPIA compliant?',
       a: 'Yes. We only collect the information needed to deliver your project, process it under POPIA, use encrypted connections, and never sell your data. Payments are handled by PayFast and Ozow — we never see or store your card or banking details.' },
     { q: 'Who does the work?',
-      a: 'Senior Hipcastle strategists orchestrate a roster of more than 160 specialist AI agents — each with a defined mission, workflow and quality bar — and review every deliverable before it reaches you. You get the speed of automation with human accountability.' },
+      a: 'A human-led Hipcastle team owns every engagement. The team works with a library of more than 160 specialist AI playbooks — each with a defined mission, workflow and quality bar — for speed and consistency, and every deliverable is reviewed by a person before it reaches you.' },
   ];
 }
 

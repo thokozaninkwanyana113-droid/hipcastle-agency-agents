@@ -6,19 +6,21 @@ import { useFetch } from '../useFetch.js';
 import { useSite } from '../context/SiteContext.jsx';
 import { Icon, PaymentBadges, SocialLinks } from './icons.jsx';
 import { siteHost } from '../siteUrl.js';
+import { Honeypot } from './BotGuard.jsx';
 
 export default function Footer() {
   const site = useSite();
   const { data: services } = useFetch('/services');
   const [email, setEmail] = useState('');
+  const [hp, setHp] = useState('');
   const [state, setState] = useState({ status: 'idle', msg: '' });
 
   const subscribe = async (e) => {
     e.preventDefault();
     setState({ status: 'loading', msg: '' });
     try {
-      await api('/newsletter', { method: 'POST', body: { email } });
-      setState({ status: 'done', msg: 'Thanks — you’re on the list. Unsubscribe any time.' });
+      const r = await api('/newsletter', { method: 'POST', body: { email, website: hp } });
+      setState({ status: 'done', msg: r.status === 'active' ? 'You’re already subscribed — thank you!' : 'Almost done — check your inbox and click the link to confirm.' });
       setEmail('');
     } catch (err) {
       setState({ status: 'error', msg: err.fields?.email || err.message });
@@ -44,7 +46,7 @@ export default function Footer() {
       <div className="container footer__grid">
         <div className="footer__brand">
           <Logo light />
-          <p>{site.tagline}. A {site.address_locality}-based digital agency serving entrepreneurs in all nine provinces.</p>
+          <p>{site.tagline}. A {site.address_locality}-based digital agency working with entrepreneurs across South Africa.</p>
           <SocialLinks social={site.social} whatsapp={site.whatsapp} />
           <form className="newsletter" onSubmit={subscribe}>
             <label htmlFor="nl-email">Monthly growth tips for SA founders</label>
@@ -52,6 +54,7 @@ export default function Footer() {
               <input id="nl-email" type="email" required placeholder="you@yourbusiness.co.za" value={email} onChange={(e) => setEmail(e.target.value)} />
               <button className="btn btn--primary btn--sm" disabled={state.status === 'loading'}>Subscribe</button>
             </div>
+            <Honeypot value={hp} onChange={setHp} />
             {state.msg && <small className={state.status === 'error' ? 'text-error' : 'text-success'} role="status">{state.msg}</small>}
           </form>
         </div>

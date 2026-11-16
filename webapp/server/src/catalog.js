@@ -207,8 +207,8 @@ export const catalog = [
   },
 ];
 
-// Sample testimonials for a fresh install — replace with real client reviews
-// from the Command Centre (Testimonials) before launch.
+// Sample testimonials, seeded ONLY with demo data (SEED_DEMO), never in production.
+// Real reviews come in through the Testimonials page and are approved in the Command Centre.
 export const testimonials = [
   { author: 'Lerato M.', role: 'Founder', company: 'Fintech start-up', location: 'Johannesburg', service: 'engineering', rating: 5, featured: 1,
     quote: 'Hipcastle shipped our MVP in six weeks, with Ozow and PayFast checkout working from day one. It felt like our own in-house team.' },

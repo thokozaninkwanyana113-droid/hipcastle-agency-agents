@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { db, row, rows, tx } from '../db.js';
-import { body, id, z } from '../validate.js';
+import { body, id, webUrl, z } from '../validate.js';
 import { authenticate, isStaff, requireRole } from '../auth.js';
 import { logEvent } from '../events.js';
 import { getSettings, vatFor } from '../settings.js';
@@ -168,7 +168,7 @@ r.post('/:id/milestones/:mid/start', requireRole('admin', 'staff'), (req, res) =
 });
 
 r.post('/:id/milestones/:mid/submit', requireRole('admin', 'staff'), body(z.object({
-  url: z.union([z.literal(''), z.string().trim().url().max(500)]).optional().default(''),
+  url: z.union([z.literal(''), webUrl()]).optional().default(''),
   note: z.string().trim().max(3000).optional().default(''),
 })), (req, res) => {
   const o = loadOrder(req, res); if (!o) return;

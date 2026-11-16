@@ -193,15 +193,15 @@ export function Subscribers() {
   const remove = async (s) => { if (window.confirm(`Remove ${s.email}?`)) { await api(`/admin/subscribers/${s.id}`, { method: 'DELETE' }); reload(); } };
   return (
     <>
-      <PanelHead title="Newsletter subscribers" sub="People who opted in via the footer. Remove anyone who asks to unsubscribe (POPIA).">
+      <PanelHead title="Newsletter subscribers" sub="Double opt-in: only confirmed subscribers are exported or emailed. Remove anyone who asks to unsubscribe (POPIA).">
         {user.role === 'admin' && <ExportButton kind="subscribers" />}
       </PanelHead>
       {loading && <Loader />}
       <ErrorBox error={error} />
       <div className="card table-wrap">
         <table className="table">
-          <thead><tr><th>Email</th><th>Subscribed</th><th /></tr></thead>
-          <tbody>{data?.map((s) => <tr key={s.id}><td>{s.email}</td><td>{date(s.created_at)}</td><td><button className="btn btn--text btn--sm" onClick={() => remove(s)}>Remove</button></td></tr>)}</tbody>
+          <thead><tr><th>Email</th><th>Status</th><th>Signed up</th><th /></tr></thead>
+          <tbody>{data?.map((s) => <tr key={s.id}><td>{s.email}</td><td>{s.status === 'active' ? <span className="health health--ok">Confirmed</span> : <span className="health health--muted">Awaiting confirmation</span>}</td><td>{date(s.created_at)}</td><td><button className="btn btn--text btn--sm" onClick={() => remove(s)}>Remove</button></td></tr>)}</tbody>
         </table>
         {data?.length === 0 && <p className="empty">No subscribers yet.</p>}
       </div>

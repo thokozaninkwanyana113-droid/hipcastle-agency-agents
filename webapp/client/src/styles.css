@@ -11,7 +11,7 @@
   --gold-100: #fdf1d8;
   --ink: #141a2e;
   --ink-soft: #4a5370;
-  --muted: #6b7390;
+  --muted: #5c6481;          /* ≥ 5:1 on every light surface (WCAG AA) */
   --line: #e4e2dc;
   --bg: #faf8f3;
   --surface: #ffffff;
@@ -22,7 +22,7 @@
   --error-bg: #fdeceb;
   --info: #2c6ed5;
   --info-bg: #e7effc;
-  --warn: #b7791f;
+  --warn: #8a5a0f;           /* gold text: ≥ 5:1 on cream, beige, white and gold-100 */
   --warn-bg: #fdf3e1;
 
   --font-display: 'Fraunces', Georgia, serif;
@@ -180,7 +180,7 @@ main { flex: 1; }
 .trust__inner { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.5rem 0; flex-wrap: wrap; }
 .trust__inner > span { color: var(--muted); font-size: .9rem; }
 .trust ul { display: flex; gap: 2.5rem; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
-.trust li { font: 700 1.15rem var(--font-display); color: #a3a8b8; letter-spacing: .02em; }
+.trust__logos li { font: 700 1.15rem var(--font-display); color: #a3a8b8; letter-spacing: .02em; }
 
 .grid { display: grid; gap: 1.5rem; }
 .grid--2 { grid-template-columns: repeat(2, 1fr); }
@@ -522,8 +522,8 @@ textarea.input { resize: vertical; }
 /* Payment badges */
 .pay-badges { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: 0; }
 .pay-badge { font: 700 .75rem/1 var(--font-body); padding: .45rem .7rem; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft); letter-spacing: .02em; }
-.pay-badge--payfast { color: #e2231a; text-transform: lowercase; font-size: .85rem; }
-.pay-badge--ozow { color: #00a37a; text-transform: lowercase; font-size: .85rem; }
+.pay-badge--payfast { color: #c41d14; text-transform: lowercase; font-size: .85rem; }
+.pay-badge--ozow { color: #00785a; text-transform: lowercase; font-size: .85rem; }
 .page-header .pay-badge { background: rgba(255,255,255,.95); }
 
 /* Home blocks */
@@ -631,8 +631,8 @@ fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
 .pay__method { text-align: left; border: 2px solid var(--line); background: var(--surface); border-radius: 10px; padding: .65rem .9rem; cursor: pointer; font: inherit; display: flex; flex-direction: column; }
 .pay__method:hover:not(:disabled) { border-color: var(--navy-600); }
 .pay__method small { color: var(--muted); font-size: .8rem; }
-.pay__method--payfast strong { color: #e2231a; }
-.pay__method--ozow strong { color: #00a37a; }
+.pay__method--payfast strong { color: #c41d14; }
+.pay__method--ozow strong { color: #00785a; }
 .invoices li { align-items: flex-start; }
 .invoices__pay { width: 100%; display: flex; justify-content: flex-end; }
 .invoices__pay .pay__methods { max-width: 340px; }
@@ -882,3 +882,11 @@ html, body { overflow-x: clip; }
 .journey__stage li .tag { margin-left: .35rem; }
 .journey__stage li small { display: block; color: var(--muted); }
 @media (max-width: 600px) { .stage-strip__item { min-width: 84px; font-size: .7rem; } .nps__btn { width: 36px; height: 36px; } }
+/* Bot protection */
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.captcha { min-height: 65px; }
+
+/* Contrast fixes (axe / WCAG 2.1 AA) */
+.step__n { color: var(--warn); }
+.steps--dark .step__n { color: var(--gold-500); }
+.testimonial figcaption .testimonial__avatar { color: var(--gold-500); }

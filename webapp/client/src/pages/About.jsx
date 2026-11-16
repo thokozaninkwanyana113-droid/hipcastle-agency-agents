@@ -18,7 +18,7 @@ const VALUES = [
 
 const MODEL = [
   ['Strategy leads', 'Senior people who run your discovery session, recommend the right package, set KPIs and stay accountable for delivery.'],
-  ['Specialist bench', `More than 160 specialist AI agents across engineering, design, marketing, paid media, sales, product, QA, operations, research and XR — each with a defined mission, workflow and success metrics.`],
+  ['Specialist AI playbooks', `A library of 160+ specialist AI agent playbooks across engineering, design, marketing, paid media, sales, product, QA, operations, research and XR. Our team uses them for speed and consistency — each defines a mission, workflow and quality bar.`],
   ['Quality reviewers', 'Every deliverable is checked against evidence, accessibility and security standards before it reaches you.'],
   ['Your client portal', 'One place for milestones, invoices, payments and messages — no chasing updates over email.'],
 ];
@@ -39,15 +39,15 @@ export default function About() {
     <>
       <Seo
         title="About Us — South African Digital Agency"
-        description={`${site.business_name} is a ${site.address_locality} digital agency pairing senior strategists with 160+ specialist AI agents to help SA entrepreneurs grow.`}
+        description={`${site.business_name} is a ${site.address_locality} digital agency: a human-led team using 160+ specialist AI playbooks to help SA entrepreneurs grow.`}
         schema={[aboutSchema, faqSchema(aboutFaqs), breadcrumbSchema([{ name: 'About us', path: '/about' }])]}
       />
       <PageHeader eyebrow={`About ${site.business_name}`} title="A South African agency built for entrepreneurs">
         <p>
           <strong>{site.business_name}</strong> is a digital agency based in {site.address_locality}, {site.address_region}, serving
-          entrepreneurs, SMEs and growing companies across all nine provinces. We combine senior strategists with a roster
-          of {stats?.agents ?? '160+'} specialist AI agents to deliver websites, apps, marketing, SEO, advertising, sales and
-          operations — in fixed-price packages, priced in rand.
+          entrepreneurs, SMEs and growing companies across South Africa. Our team delivers websites, apps, marketing, SEO,
+          advertising, sales and operations with the help of a library of {stats?.agents ?? '160+'} specialist AI playbooks — every
+          deliverable is reviewed by a person before it reaches you — in fixed-price packages, priced in rand.
         </p>
       </PageHeader>
 
@@ -77,8 +77,8 @@ export default function About() {
           <dl className="about-stats">
             <div><dt>Service lines</dt><dd>{stats?.services ?? 14}</dd></div>
             <div><dt>Fixed-price packages</dt><dd>{stats?.tiers ?? 42}</dd></div>
-            <div><dt>Specialist agents</dt><dd>{stats?.agents ?? '160+'}</dd></div>
-            <div><dt>Provinces served</dt><dd>9</dd></div>
+            <div><dt>AI playbooks</dt><dd>{stats?.agents ?? '160+'}</dd></div>
+            <div><dt>Delivery playbooks</dt><dd>{stats?.services ?? 14}</dd></div>
           </dl>
         </div>
       </section>
@@ -87,8 +87,8 @@ export default function About() {
         <div className="container">
           <div className="section__head">
             <span className="eyebrow">How we work</span>
-            <h2 id="model">Human strategy, specialist execution</h2>
-            <p>Our operating model gives you the speed of automation with the judgement of experienced people.</p>
+            <h2 id="model">Human-led, AI-assisted</h2>
+            <p>People own every engagement and every decision; AI playbooks help them work faster and more consistently.</p>
           </div>
           <div className="grid grid--4">
             {MODEL.map(([t, d], i) => (
@@ -131,7 +131,7 @@ export default function About() {
         <section className="section" aria-labelledby="about-reviews">
           <div className="container">
             <div className="section__head section__head--split">
-              <div><span className="eyebrow">Proof</span><h2 id="about-reviews">Trusted by South African businesses</h2></div>
+              <div><span className="eyebrow">Client reviews</span><h2 id="about-reviews">What our clients say</h2></div>
               <Link to="/testimonials" className="btn btn--outline">All reviews</Link>
             </div>
             <div className="grid grid--testimonials">{testimonials.slice(0, 3).map((t) => <TestimonialCard key={t.id} t={t} />)}</div>

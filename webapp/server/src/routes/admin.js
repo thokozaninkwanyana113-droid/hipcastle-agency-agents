@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { statSync } from 'node:fs';
 import bcrypt from 'bcryptjs';
 import { db, DB_PATH, row, rows } from '../db.js';
-import { body, id, z } from '../validate.js';
+import { body, id, webUrl, z } from '../validate.js';
 import { authenticate, publicUser, requireRole } from '../auth.js';
 import { logEvent, metricsSnapshot, startedAt } from '../events.js';
 import { DEFAULT_SETTINGS, getSettings, updateSettings } from '../settings.js';
@@ -98,12 +98,16 @@ r.get('/invoices', (req, res) => {
     JOIN service_tiers st ON st.id = o.tier_id JOIN services s ON s.id = st.service_id
     WHERE (? = '' OR i.status = ?) ORDER BY i.issued_at DESC, i.id DESC`).all(status, status)));
 });
-r.patch('/invoices/:id', body(z.object({ status: z.enum(['unpaid', 'paid', 'void']) })), (req, res) => {
+// Manual invoice changes are admin-only and need a reason (e.g. 'EFT received 12 Nov, FNB ref 1234').
+r.patch('/invoices/:id', requireRole('admin'), body(z.object({
+  status: z.enum(['unpaid', 'paid', 'void']),
+  reason: z.string().trim().min(5, 'Give a reason, e.g. the EFT reference').max(300),
+})), (req, res) => {
   const s = req.body.status;
   const inv = row(db.prepare(`UPDATE invoices SET status = ?, paid_at = CASE WHEN ? = 'paid' THEN datetime('now') END
     WHERE id = ? RETURNING *`).get(s, s, id(req.params.id)));
   if (!inv) return res.status(404).json({ error: 'Invoice not found' });
-  logEvent('invoice.status', `${inv.number} manually set to ${s}`, { actor: req.user.id, ref: inv.number, level: 'warn' });
+  logEvent('invoice.status', `${inv.number} manually set to ${s} — ${req.body.reason}`, { actor: req.user.id, ref: inv.number, level: 'warn' });
   if (s === 'paid') {
     const o = db.prepare('SELECT status FROM orders WHERE id = ?').get(inv.order_id);
     if (o.status === 'pending') {
@@ -208,7 +212,7 @@ r.get('/events', (req, res) => {
 // Payments
 r.get('/payments', (req, res) => {
   const { status = '', gateway = '' } = req.query;
-  res.json(rows(db.prepare(`SELECT p.id, p.reference, p.gateway, p.status, p.amount_cents, p.gateway_txn_id, p.status_message, p.is_test,
+  res.json(rows(db.prepare(`SELECT p.id, p.reference, p.gateway, p.status, p.amount_cents, p.gateway_txn_id, p.status_message, p.is_test, p.needs_refund, p.refunded_at, p.refund_note,
       p.created_at, p.updated_at, i.number AS invoice_number, o.id AS order_id, o.reference AS order_ref, u.name AS client_name
     FROM payments p JOIN invoices i ON i.id = p.invoice_id JOIN orders o ON o.id = i.order_id LEFT JOIN users u ON u.id = p.user_id
     WHERE (? = '' OR p.status = ?) AND (? = '' OR p.gateway = ?) ORDER BY p.id DESC LIMIT 300`).all(status, status, gateway, gateway)));
@@ -229,9 +233,17 @@ r.post('/payments/:ref/resolve', requireRole('admin'), body(z.object({
   res.json(out);
 });
 
+r.post('/payments/:ref/refunded', requireRole('admin'), body(z.object({ note: z.string().trim().min(3, 'Add the gateway refund reference').max(300) })), (req, res) => {
+  const p = findPayment(req.params.ref);
+  if (!p) return res.status(404).json({ error: 'Payment not found' });
+  db.prepare("UPDATE payments SET refunded_at = datetime('now'), refund_note = ?, needs_refund = 0 WHERE id = ?").run(req.body.note, p.id);
+  logEvent('payment.refunded', `${req.user.name} marked ${p.reference} refunded: ${req.body.note}`, { actor: req.user.id, ref: p.reference, level: 'warn' });
+  res.json(findPayment(p.reference));
+});
+
 // Settings
 r.get('/settings', (_req, res) => res.json(getSettings()));
-const url = z.union([z.literal(''), z.string().trim().url().max(300)]);
+const url = z.union([z.literal(''), webUrl()]);
 r.put('/settings', requireRole('admin'), body(z.object({
   business_name: z.string().trim().min(2).max(80),
   legal_name: z.string().trim().max(120),
@@ -253,7 +265,7 @@ r.put('/settings', requireRole('admin'), body(z.object({
   payfast_enabled: z.boolean(),
   ozow_enabled: z.boolean(),
   social: z.object({ facebook: url, instagram: url, linkedin: url, x: url, tiktok: url, youtube: url }),
-  website: z.string().trim().url().max(120),
+  website: webUrl(),
   notify_email: z.string().trim().email(),
   billing_email: z.string().trim().email(),
   emails_enabled: z.boolean(),
@@ -380,7 +392,7 @@ r.delete('/subscribers/:id', (req, res) => {
 const EXPORTS = {
   leads: `SELECT l.id, l.created_at, l.name, l.email, l.phone, l.company, l.province, s.name AS service, l.budget, l.preferred_contact, l.status, l.message
     FROM leads l LEFT JOIN services s ON s.id = l.service_id ORDER BY l.id DESC`,
-  subscribers: 'SELECT id, email, created_at FROM newsletter_subscribers ORDER BY id DESC',
+  subscribers: "SELECT id, email, confirmed_at, created_at FROM newsletter_subscribers WHERE status = 'active' ORDER BY id DESC",
   invoices: `SELECT i.number, i.issued_at, i.due_at, i.paid_at, i.status, u.name AS client, u.company, o.reference AS engagement,
     ROUND(i.subtotal_cents / 100.0, 2) AS subtotal_zar, ROUND(i.vat_cents / 100.0, 2) AS vat_zar, ROUND(i.amount_cents / 100.0, 2) AS total_zar
     FROM invoices i JOIN orders o ON o.id = i.order_id JOIN users u ON u.id = o.user_id ORDER BY i.id DESC`,

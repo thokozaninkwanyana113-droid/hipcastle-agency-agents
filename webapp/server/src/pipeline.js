@@ -351,7 +351,10 @@ export function watchPipelines() {
     }
     // Onboarding not finished 2+ days after the deposit: one reminder every 3 days.
     if (!o.onboarding_completed_at) {
-      const since = o.onboarding_reminded_at || o.updated_at;
+      // Measure from when the deposit was paid (activation), not from the last edit to the order.
+      const activated = db.prepare("SELECT MIN(paid_at) t FROM invoices WHERE order_id = ? AND status = 'paid'").get(oid).t;
+      const since = o.onboarding_reminded_at || activated;
+      if (!since) continue;
       if (Date.parse(`${since.replace(' ', 'T')}Z`) < Date.now() - 2 * 864e5) {
         mail.onboardingReminder(oid);
         db.prepare("UPDATE orders SET onboarding_reminded_at = datetime('now') WHERE id = ?").run(oid);
