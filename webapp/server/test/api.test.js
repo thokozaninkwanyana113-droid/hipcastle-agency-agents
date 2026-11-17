@@ -56,7 +56,7 @@ test('service detail includes agents, FAQs and reviews', async () => {
   assert.equal(status, 200);
   assert.ok(data.agents.length >= 20);
   assert.match(data.faqs[0].q, /cost in South Africa/);
-  assert.match(data.faqs[0].a, /R\s?12 500/);
+  assert.match(data.faqs[0].a, /R\s?9 500/);
   assert.ok(data.testimonials.length >= 1);
   assert.equal((await call('GET', '/services/nope')).status, 404);
 });
@@ -220,7 +220,7 @@ test('SEO, AEO & GEO files are served', async () => {
   assert.match(robots, /Disallow: \/admin/);
   const llms = await fetch(`${root}/llms.txt`).then((r) => r.text());
   assert.match(llms, /^# Hipcastle Agency/);
-  assert.match(llms, /R\s?12 500/);
+  assert.match(llms, /R\s?9 500/);
   const rss = await fetch(`${root}/blog/rss.xml`).then((r) => r.text());
   assert.match(rss, /<rss version="2.0"/);
   const { resolvePage } = await import('../src/seo.js');

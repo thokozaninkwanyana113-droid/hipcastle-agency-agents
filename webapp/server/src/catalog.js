@@ -1,4 +1,11 @@
 // Hipcastle Agency service catalog — priced in South African rand (ZAR), excl. VAT.
+// Prices are benchmarked against what South African agencies charge (Nov 2026):
+//   websites R5k–R16k · online stores avg ~R19k (R13k–R60k) · custom web apps R38k–R88k
+//   mobile/immersive apps R80k–R270k+ · SEO R5k–R12k/month (competitive R15k–R20k+)
+//   social media R1k–R6.5k/month (≈R5k per channel at agencies) · full digital packages avg ~R25k/month
+//   ads management R3k–R7.5k/month (multi-platform R6.3k–R10k, or 15–20% of spend)
+//   logo & identity R4.5k–R22.5k · bookkeeping R2k–R4.5k/month · consultants R5k–R15k/day
+//   agency hourly rates R500–R1 500. Retainers are sized in hours at roughly R550–R750/hour.
 // Each service maps to one or more agent divisions in this repository and
 // ships with exactly three tiers: Essential, Growth and Enterprise.
 // `billing` is 'once' (project) or 'monthly' (retainer).
@@ -14,12 +21,12 @@ export const catalog = [
     description: 'Full-stack product engineering for South African businesses — websites, web apps, mobile apps, e-commerce with PayFast, Ozow and Yoco checkouts, and AI automation — delivered by frontend, backend, mobile, DevOps and security specialists working as one squad.',
     outcomes: ['Launch faster', 'Local payment gateways built in', 'Secure, POPIA-aware architecture'],
     tiers: [
-      t('Essential', 12500, 'once', 14, 'A fast, mobile-first business website or a single feature built properly.',
+      t('Essential', 9500, 'once', 14, 'A fast, mobile-first business website or a single feature built properly.',
         ['Up to 5-page website or 1 feature', 'Mobile-first & speed optimised', 'Contact & WhatsApp integration', 'Hosting & domain setup (.co.za)', '14 days post-launch support']),
-      t('Growth', 45000, 'once', 42, 'A complete web app, online store or MVP with a dedicated squad.',
-        ['Full-stack web or mobile MVP', 'PayFast / Ozow / Yoco checkout', 'Architecture & API design', 'CI/CD, backups & monitoring', 'Security & POPIA review', '60 days support'], true),
-      t('Enterprise', 95000, 'monthly', 30, 'A dedicated engineering pod embedded in your organisation.',
-        ['Dedicated multi-discipline pod', 'SRE, DevOps & security coverage', 'Load-shedding-resilient cloud hosting', 'Weekly releases & roadmap reviews', 'SLA-backed incident response', 'Named technical lead']),
+      t('Growth', 35000, 'once', 42, 'A complete online store, booking system or custom web app.',
+        ['Online store or web app (up to ~15 pages/screens)', 'PayFast / Ozow / Yoco checkout', 'Architecture & API design', 'CI/CD, backups & monitoring', 'Security & POPIA review', '60 days support'], true),
+      t('Enterprise', 55000, 'monthly', 30, 'A dedicated engineering pod: about 80 hours of development a month.',
+        ['Dedicated pod (~80 hrs / month)', 'Mobile apps, integrations & new features', 'SRE, DevOps & security coverage', 'Load-shedding-resilient cloud hosting', 'Weekly releases & roadmap reviews', 'SLA-backed incident response', 'Named technical lead']),
     ],
   },
   {
@@ -32,8 +39,8 @@ export const catalog = [
         ['Logo design & colour palette', 'Typography & usage guide', 'Social media profile kit', 'Up to 5 UI screens', '2 revision rounds']),
       t('Growth', 24000, 'once', 28, 'Full brand identity plus a complete product UI.',
         ['Complete brand guidelines', 'UX research & personas', 'Up to 25 high-fidelity screens', 'Clickable prototype', 'Component library', 'Print & signage templates'], true),
-      t('Enterprise', 48000, 'monthly', 30, 'An ongoing design partner that owns your design system.',
-        ['Dedicated design lead', 'Design system governance', 'Continuous UX research', 'Accessibility audits (WCAG 2.2)', 'Unlimited requests (2 active)']),
+      t('Enterprise', 28000, 'monthly', 30, 'An ongoing design partner: about 40 hours of design a month.',
+        ['Dedicated design lead', 'Design system governance', 'Continuous UX research', 'Accessibility audits (WCAG 2.2)', '~40 hrs / month, 2 active requests']),
     ],
   },
   {
@@ -46,7 +53,7 @@ export const catalog = [
         ['2 social channels managed', '12 posts per month', 'Google Business Profile optimisation', 'Monthly SEO health check', 'Monthly performance report']),
       t('Growth', 14500, 'monthly', 30, 'A multi-channel growth engine with content, SEO and AI-search visibility.',
         ['4 social channels managed', '4 long-form articles / month', 'Technical, on-page & local SEO', 'AI search (GEO/AEO) optimisation', 'WhatsApp Business & email campaigns', 'Bi-weekly growth sprints'], true),
-      t('Enterprise', 35000, 'monthly', 30, 'A full-funnel growth team with experimentation.',
+      t('Enterprise', 32000, 'monthly', 30, 'A full-funnel growth team with experimentation.',
         ['Omnichannel strategy & execution', 'Dedicated growth lead', 'A/B experimentation programme', 'Multilingual content (incl. isiZulu & Afrikaans)', 'Executive dashboards']),
     ],
   },
@@ -56,9 +63,9 @@ export const catalog = [
     description: 'Search, social and programmatic campaign management with rigorous conversion tracking, creative testing and monthly audits — so every rand of ad spend is accountable. Management fees exclude ad spend.',
     outcomes: ['Lower cost per lead', 'Clean conversion tracking', 'Scalable return on ad spend'],
     tiers: [
-      t('Essential', 3500, 'monthly', 30, 'One ad platform, set up and optimised.',
+      t('Essential', 3950, 'monthly', 30, 'One ad platform, set up and optimised.',
         ['1 ad platform (Google or Meta)', 'Ad spend up to R20 000 / month', 'Conversion & WhatsApp-click tracking', 'Monthly optimisation report']),
-      t('Growth', 9500, 'monthly', 30, 'Multi-platform campaigns with creative testing.',
+      t('Growth', 8500, 'monthly', 30, 'Multi-platform campaigns with creative testing.',
         ['Up to 3 platforms incl. TikTok', 'Ad spend up to R100 000 / month', 'Ad creative & copy testing', 'Search query mining', 'Weekly optimisation'], true),
       t('Enterprise', 25000, 'monthly', 30, 'A full paid-media department, including programmatic.',
         ['Unlimited platforms incl. programmatic', 'Ad spend above R100 000 / month', 'Server-side tracking & attribution', 'Quarterly account audits', 'Dedicated media buyer']),
@@ -100,10 +107,10 @@ export const catalog = [
     tiers: [
       t('Essential', 6000, 'once', 14, 'Project setup and governance.',
         ['Project charter & plan', 'Jira / Trello board setup', 'Roles & communication plan', 'Risk register']),
-      t('Growth', 14000, 'monthly', 30, 'A part-time project manager for active delivery.',
-        ['Dedicated PM (20 hrs / week)', 'Sprint ceremonies', 'Weekly status reports', 'Experiment tracking', 'Supplier coordination'], true),
-      t('Enterprise', 32000, 'monthly', 30, 'A full PMO for multi-project portfolios.',
-        ['Portfolio & PMO setup', 'Multiple senior PMs', 'Executive steering reports', 'Resource & capacity planning', 'Process optimisation']),
+      t('Growth', 16500, 'monthly', 30, 'A part-time project manager for active delivery.',
+        ['Dedicated PM (8 hrs / week)', 'Sprint ceremonies', 'Weekly status reports', 'Experiment tracking', 'Supplier coordination'], true),
+      t('Enterprise', 38000, 'monthly', 30, 'A senior PM two days a week plus PMO setup for multi-project portfolios.',
+        ['Portfolio & PMO setup', 'Senior PM (2 days / week)', 'Executive steering reports', 'Resource & capacity planning', 'Process optimisation']),
     ],
   },
   {
@@ -114,10 +121,10 @@ export const catalog = [
     tiers: [
       t('Essential', 5000, 'once', 7, 'A pre-launch QA sweep.',
         ['Functional test pass', 'Cross-browser & budget-Android checks', 'Accessibility quick scan', 'Bug report with evidence']),
-      t('Growth', 16000, 'once', 21, 'Test automation and a performance baseline.',
+      t('Growth', 24000, 'once', 21, 'Test automation and a performance baseline.',
         ['Automated API & end-to-end suites', 'Performance on low-bandwidth networks', 'Full WCAG audit', 'CI integration', 'Results analysis'], true),
       t('Enterprise', 30000, 'monthly', 30, 'An embedded QA function.',
-        ['Dedicated QA engineers', 'Continuous regression testing', 'Load & stress testing', 'Release sign-off gates', 'Quality dashboards']),
+        ['Dedicated QA engineer (~12 hrs / week)', 'Continuous regression testing', 'Load & stress testing', 'Release sign-off gates', 'Quality dashboards']),
     ],
   },
   {
@@ -126,12 +133,12 @@ export const catalog = [
     description: 'Support desk, finance tracking, POPIA and compliance check-ups, reporting and infrastructure maintenance that keep your business running smoothly — so you can focus on growth.',
     outcomes: ['Happier customers', 'Organised finances & compliance', 'Reliable systems'],
     tiers: [
-      t('Essential', 3500, 'monthly', 30, 'Customer support coverage and monthly reporting.',
-        ['Business-hours email & WhatsApp support', 'Knowledge base setup', 'Monthly analytics report', 'Up to 300 tickets / month']),
-      t('Growth', 9800, 'monthly', 30, 'Support plus finance admin and compliance.',
-        ['Extended-hours support', 'Bookkeeping & invoicing admin', 'POPIA compliance check-ups', 'Executive summaries', 'Up to 1 500 tickets / month'], true),
-      t('Enterprise', 24000, 'monthly', 30, 'A fully managed back office.',
-        ['24/7 support desk', 'Finance & legal operations', 'Infrastructure maintenance & on-call', 'Custom KPIs & SLAs', 'Unlimited tickets']),
+      t('Essential', 5500, 'monthly', 30, 'Customer support coverage and monthly reporting.',
+        ['Business-hours email & WhatsApp support', 'Knowledge base setup', 'Monthly analytics report', 'Up to 150 tickets / month']),
+      t('Growth', 14500, 'monthly', 30, 'Support plus finance admin and compliance.',
+        ['Extended-hours support', 'Bookkeeping & invoicing admin', 'POPIA compliance check-ups', 'Executive summaries', 'Up to 400 tickets / month'], true),
+      t('Enterprise', 32000, 'monthly', 30, 'A fully managed back office.',
+        ['Extended-hours support (Mon–Sat, 07:00–20:00)', 'Finance & legal operations', 'Infrastructure maintenance & on-call', 'Custom KPIs & SLAs', 'Up to 1 000 tickets / month']),
     ],
   },
   {
@@ -140,12 +147,12 @@ export const catalog = [
     description: 'Game designers, level designers, narrative designers, technical artists and engine specialists across Unity, Unreal Engine, Godot, Roblox Studio and Blender — for studios, brands and gamified learning.',
     outcomes: ['Playable prototypes fast', 'Engine-specific expertise', 'Polished player experiences'],
     tiers: [
-      t('Essential', 15000, 'once', 21, 'A playable prototype of your core loop.',
+      t('Essential', 28000, 'once', 21, 'A playable prototype of your core loop.',
         ['Game design one-pager', 'Core-loop prototype', 'Placeholder art & audio', 'Playtest feedback session']),
-      t('Growth', 60000, 'once', 60, 'A vertical slice ready for pitching or funding.',
+      t('Growth', 120000, 'once', 60, 'A vertical slice ready for pitching or funding.',
         ['Full game design document', 'Polished vertical slice', 'Level & narrative design', 'Technical art pipeline', 'Original audio'], true),
       t('Enterprise', 110000, 'monthly', 30, 'A co-development studio partnership.',
-        ['Dedicated co-dev team', 'Multi-engine support', 'Live-ops & content updates', 'Porting & optimisation', 'Producer-led milestones']),
+        ['Dedicated co-dev team (~160 hrs / month)', 'Multi-engine support', 'Live-ops & content updates', 'Porting & optimisation', 'Producer-led milestones']),
     ],
   },
   {
@@ -154,12 +161,12 @@ export const catalog = [
     description: 'visionOS, Metal, WebXR and XR interaction specialists building immersive experiences, virtual showrooms, training simulations and spatial interfaces.',
     outcomes: ['Immersive brand experiences', 'Spatial-native UX', 'Cross-platform XR'],
     tiers: [
-      t('Essential', 18000, 'once', 21, 'An XR concept and interactive proof of concept.',
+      t('Essential', 35000, 'once', 21, 'An XR concept and interactive proof of concept.',
         ['Experience concept & storyboard', 'Single-scene prototype', 'Device testing (1 platform)', 'Feasibility report']),
-      t('Growth', 70000, 'once', 60, 'A production immersive app.',
+      t('Growth', 150000, 'once', 60, 'A production immersive app.',
         ['Full spatial UX design', 'visionOS or WebXR app', 'Performance tuning', 'Store submission support', '60 days support'], true),
       t('Enterprise', 120000, 'monthly', 30, 'A dedicated spatial computing lab.',
-        ['Multi-platform XR team', 'R&D and rapid prototyping', 'Training simulations (mining, health, manufacturing)', 'Hardware integration', 'Ongoing roadmap']),
+        ['Multi-platform XR team (~160 hrs / month)', 'R&D and rapid prototyping', 'Training simulations (mining, health, manufacturing)', 'Hardware integration', 'Ongoing roadmap']),
     ],
   },
   {
@@ -170,7 +177,7 @@ export const catalog = [
     tiers: [
       t('Essential', 4500, 'once', 10, 'A desk-research brief on one business question.',
         ['Literature & desk review', 'Key findings brief', 'Cited sources', '1 read-out call']),
-      t('Growth', 15000, 'once', 28, 'A mixed-methods research study.',
+      t('Growth', 22000, 'once', 28, 'A mixed-methods research study.',
         ['Research design', 'Interviews or surveys', 'Psychological & cultural analysis', 'Insight report & personas', 'Workshop'], true),
       t('Enterprise', 28000, 'monthly', 30, 'An embedded research advisory.',
         ['Multi-disciplinary research panel', 'Continuous insight programme', 'Narrative & brand-world consulting', 'Quarterly strategic reports', 'Expert review on demand']),
@@ -201,7 +208,7 @@ export const catalog = [
         ['Founder discovery workshop', 'Opportunity & AI-readiness assessment', '90-day growth roadmap', 'Executive brief']),
       t('Growth', 42000, 'once', 45, 'A full NEXUS programme for one business unit.',
         ['Phase 0–6 NEXUS programme', 'Cross-division agent orchestration', 'Playbooks & runbooks', 'KPI framework', 'Change management'], true),
-      t('Enterprise', 85000, 'monthly', 30, 'An ongoing transformation office.',
+      t('Enterprise', 65000, 'monthly', 30, 'An ongoing transformation office.',
         ['Transformation office leadership', 'Multi-unit orchestration', 'Governance & automation oversight', 'Board-level reporting', 'Continuous optimisation']),
     ],
   },
@@ -219,3 +226,28 @@ export const testimonials = [
   { author: 'Thabo K.', role: 'Co-founder', company: 'Retail brand', location: 'Pretoria', service: 'paid-media', rating: 4, featured: 0,
     quote: 'Our cost per lead on Meta dropped noticeably within two months, and every rand is tracked.' },
 ];
+
+/**
+ * Catalog price revisions. When a revision is newer than the database's `catalog_prices_version`,
+ * every core tier still on the previous default price gets the new price, summary and features.
+ * Tiers an admin has repriced are left alone.
+ */
+export const PRICE_REVISION = {
+  version: 2, // Nov 2026: aligned with South African agency market rates
+  previous: {
+    'engineering': {essential: 1250000, growth: 4500000, enterprise: 9500000},
+    'design': {essential: 650000, growth: 2400000, enterprise: 4800000},
+    'marketing': {essential: 450000, growth: 1450000, enterprise: 3500000},
+    'paid-media': {essential: 350000, growth: 950000, enterprise: 2500000},
+    'sales': {essential: 750000, growth: 1650000, enterprise: 3800000},
+    'product': {essential: 950000, growth: 2800000, enterprise: 4200000},
+    'project-management': {essential: 600000, growth: 1400000, enterprise: 3200000},
+    'testing': {essential: 500000, growth: 1600000, enterprise: 3000000},
+    'support': {essential: 350000, growth: 980000, enterprise: 2400000},
+    'game-development': {essential: 1500000, growth: 6000000, enterprise: 11000000},
+    'spatial-computing': {essential: 1800000, growth: 7000000, enterprise: 12000000},
+    'academic': {essential: 450000, growth: 1500000, enterprise: 2800000},
+    'specialized': {essential: 950000, growth: 3500000, enterprise: 6000000},
+    'strategy': {essential: 1200000, growth: 4200000, enterprise: 8500000},
+  },
+};

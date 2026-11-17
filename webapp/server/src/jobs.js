@@ -10,6 +10,8 @@ import { onInvoiceOverdue } from './email/notify.js';
 import { runRetainerCycles, watchPipelines } from './pipeline.js';
 import { slaDigest } from './email/support-notify.js';
 import { offerCarePlans } from './careops.js';
+import { offsiteConfig, uploadBackup } from './offsite.js';
+import { pruneVisitors } from './analytics.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -55,8 +57,8 @@ const definitions = [
   },
   {
     id: 'db-backup', name: 'Database backup', every: 24 * HOUR,
-    description: 'Writes a consistent snapshot of the database to data/backups and keeps the latest 7.',
-    run: () => {
+    description: 'Writes a consistent snapshot of the database to data/backups (latest 7 kept) and, when BACKUP_S3_* is configured, uploads it off-site (latest 30 kept). A failed upload alerts the team.',
+    run: async () => {
       if (DB_PATH === ':memory:') return 'Skipped (in-memory database)';
       const dir = join(dirname(DB_PATH), 'backups');
       mkdirSync(dir, { recursive: true });
@@ -64,7 +66,10 @@ const definitions = [
       db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
       const old = readdirSync(dir).filter((f) => f.endsWith('.db')).sort().reverse().slice(7);
       for (const f of old) unlinkSync(join(dir, f));
-      return `Backup written: ${file.split(/[\\/]/).pop()}`;
+      const name = file.split(/[\\/]/).pop();
+      if (!offsiteConfig().enabled) return `Backup written: ${name} (local only — off-site backup not configured)`;
+      const up = await uploadBackup(file); // throws → job.failed → alert
+      return `Backup written: ${name}; uploaded off-site (${Math.round(up.bytes / 1024)} KB gzipped${up.pruned ? `, ${up.pruned} old copies removed` : ''})`;
     },
   },
   {
@@ -89,7 +94,7 @@ const definitions = [
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,
     description: 'Deletes website-chat conversations older than 180 days (POPIA: keep personal information no longer than needed).',
-    run: () => `${db.prepare("DELETE FROM chat_sessions WHERE updated_at < datetime('now', '-180 days')").run().changes} old conversation(s) removed`,
+    run: () => `${db.prepare("DELETE FROM chat_sessions WHERE updated_at < datetime('now', '-180 days')").run().changes} old conversation(s) removed; ${pruneVisitors()} expired visitor hash(es) cleared`,
   },
   {
     id: 'prune-events', name: 'Activity log retention', every: 24 * HOUR,

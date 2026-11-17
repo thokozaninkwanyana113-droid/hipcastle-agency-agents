@@ -615,6 +615,18 @@ export const TEMPLATES = {
     sample: { lead: { name: 'Sipho Ndlovu', email: 'sipho@example.com', phone: '', preferred_contact: 'email', message: 'Can you build a booking system for my salon?' },
       transcript: [{ role: 'user', content: 'Do you build booking systems?' }, { role: 'assistant', content: 'Yes — our Web & App Development packages…' }] },
   },
+  'system.alert': {
+    audience: 'Team', description: 'Something broke: server error, crashed job or failed backup (throttled)',
+    build: ({ subject, details, at }) => ({
+      subject: `🚨 Hipcastle alert: ${subject}`.slice(0, 150),
+      preheader: 'Check the Command Centre activity log.',
+      heading: 'Something needs attention',
+      blocks: [{ quote: subject }, ...(details ? [{ p: details }] : []), { table: [['When', at]] },
+        { note: 'You get at most one alert per problem type every 15 minutes.' }, { button: 'Open the activity log', href: '/admin/activity' }],
+      signoff: false,
+    }),
+    sample: { subject: 'Database backup failed: Access Denied', details: 'Event: job.failed', at: '2026-11-17T02:00:00.000Z' },
+  },
   'system.test': {
     audience: 'Admin', description: 'Test email from the Command Centre',
     build: () => ({

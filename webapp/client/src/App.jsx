@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { trackPage } from './analytics.js';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
@@ -12,22 +14,23 @@ import AgentDetail from './pages/AgentDetail.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import { ForgotPassword, Login, Register, ResetPassword } from './pages/Auth.jsx';
-import Checkout from './pages/Checkout.jsx';
-import Portal from './pages/Portal.jsx';
-import OrderDetail from './pages/OrderDetail.jsx';
-import Account from './pages/Account.jsx';
-import CommandCentre from './pages/admin/CommandCentre.jsx';
+const Checkout = lazy(() => import('./pages/Checkout.jsx'));
+const Portal = lazy(() => import('./pages/Portal.jsx'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
+const Account = lazy(() => import('./pages/Account.jsx'));
+const CommandCentre = lazy(() => import('./pages/admin/CommandCentre.jsx'));
 import Testimonials from './pages/Testimonials.jsx';
 import Blog from './pages/Blog.jsx';
 import BlogPost from './pages/BlogPost.jsx';
 import { Privacy, Terms } from './pages/Legal.jsx';
-import PaymentReturn from './pages/PaymentReturn.jsx';
-import PaymentSimulate from './pages/PaymentSimulate.jsx';
+const PaymentReturn = lazy(() => import('./pages/PaymentReturn.jsx'));
+const PaymentSimulate = lazy(() => import('./pages/PaymentSimulate.jsx'));
 import WhatsAppButton from './components/WhatsAppButton.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
 import Help from './pages/Help.jsx';
 import Care from './pages/Care.jsx';
-import { SupportList, SupportTicket } from './pages/Support.jsx';
+const SupportList = lazy(() => import('./pages/Support.jsx').then((m) => ({ default: m.SupportList })));
+const SupportTicket = lazy(() => import('./pages/Support.jsx').then((m) => ({ default: m.SupportTicket })));
 import NotFound from './pages/NotFound.jsx';
 
 // The assistant lives on the homepage (and the Help Centre and care plans page); WhatsApp is offered inside it there.
@@ -44,13 +47,15 @@ function RequireAuth({ children, staff = false }) {
 
 export default function App() {
   const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); trackPage(pathname); }, [pathname]);
 
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
       <Header />
       <main id="main">
+        <ErrorBoundary resetKey={pathname}>
+        <Suspense fallback={<div className="page-loader"><span className="spinner" /></div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<Services />} />
@@ -82,6 +87,8 @@ export default function App() {
           <Route path="/admin/*" element={<RequireAuth staff><CommandCentre /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
+        </ErrorBoundary>
       </main>
       {!pathname.startsWith('/admin') && <Footer />}
       {CHAT_PAGES.includes(pathname) ? <ChatWidget /> : <WhatsAppButton />}

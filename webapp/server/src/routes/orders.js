@@ -1,3 +1,4 @@
+import { attributionFrom } from '../analytics.js';
 import { careOfferFor, careUsage, supportEndsAt } from '../careops.js';
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
@@ -58,9 +59,12 @@ r.post('/', body(z.object({
   }
 
   const order = tx(() => {
-    const o = row(db.prepare(`INSERT INTO orders (reference, user_id, tier_id, brief, price_cents, due_date, covers_order_id)
-      VALUES (?, ?, ?, ?, ?, date('now', ?), ?) RETURNING *`)
-      .get(ref('HC'), req.user.id, tier.id, req.body.brief, tier.price_cents, `+${tier.delivery_days} days`, covers));
+    // Attribute the order to how the client first found us (their account's first touch wins).
+    const attr = db.prepare('SELECT attribution FROM users WHERE id = ?').get(req.user.id)?.attribution
+      || (attributionFrom(req) && JSON.stringify(attributionFrom(req)));
+    const o = row(db.prepare(`INSERT INTO orders (reference, user_id, tier_id, brief, price_cents, due_date, covers_order_id, attribution)
+      VALUES (?, ?, ?, ?, ?, date('now', ?), ?, ?) RETURNING *`)
+      .get(ref('HC'), req.user.id, tier.id, req.body.brief, tier.price_cents, `+${tier.delivery_days} days`, covers, attr || null));
     P.instantiatePipeline(o.id);
     // Projects: 50% deposit up front. Retainers: first month up front.
     const subtotal = tier.billing === 'once' ? Math.round(tier.price_cents / 2) : tier.price_cents;

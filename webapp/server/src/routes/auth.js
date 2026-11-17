@@ -1,3 +1,4 @@
+import { attributionFrom } from '../analytics.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { db, row } from '../db.js';
@@ -25,8 +26,9 @@ r.post('/register', botCheck('register'), body(z.object({
   if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(lower)) {
     return res.status(409).json({ error: 'An account with this email already exists' });
   }
-  const user = row(db.prepare(`INSERT INTO users (name, email, password_hash, company, phone)
-    VALUES (?, ?, ?, ?, ?) RETURNING *`).get(name, lower, bcrypt.hashSync(req.body.password, 10), company, phone));
+  const attr = attributionFrom(req, new URL(canonicalUrl()).hostname);
+  const user = row(db.prepare(`INSERT INTO users (name, email, password_hash, company, phone, attribution)
+    VALUES (?, ?, ?, ?, ?, ?) RETURNING *`).get(name, lower, bcrypt.hashSync(req.body.password, 10), company, phone, attr ? JSON.stringify(attr) : null));
   logEvent('user.registered', `New client account: ${user.name}${company ? ` (${company})` : ''}`, { actor: user.id });
   onRegister(user);
   res.status(201).json({ token: signToken(user), user: publicUser(user) });

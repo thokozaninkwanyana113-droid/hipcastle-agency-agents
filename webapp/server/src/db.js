@@ -40,10 +40,10 @@ if (tierCols.length && !tierCols.includes('plan')) {
 
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
-  users: { token_version: 'INTEGER NOT NULL DEFAULT 0' },
+  users: { token_version: 'INTEGER NOT NULL DEFAULT 0', attribution: 'TEXT' },
   newsletter_subscribers: { status: "TEXT NOT NULL DEFAULT 'active'", confirmed_at: 'TEXT', confirm_sent_at: 'TEXT' },
   payments: { needs_refund: 'INTEGER NOT NULL DEFAULT 0', refunded_at: 'TEXT', refund_note: 'TEXT' },
-  leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT' },
+  leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT', attribution: 'TEXT' },
   milestones: {
     key: 'TEXT', stage: 'TEXT', cycle: 'INTEGER NOT NULL DEFAULT 0', agent_slug: 'TEXT', days: 'INTEGER NOT NULL DEFAULT 1', due_date: 'TEXT',
     status: "TEXT NOT NULL DEFAULT 'todo'", requires_approval: 'INTEGER NOT NULL DEFAULT 0', client_task: 'INTEGER NOT NULL DEFAULT 0',
@@ -53,7 +53,7 @@ const MIGRATIONS = {
   orders: {
     pipeline_kind: "TEXT NOT NULL DEFAULT 'project'", revisions_allowed: 'INTEGER', kickoff_at: 'TEXT', onboarding_completed_at: 'TEXT',
     onboarding_reminded_at: 'TEXT', delivered_at: 'TEXT', current_cycle: 'INTEGER NOT NULL DEFAULT 0', next_cycle_at: 'TEXT',
-    nps_score: 'INTEGER', nps_comment: 'TEXT', feedback_at: 'TEXT', covers_order_id: 'INTEGER',
+    nps_score: 'INTEGER', nps_comment: 'TEXT', feedback_at: 'TEXT', covers_order_id: 'INTEGER', attribution: 'TEXT',
   },
   tickets: { care_order_id: 'INTEGER' },
   testimonials: {

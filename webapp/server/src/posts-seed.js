@@ -13,7 +13,7 @@ export const seedPosts = [
     meta_description: 'What does a website cost in South Africa? A clear rand breakdown for brochure sites, online stores and web apps, plus the hidden costs to budget for.',
     body: `## Quick answer
 
-A professional small-business website in South Africa typically costs between **R8 000 and R25 000** for a 5–10 page brochure site, while an online store with local payment gateways usually starts around **R30 000–R60 000**. Custom web apps and platforms start higher and are priced by scope.
+A professional small-business website in South Africa typically costs between **R5 000 and R16 000** for a 5–10 page brochure site, while an online store with local payment gateways usually costs **R15 000–R60 000** (around R19 000–R25 000 for a standard store). Custom web apps and platforms start higher and are priced by scope.
 
 ## What drives the price?
 

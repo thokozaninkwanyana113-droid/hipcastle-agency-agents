@@ -8,7 +8,13 @@ export function logEvent(type, message, { level = 'info', actor = null, ref = nu
   } catch (err) {
     console.error('Failed to log event', err);
   }
-  if (level === 'error') console.error(`[${type}] ${message}`);
+  if (level === 'error') {
+    console.error(`[${type}] ${message}`);
+    // Page a person (throttled per event type). Imported lazily to avoid an import cycle.
+    import('./alerts.js').then(({ alert, shouldAlert }) => {
+      if (shouldAlert(type) && (process.env.NODE_ENV !== 'test' || process.env.ALERTS_IN_TESTS)) alert(type, message.slice(0, 160), `Event: ${type}\nRef: ${ref ?? '—'}`);
+    }).catch(() => {});
+  }
 }
 
 const MAX_SAMPLES = 2000;

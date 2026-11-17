@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db, row, rows } from '../db.js';
 import { body, z } from '../validate.js';
 import { botCheck } from '../botcheck.js';
+import { attributionFrom } from '../analytics.js';
 import { logEvent } from '../events.js';
 import { chatHandoff } from '../email/support-notify.js';
 import { answer, chatMode, getOrCreateSession, SUGGESTIONS, transcript } from '../chat.js';
@@ -73,8 +74,9 @@ r.post('/chat/:sid/handoff', botCheck('chat handoff'), body(z.object({
   const b = req.body;
   const convo = transcript(session.id, 12).map((m) => `${m.role === 'user' ? 'Visitor' : 'Assistant'}: ${m.content.slice(0, 400)}`).join('\n');
   const message = `${b.note || 'Requested a person via the website chatbot.'}\n\n--- Chat transcript ---\n${convo}`.slice(0, 4900);
-  const lead = row(db.prepare(`INSERT INTO leads (name, email, phone, preferred_contact, source, message)
-    VALUES (?, ?, ?, ?, 'chatbot', ?) RETURNING id`).get(b.name, b.email.toLowerCase(), b.phone, b.preferred_contact, message));
+  const attr = attributionFrom(req);
+  const lead = row(db.prepare(`INSERT INTO leads (name, email, phone, preferred_contact, source, message, attribution)
+    VALUES (?, ?, ?, ?, 'chatbot', ?, ?) RETURNING id`).get(b.name, b.email.toLowerCase(), b.phone, b.preferred_contact, message, attr ? JSON.stringify(attr) : null));
   db.prepare('UPDATE chat_sessions SET handoff_lead_id = ? WHERE id = ?').run(lead.id, session.id);
   logEvent('chat.handoff', `Chatbot handoff: ${b.name} wants a person (${b.preferred_contact})`, { ref: String(lead.id) });
   chatHandoff({ ...b, email: b.email.toLowerCase(), id: lead.id, message: b.note || 'Requested a person via the website chatbot.' }, transcript(session.id, 12));

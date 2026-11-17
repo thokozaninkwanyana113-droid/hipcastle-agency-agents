@@ -15,6 +15,7 @@ import { sendEmail } from '../email/mailer.js';
 import { confirmUrl, verifyConfirm, verifyUnsubscribe } from '../email/mailer.js';
 import express from 'express';
 import { CARE, CARE_EXTRA_HOUR_CENTS, CARE_TERMS } from '../care.js';
+import { attributionFrom, classify, isBot, track } from '../analytics.js';
 import { canonicalUrl } from '../urls.js';
 
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -133,6 +134,28 @@ r.get('/posts/:slug', (req, res) => {
   res.json(p);
 });
 
+// First-party page-view beacon (no cookies). Honours Do Not Track / Global Privacy Control.
+r.post('/t', (req, res) => {
+  res.status(204).end();
+  const b = req.body || {};
+  const ua = req.get('user-agent') || '';
+  if (isBot(ua) || req.get('dnt') === '1' || req.get('sec-gpc') === '1' || typeof b.path !== 'string' || !b.path.startsWith('/')) return;
+  if (/^\/(admin|api)(\/|$)/.test(b.path)) return; // staff screens are not traffic
+  try { track({ path: b.path, source: classify(b.touch || {}, new URL(canonicalUrl()).hostname), ip: req.ip, ua }); } catch (err) { console.error('track failed', err.message); }
+});
+
+// Crashes in visitors' browsers (from the React error boundary) — logged and alerted (throttled).
+r.post('/client-error', body(z.object({
+  message: z.string().trim().min(1).max(500),
+  path: z.string().max(200).optional().default(''),
+  stack: z.string().max(4000).optional().default(''),
+})), (req, res) => {
+  if (!isBot(req.get('user-agent') || '')) {
+    logEvent('client.error', `Browser error on ${req.body.path || '?'}: ${req.body.message}`.slice(0, 300), { level: 'error', meta: { stack: req.body.stack.slice(0, 1500), ua: (req.get('user-agent') || '').slice(0, 200) } });
+  }
+  res.status(204).end();
+});
+
 // Care plans (aftercare, maintenance & hosting) for every service
 r.get('/care', (_req, res) => {
   const services = rows(db.prepare('SELECT id, slug, name, icon FROM services WHERE is_active = 1 ORDER BY sort_order').all());
@@ -166,9 +189,11 @@ r.post('/leads', botCheck('contact'), body(z.object({
 })), (req, res) => {
   const b = req.body;
   const svc = b.service ? db.prepare('SELECT id, name FROM services WHERE slug = ?').get(b.service) : null;
-  const lead = row(db.prepare(`INSERT INTO leads (name, email, company, phone, service_id, budget, province, preferred_contact, source, message)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, created_at`)
-    .get(b.name, b.email.toLowerCase(), b.company, b.phone, svc?.id ?? null, b.budget, b.province, b.preferred_contact, b.source, b.message));
+  const attr = attributionFrom(req, new URL(canonicalUrl()).hostname);
+  const lead = row(db.prepare(`INSERT INTO leads (name, email, company, phone, service_id, budget, province, preferred_contact, source, message, attribution)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, created_at`)
+    .get(b.name, b.email.toLowerCase(), b.company, b.phone, svc?.id ?? null, b.budget, b.province, b.preferred_contact,
+      b.source && b.source !== 'website' ? b.source : attr?.source || b.source, b.message, attr ? JSON.stringify(attr) : null));
   logEvent('lead.created', `New lead: ${b.name}${b.company ? ` (${b.company})` : ''}${svc ? ` — ${svc.name}` : ''}`, { ref: String(lead.id) });
   onLead({ ...b, email: b.email.toLowerCase(), id: lead.id }, svc?.name);
   res.status(201).json({ ok: true, id: lead.id });

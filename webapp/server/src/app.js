@@ -12,6 +12,7 @@ import paymentRoutes from './routes/payments.js';
 import chatRoutes from './routes/chat.js';
 import supportRoutes from './routes/support.js';
 import { metricsMiddleware, recordError } from './events.js';
+import { db } from './db.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
 import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml } from './seo.js';
 
@@ -59,10 +60,20 @@ export function createApp() {
     // Chatbot: each message can call the AI model, so keep a tight per-IP budget.
     app.use('/api/chat', (req, res, next) => (req.method === 'POST' ? chatLimiter(req, res, next) : next()));
     app.use('/api/chat/:sid/handoff', limiter(5));
+    app.use('/api/t', limiter(600));
+    app.use('/api/client-error', limiter(30));
     app.use('/api/support', (req, res, next) => (req.method === 'POST' ? limiter(60)(req, res, next) : next()));
   }
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // Health check for Fly and external uptime monitors: proves the database answers, not just the process.
+  app.get('/api/health', (_req, res) => {
+    try {
+      db.prepare('SELECT 1').get();
+      res.set('Cache-Control', 'no-store').json({ ok: true, db: 'ok', uptime_s: Math.round(process.uptime()) });
+    } catch (err) {
+      res.status(503).json({ ok: false, db: 'error' });
+    }
+  });
   app.use('/api', publicRoutes);
   app.use('/api', chatRoutes);
   app.use('/api/auth', authRoutes);
