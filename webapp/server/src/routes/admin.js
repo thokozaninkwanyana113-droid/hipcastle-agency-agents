@@ -11,6 +11,8 @@ import { MODE, notifyBase, ozowConfig, payfastConfig, simulatedAllowed, siteUrl 
 import { applyPaymentStatus, findPayment } from '../payments/service.js';
 import { seoAudit } from '../seo.js';
 import { chatMode, MODEL as CHAT_MODEL } from '../chat.js';
+import { offsiteConfig } from '../offsite.js';
+import { growthReport } from '../analytics.js';
 import { careBoard, careUsage, logCareTime, loadCareOrder } from '../careops.js';
 import { buildChunks, knowledgeText, knowledgeVersion } from '../kb.js';
 import { canonicalUrl } from '../urls.js';
@@ -165,6 +167,7 @@ function dbSize() {
 function warnings() {
   const w = [];
   const s = getSettings();
+  if (!offsiteConfig().enabled) w.push({ level: 'warn', message: 'Off-site backups are off: set BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY so a lost disk doesn’t lose your data.' });
   if (!process.env.JWT_SECRET) w.push({ level: 'error', message: 'JWT_SECRET is not set — sessions use an insecure development secret.' });
   if (process.env.NODE_ENV !== 'production' && !process.env.SITE_URL) w.push({ level: 'info', message: `Development mode: SEO tags point to ${canonicalUrl()}, payment returns use ${siteUrl()}.` });
   if (MODE !== 'live') w.push({ level: 'warn', message: 'Payments are in SANDBOX mode. Set PAYMENTS_MODE=live with real merchant credentials to accept money.' });
@@ -427,6 +430,9 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="hipcastle-${req.params.kind}-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send('﻿' + csv);
 });
+
+// Growth: traffic, sources and the acquisition funnel
+r.get('/growth', (req, res) => res.json(growthReport(Math.min(365, Math.max(7, Number(req.query.days) || 30)))));
 
 // Care plans
 r.get('/care', (_req, res) => res.json(careBoard()));

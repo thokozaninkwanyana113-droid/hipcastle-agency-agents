@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone         TEXT,
   role          TEXT    NOT NULL DEFAULT 'client' CHECK (role IN ('client','staff','admin')),
   token_version INTEGER NOT NULL DEFAULT 0,             -- bump to sign out every session
+  attribution   TEXT,                                   -- first-touch JSON when the account was created
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -76,6 +77,7 @@ CREATE TABLE IF NOT EXISTS leads (
   province    TEXT,
   preferred_contact TEXT,
   source      TEXT,
+  attribution TEXT,                       -- first-touch JSON {source, landing, campaign, first_seen}
   message     TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','qualified','won','lost')),
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -105,7 +107,8 @@ CREATE TABLE IF NOT EXISTS orders (
   nps_score     INTEGER CHECK (nps_score BETWEEN 0 AND 10),
   nps_comment   TEXT,
   feedback_at   TEXT,
-  covers_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL, -- care plans: the delivered project being looked after
+  covers_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+  attribution   TEXT,                      -- first-touch JSON of the client when ordering -- care plans: the delivered project being looked after
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -355,6 +358,22 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_created ON chat_sessions(created_at
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, sla_due_at);
 CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
+
+-- First-party analytics (no cookies, no personal information): daily counts per page / source.
+CREATE TABLE IF NOT EXISTS analytics_daily (
+  day      TEXT NOT NULL,
+  kind     TEXT NOT NULL CHECK (kind IN ('page','source')),
+  key      TEXT NOT NULL,
+  views    INTEGER NOT NULL DEFAULT 0,
+  visitors INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, kind, key)
+);
+-- Today's anonymous visitor hashes (salt rotates daily; pruned after 2 days) to count uniques.
+CREATE TABLE IF NOT EXISTS analytics_visitors (
+  day  TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  PRIMARY KEY (day, hash)
+);
 
 -- Care plans: hands-on time logged against the monthly allowance
 CREATE TABLE IF NOT EXISTS care_time (

@@ -1,0 +1,40 @@
+# Runs the web app's tests and production build on every pull request and push to main,
+# so nothing is merged or deployed without them passing.
+name: Web app CI
+
+on:
+  pull_request:
+    paths: ['webapp/**', '.github/workflows/webapp-ci.yml']
+  push:
+    branches: [main]
+    paths: ['webapp/**', '.github/workflows/webapp-ci.yml']
+
+concurrency:
+  group: webapp-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            webapp/server/package-lock.json
+            webapp/client/package-lock.json
+      - name: Install
+        run: |
+          npm --prefix webapp/server ci
+          npm --prefix webapp/client ci
+      - name: API tests
+        run: npm --prefix webapp/server test
+      - name: Production build
+        run: npm --prefix webapp/client run build
+      - name: Dependency audit (production, high severity)
+        run: |
+          npm --prefix webapp/server audit --omit=dev --audit-level=high
+          npm --prefix webapp/client audit --omit=dev --audit-level=high

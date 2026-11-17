@@ -3,6 +3,7 @@
 import { db } from './db.js';
 
 export const DEFAULT_SETTINGS = {
+  catalog_prices_version: 1,                 // see PRICE_REVISION in catalog.js
   business_name: 'Hipcastle Agency',
   legal_name: 'Hipcastle Agency (Pty) Ltd',
   tagline: 'Specialist teams for South African entrepreneurs',

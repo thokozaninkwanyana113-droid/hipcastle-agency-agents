@@ -39,6 +39,7 @@ A full-stack web app for running a services agency, built for **South African en
 
 | Section | What you can monitor and manage |
 |---|---|
+| **Growth & acquisition** | Cookie-free first-party analytics: daily visitors, top pages, and the funnel visitors → leads → sign-ups → orders → paid → revenue for each first-touch source (UTM tag, search engine, social network, AI assistant or referring site) |
 | **Overview** | Live KPIs: 30-day revenue, outstanding and overdue invoices, active engagements, leads and win rate, payments, ratings. Also a revenue chart, pipeline by service and tier, a live activity feed and configuration alerts |
 | **System & processes** | Uptime, memory, API request rates and p95 latency, busiest routes and recent errors. PayFast and Ozow status with notify URLs, database table sizes, config checks, and **background jobs** you can run or pause (expire abandoned payments, overdue invoice watch, daily database backup, log retention) |
 | **Activity log** | Searchable audit trail: orders, payments, rejected gateway notifications, sign-ins and failed sign-ins, admin changes, exports |
@@ -68,6 +69,27 @@ A full-stack web app for running a services agency, built for **South African en
 Conversations are logged (with tokens used), rated by visitors and deleted after 180 days by the **chat retention** job. "Talk to a person" creates a lead (`source = chatbot`) with the transcript, sends the visitor a confirmation and the team a `chat.handoff` email. `/api/chat` is rate limited to 20 messages per 5 minutes per IP and 60 messages per conversation.
 
 **Support desk** ([`server/src/routes/support.js`](server/src/routes/support.js)): tickets get a first-response target from their priority; the first staff reply records the response time and sets *pending client*; a client reply reopens; resolved tickets ask for a 1–5 rating and close after 7 days. The **support SLA** job warns the team (once per ticket) when a target is missed. Emails: `ticket.created`, `ticket.notify`, `ticket.reply`, `ticket.resolved`, `ticket.sla`.
+
+## Pricing
+
+Package prices (`server/src/catalog.js`, ZAR excl. VAT) are benchmarked against what South African agencies charge:
+
+| Service | Benchmark |
+|---|---|
+| Brochure websites | R5k–R16k |
+| Online stores | about R19k on average (R13k–R60k) |
+| Custom web apps | R38k–R88k |
+| Mobile and immersive apps | R80k–R270k+ |
+| SEO | R5k–R12k a month |
+| Social media | R1k–R6.5k a month for small businesses |
+| Ads management | R3k–R7.5k a month |
+| Logo and identity | R4.5k–R22.5k |
+| Bookkeeping | R2k–R4.5k a month |
+| Consultants | R5k–R15k a day |
+
+Agency hourly rates run R500–R1 500, and retainers are sized in hours at about R550–R750/hour.
+
+When prices change in a release, `PRICE_REVISION` updates existing databases once. Only tiers still on the old default price are updated; prices an admin changed in the Command Centre are kept.
 
 ## Care plans: maintenance, hosting & aftercare
 
@@ -226,6 +248,29 @@ Invoices are marked paid **only** after a verified server-to-server notification
   - `/llms.txt` and `/llms-full.txt` give AI assistants a factual summary of services, prices, FAQs and articles.
 - `/sitemap.xml` (about 190 URLs), `/blog/rss.xml`, a 1200×630 social image, a web manifest, and an SEO audit in the Command Centre.
 
+## Launch hardening: backups, alerts, CI, analytics
+
+**Off-site backups.** The daily backup job always writes a local snapshot (latest 7 kept). When `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID` and `BACKUP_S3_SECRET_ACCESS_KEY` are set, it also gzips the snapshot and uploads it to S3-compatible storage. That can be AWS S3 in Cape Town (`BACKUP_S3_REGION=af-south-1`), or Cloudflare R2 or Backblaze B2 (set `BACKUP_S3_ENDPOINT`). The latest 30 copies are kept (`BACKUP_S3_KEEP`). A failed upload alerts the team. Command Centre → System warns while off-site backups are off.
+
+To restore, download the newest `hipcastle-*.db.gz`, `gunzip` it, stop the app, replace `/data/hipcastle.db`, then start the app.
+
+**Alerts.** Any error-level event emails the team inbox (`system.alert`). Error-level events include server errors, crashed background jobs, failed backups, unhandled exceptions and browser crashes reported by the React error boundary. If `ALERT_WEBHOOK_URL` is set (a Slack, Discord or Google Chat incoming webhook), the alert also goes there. Each problem type alerts at most once every 15 minutes.
+
+**Uptime.** `/api/health` checks the database and returns 503 if it can't answer. Fly uses it to restart a sick machine. Point a free external monitor at `https://www.hipcastle.agency/api/health` every 1–5 minutes so you hear about full outages too, e.g. UptimeRobot or Better Stack.
+
+**CI.** `.github/workflows/webapp-ci.yml` runs on every pull request and push to `main`. It runs the API tests, the production build and a production dependency audit (high severity).
+
+**Analytics and attribution (POPIA-friendly).**
+- The app sends a first-party beacon on each page view. It counts views and daily-unique visitors per page and per source, without cookies.
+- Visitors are counted by a hash of IP and browser plus a salt that changes daily. The salt is never stored, and the hashes are deleted after 2 days.
+- Bots, Do Not Track and Global Privacy Control are respected, and staff pages aren't counted.
+- The visitor's first touch (UTM tags or referring site) stays in their browser. It is sent with enquiries, chat handoffs, sign-ups and orders as `X-Attribution`, and stored on those records.
+- Tag the links you share, e.g. `?utm_source=whatsapp&utm_medium=status&utm_campaign=launch`.
+
+**Frontend.**
+- An error boundary keeps a crash on one page from blanking the site, and reports the crash to the server.
+- The portal, checkout and Command Centre are split into chunks that load on demand. A visitor's first load is about 20% smaller.
+
 ## Quick start
 
 Requires **Node.js 22.13 or later**.
@@ -270,7 +315,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 56 API integration tests, run against an in-memory database. They cover:
+There are 66 API integration tests, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -285,6 +330,7 @@ There are 56 API integration tests, run against an in-memory database. They cove
 - Password reset (no account enumeration, single-use tokens)
 - Signed newsletter unsubscribe
 - Delivery pipelines: full project journey, revision limits, balance invoice, feedback, retainer cycles, watch job and board
+- Launch hardening: health check, alerts (email + webhook, throttled), off-site backup upload and retention, price revision on existing databases, market price bands, analytics beacon (bots/DNT/staff excluded), first-touch attribution through to paid orders, browser crash reports
 - Care plans: three monthly tiers per service within SA price bands, checkout covering a delivered project, care pipeline and monthly reset, ticket priority boost, time logging and allowance emails, offer job, migration-safe catalog, SEO and assistant knowledge
 - Customer service: knowledge base covers every service and price, FAQ answers, a mocked Claude stream (model, prompt caching, fallbacks, refusals, error fallback), feedback, handoff, ticket lifecycle with SLA, CSAT, access control and retention jobs
 
@@ -318,5 +364,7 @@ users ─< tickets ─< ticket_messages     chat_sessions ─< chat_messages (�
 - [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.
 - [ ] Create a Google Business Profile with the same name, address and phone, and submit `/sitemap.xml` in Google Search Console.
 - [ ] Review the care plan prices and included hours in Command Centre → Services & pricing, and decide who on the team owns care work.
+- [ ] Create an S3/R2/B2 bucket and add the `BACKUP_S3_*` secrets; run Command Centre → System → Database backup once and check the file arrives.
+- [ ] Set up a free uptime monitor on `/api/health` and (optionally) `ALERT_WEBHOOK_URL` for chat alerts.
 - [ ] Optional: add `ANTHROPIC_API_KEY` to switch the assistant to AI answers, then check Command Centre → Assistant chats.
 - [ ] Back up `data/` regularly; a daily snapshot is also written to `data/backups`.

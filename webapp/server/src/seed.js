@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { db, tx } from './db.js';
 import { CARE, CARE_PRIORITY } from './care.js';
-import { catalog, testimonials } from './catalog.js';
+import { catalog, PRICE_REVISION, testimonials } from './catalog.js';
+import { getSettings, updateSettings } from './settings.js';
 import { seedPosts } from './posts-seed.js';
 import { instantiatePipeline } from './pipeline.js';
 
@@ -178,6 +179,21 @@ export function seed({ demo = true, syncCatalog = false, log = console.log } = {
       db.prepare('INSERT INTO messages (order_id, author_id, body) VALUES (?, ?, ?)')
         .run(oid, uid, 'Excited to get started — please share the discovery agenda.');
       log('Created demo client client@example.com / Client123!');
+    }
+    // One-off price revisions: update tiers still on the previous default price (admin edits are kept).
+    if ((getSettings().catalog_prices_version || 1) < PRICE_REVISION.version) {
+      const keys = ['essential', 'growth', 'enterprise'];
+      const upd = db.prepare(`UPDATE service_tiers SET price_cents = ?, summary = ?, features = ?
+        WHERE plan = 'core' AND tier = ? AND price_cents = ? AND service_id = (SELECT id FROM services WHERE slug = ?)`);
+      let changed = 0;
+      for (const s of catalog) s.tiers.forEach((t, j) => {
+        const old = PRICE_REVISION.previous[s.slug]?.[keys[j]];
+        if (old === undefined) return;
+        const n = upd.run(t.price_cents, t.summary, JSON.stringify(t.features), keys[j], old, s.slug).changes;
+        if (old !== t.price_cents) changed += n;
+      });
+      updateSettings({ catalog_prices_version: PRICE_REVISION.version });
+      if (changed) log(`Catalog prices updated to revision ${PRICE_REVISION.version} (${changed} tiers).`);
     }
     log(`Catalog: ${catalog.length} services (${catalog.length * 3} tiers)${syncCatalog ? ' synced from catalog.js' : ''}; ${agents.length} agents imported.`);
   });

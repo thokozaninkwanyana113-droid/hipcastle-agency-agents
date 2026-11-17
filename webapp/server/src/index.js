@@ -15,6 +15,14 @@ const server = createApp().listen(port, () => {
   logEvent('system.start', `Server started on port ${port} (${process.env.NODE_ENV || 'development'})`);
 });
 
+// Crashes: record and alert, then exit so the platform restarts a clean process.
+process.on('unhandledRejection', (err) => logEvent('system.crash', `Unhandled promise rejection: ${err?.message || err}`.slice(0, 300), { level: 'error' }));
+process.on('uncaughtException', (err) => {
+  logEvent('system.crash', `Uncaught exception: ${err.message}`.slice(0, 300), { level: 'error' });
+  console.error(err);
+  setTimeout(() => process.exit(1), 2000).unref(); // give the alert a moment to go out
+});
+
 // Graceful shutdown: stop accepting requests, let in-flight ones finish, then close the database.
 let stopping = false;
 for (const signal of ['SIGTERM', 'SIGINT']) {

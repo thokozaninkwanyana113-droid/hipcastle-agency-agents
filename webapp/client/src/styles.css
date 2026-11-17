@@ -1063,3 +1063,15 @@ html, body { overflow-x: clip; }
 .care-board__who small { color: var(--muted); }
 .catalog-tier--care { border-style: dashed; }
 @media (max-width: 860px) { .care-board__row { grid-template-columns: 1fr; } }
+
+/* Growth (first-party analytics) */
+.funnel { display: grid; grid-template-columns: repeat(6, 1fr); gap: .75rem; margin-bottom: 1.25rem; }
+.funnel__step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .9rem 1rem; display: flex; flex-direction: column; gap: .2rem; }
+.funnel__step span { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.funnel__step strong { font: 700 1.6rem var(--font-display); color: var(--navy-800); }
+.funnel__step small { color: var(--muted); font-size: .8rem; }
+.funnel__step--money { background: var(--success-bg); border-color: transparent; }
+.spark { display: flex; align-items: flex-end; gap: 3px; height: 120px; padding: .5rem 0; }
+.spark span { flex: 1; background: #2a78d6; border-radius: 3px 3px 0 0; min-width: 3px; }
+@media (max-width: 1080px) { .funnel { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .funnel { grid-template-columns: repeat(2, 1fr); } }
