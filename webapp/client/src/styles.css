@@ -9,6 +9,9 @@
   --gold-500: #f2b544;
   --gold-400: #f7c96b;
   --gold-100: #fdf1d8;
+  --brand-blue: #1079cc;     /* from the logo's "HIP" and ring */
+  --brand-blue-light: #5cc0f5;
+  --brand-blue-text: #0b5da3; /* ≥ 6:1 on cream/white for links */
   --ink: #141a2e;
   --ink-soft: #4a5370;
   --muted: #5c6481;          /* ≥ 5:1 on every light surface (WCAG AA) */
@@ -47,7 +50,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 img, svg { max-width: 100%; }
-a { color: var(--navy-600); }
+a { color: var(--brand-blue-text); }
 a:hover { color: var(--navy-800); }
 h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.15; margin: 0 0 0.5em; color: var(--navy-800); letter-spacing: -0.01em; }
 h1 { font-size: clamp(2.2rem, 4.5vw, 3.6rem); }
@@ -102,13 +105,13 @@ main { flex: 1; }
 .topbar { background: var(--navy-800); color: #d6dbef; font-size: .85rem; }
 .topbar__inner { display: flex; justify-content: center; gap: 1rem; padding: .45rem 0; flex-wrap: wrap; }
 .topbar a { color: var(--gold-500); font-weight: 600; text-decoration: none; }
-.header__inner { display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 1.5rem; }
-.logo { display: inline-flex; align-items: center; gap: .6rem; text-decoration: none; color: var(--navy-800); }
-.logo span { font: 700 1.35rem/1 var(--font-display); color: var(--navy-800); display: flex; flex-direction: column; }
-.logo small { font: 600 .62rem/1.4 var(--font-body); letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
-.logo--light, .logo--light span { color: #fff; }
-.logo--light .logo__bg { fill: var(--navy-700); }
-.logo--light small { color: #9aa3c4; }
+.header__inner { display: flex; align-items: center; justify-content: space-between; height: 92px; gap: 1.5rem; }
+.logo { display: inline-flex; align-items: center; text-decoration: none; line-height: 0; border-radius: 8px; }
+.logo img { display: block; height: 78px; width: auto; }
+.logo--lg img { height: 84px; }
+.logo--light { background: #fff; padding: 8px 12px; border-radius: 12px; box-shadow: 0 10px 30px -14px rgba(0,0,0,.6); }
+.logo-mark { display: inline-block; vertical-align: middle; }
+@media (max-width: 860px) { .header__inner { height: 76px; } .logo img { height: 62px; } .logo--lg img { height: 76px; } }
 
 .nav { display: flex; align-items: center; gap: .25rem; }
 .nav__item { position: relative; }
@@ -644,9 +647,10 @@ fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
 
 /* ------------------------------------------------------------- Command Centre */
 .cc { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 110px); background: var(--bg); }
-.cc__side { background: var(--navy-900); color: #c5cbe2; padding: 1.5rem 1rem; position: sticky; top: 72px; height: calc(100vh - 72px); overflow-y: auto; }
+.cc__side { background: var(--navy-900); color: #c5cbe2; padding: 1.5rem 1rem; position: sticky; top: 92px; height: calc(100vh - 92px); overflow-y: auto; }
 .cc__brand { display: flex; gap: .7rem; align-items: center; padding: 0 .5rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 1rem; }
 .cc__brand > span { font-size: 1.6rem; }
+.cc__brand-mark { background: #fff; border-radius: 10px; padding: 3px; flex: none; }
 .cc__brand strong { color: #fff; display: block; }
 .cc__brand small { color: #9aa3c4; text-transform: capitalize; }
 .cc__group { margin-bottom: 1.1rem; }
@@ -1075,3 +1079,10 @@ html, body { overflow-x: clip; }
 .spark span { flex: 1; background: #2a78d6; border-radius: 3px 3px 0 0; min-width: 3px; }
 @media (max-width: 1080px) { .funnel { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 600px) { .funnel { grid-template-columns: repeat(2, 1fr); } }
+
+/* Logo mark in the assistant */
+.chat-launcher__icon { background: #fff; border-radius: 50%; padding: 2px; }
+.chat__head { align-items: center; }
+.chat__avatar { background: #fff; border-radius: 50%; padding: 3px; flex: none; }
+.chat__title { flex: 1; min-width: 0; }
+.orbit__core img { filter: drop-shadow(0 6px 16px rgba(16,121,204,.45)); background: #fff; border-radius: 50%; padding: 6px; }

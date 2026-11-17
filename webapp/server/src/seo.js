@@ -77,7 +77,7 @@ function organization(s, base) {
     name: s.business_name,
     legalName: s.legal_name || undefined,
     url: `${base}/`,
-    logo: `${base}/logo.png`,
+    logo: { '@type': 'ImageObject', url: `${base}/logo.png`, width: 397, height: 256, caption: s.business_name },
     image: `${base}/og-image.png`,
     description: s.seo_default_description,
     slogan: s.tagline,

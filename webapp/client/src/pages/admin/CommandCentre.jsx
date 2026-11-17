@@ -35,7 +35,7 @@ export default function CommandCentre() {
     <div className="cc">
       <Seo title="Command Centre" noindex />
       <aside className={`cc__side ${open ? 'cc__side--open' : ''}`} aria-label="Command Centre navigation">
-        <div className="cc__brand"><span aria-hidden="true">🏰</span><div><strong>Command Centre</strong><small>{user.name} · {user.role}</small></div></div>
+        <div className="cc__brand"><img src="/favicon.svg" width="36" height="36" alt="" className="cc__brand-mark" /><div><strong>Command Centre</strong><small>{user.name} · {user.role}</small></div></div>
         {NAV.map(([group, items]) => (
           <div key={group} className="cc__group">
             <span className="cc__group-label">{group}</span>

@@ -45,7 +45,7 @@ export default function Hero() {
         <div className="hero__visual" aria-hidden="true">
           <div className="orbit">
             <div className="orbit__core">
-              <svg viewBox="0 0 32 32" width="64" height="64"><path d="M7 25V12l3 2V9l3 2V7l3 2 3-2v4l3-2v5l3-2v13z" fill="#f2b544" /></svg>
+              <img src="/favicon.svg" width="72" height="72" alt="" />
               <strong>NEXUS</strong>
               <small>orchestration</small>
             </div>

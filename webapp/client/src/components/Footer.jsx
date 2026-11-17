@@ -45,7 +45,7 @@ export default function Footer() {
       </div>
       <div className="container footer__grid">
         <div className="footer__brand">
-          <Logo light />
+          <Logo light size="lg" />
           <p>{site.tagline}. A {site.address_locality}-based digital agency working with entrepreneurs across South Africa.</p>
           <SocialLinks social={site.social} whatsapp={site.whatsapp} />
           <form className="newsletter" onSubmit={subscribe}>

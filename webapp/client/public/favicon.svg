@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b1530"/><path d="M7 25V12l3 2V9l3 2V7l3 2 3-2v4l3-2v5l3-2v13z" fill="#f2b544"/><rect x="14" y="18" width="4" height="7" rx="2" fill="#0b1530"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Hipcastle Agency">
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc0f5"/><stop offset="1" stop-color="#0f6fc0"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7cf6a"/><stop offset="1" stop-color="#d9932a"/></linearGradient>
+    <linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa6ec"/><stop offset="1" stop-color="#0d5fae"/></linearGradient>
+  </defs>
+  <!-- C-ring open to the right: blue over the top and left, gold along the bottom (as in the logo) -->
+  <circle cx="32" cy="32" r="22.5" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round" stroke-dasharray="74.6 200" transform="rotate(135 32 32)"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="url(#g)" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="44 200" transform="rotate(35 32 32)"/>
+  <path d="M20.5 19h7.5v10h8V19h7.5v26H36V35h-8v10h-7.5z" fill="url(#h)" stroke="#0a4a8a" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

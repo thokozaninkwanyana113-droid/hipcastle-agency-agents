@@ -65,8 +65,7 @@ export function renderLayout({ preheader = '', heading, blocks = [], signoff = t
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px">
   <tr><td style="background:${C.navy};border-radius:14px 14px 0 0;padding:22px 32px">
     <a href="${esc(canonicalUrl())}" style="text-decoration:none">
-      <img src="${esc(link('/logo.png'))}" width="36" height="36" alt="" style="vertical-align:middle;border:0;border-radius:8px">
-      <span style="vertical-align:middle;margin-left:10px;font:700 20px Georgia,serif;color:#ffffff">${esc(s.business_name)}</span>
+      <img src="${esc(link('/logo.png'))}" width="140" height="90" alt="${esc(s.business_name)}" style="display:block;border:0;width:140px;height:auto;background:#ffffff;border-radius:10px;padding:6px 10px">
     </a>
   </td></tr>
   <tr><td style="background:#ffffff;padding:36px 32px 12px">
