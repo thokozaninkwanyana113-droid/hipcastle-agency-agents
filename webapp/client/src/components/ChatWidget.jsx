@@ -198,14 +198,15 @@ export default function ChatWidget() {
     <>
       {!open && (
         <button ref={launcherRef} className="chat-launcher" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded="false">
-          <span className="chat-launcher__icon" aria-hidden="true">💬</span>
+          <img className="chat-launcher__icon" src="/favicon.svg" width="30" height="30" alt="" aria-hidden="true" />
           <span>Ask Hipcastle</span>
         </button>
       )}
       {open && (
         <section className="chat" role="dialog" aria-modal="false" aria-labelledby="chat-title">
           <header className="chat__head">
-            <div>
+            <img className="chat__avatar" src="/favicon.svg" width="38" height="38" alt="" aria-hidden="true" />
+            <div className="chat__title">
               <h2 id="chat-title">Ask Hipcastle</h2>
               <p>{status?.mode === 'ai' ? 'AI assistant · answers from our published services & policies' : 'Instant answers from our help centre'}</p>
             </div>

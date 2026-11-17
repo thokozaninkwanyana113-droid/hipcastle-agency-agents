@@ -271,6 +271,20 @@ To restore, download the newest `hipcastle-*.db.gz`, `gunzip` it, stop the app, 
 - An error boundary keeps a crash on one page from blanking the site, and reports the crash to the server.
 - The portal, checkout and Command Centre are split into chunks that load on demand. A visitor's first load is about 20% smaller.
 
+## Brand assets
+
+`client/public` holds the brand assets:
+
+| File | What it is |
+|---|---|
+| `brand/hipcastle-logo{,-128,-192}.{png,webp}` | The full logo, transparent, at several sizes. |
+| `logo.png` | Used in emails and as the Organization logo for search engines. |
+| `favicon.svg` | The icon mark: the logo's blue/gold C-ring with an "H". |
+| `icons/` | Favicon, Apple touch icon and app icons (192, 512 and maskable 512). |
+| `og-image.png` | The 1200×630 social sharing card. |
+
+The logo appears in the header, the footer, emails, the Command Centre sidebar, the assistant, the hero and the client portal. The logo blue is available as `--brand-blue` (links use the AA-safe `--brand-blue-text`).
+
 ## Quick start
 
 Requires **Node.js 22.13 or later**.

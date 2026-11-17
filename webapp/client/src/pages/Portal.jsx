@@ -38,7 +38,7 @@ export default function Portal() {
         <ErrorBox error={error} />
         {orders && mine.length === 0 && (
           <div className="card empty-state">
-            <span>🏰</span>
+            <img src="/favicon.svg" width="64" height="64" alt="" />
             <h2>No engagements yet</h2>
             <p>Pick a service and tier to get your first project underway.</p>
             <Link to="/services" className="btn btn--primary">Browse services</Link>
