@@ -74,6 +74,8 @@ async function streamChat(payload, on) {
     const data = await res.json().catch(() => ({}));
     throw new ApiError(data.error || 'The assistant is unavailable right now.', res.status);
   }
+  const redacted = res.headers.get('X-Content-Redacted');
+  if (redacted) window.dispatchEvent(new CustomEvent('hipcastle:redacted', { detail: redacted.split(',') }));
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = '';

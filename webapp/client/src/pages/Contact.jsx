@@ -1,3 +1,4 @@
+import BookingEmbed from '../components/BookingEmbed.jsx';
 import { siteHost, siteUrl } from '../siteUrl.js';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -61,6 +62,7 @@ export default function Contact() {
             <a className="contact-card" href="/"><Icon name="globe" size={26} /><strong>Website</strong><span>{siteHost()}</span></a>
           </div>
         </div>
+        {site.booking_url && <div className="container mt-lg"><BookingEmbed url={site.booking_url} /></div>}
         <div className="container layout-sidebar layout-sidebar--left mt-lg">
           <aside className="sidebar">
             <div className="card contact-info">

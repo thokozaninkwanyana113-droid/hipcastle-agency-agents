@@ -12,7 +12,8 @@ export const signToken = (user) => jwt.sign({ sub: user.id, role: user.role, tv:
 /** Invalidate all existing sessions for a user; returns the updated user row. */
 export const revokeSessions = (userId) => row(db.prepare('UPDATE users SET token_version = token_version + 1 WHERE id = ? RETURNING *').get(userId));
 
-export const publicUser = (u) => u && ({ id: u.id, name: u.name, email: u.email, company: u.company, phone: u.phone, role: u.role, created_at: u.created_at });
+export const publicUser = (u) => u && ({ id: u.id, name: u.name, email: u.email, company: u.company, phone: u.phone, role: u.role, created_at: u.created_at,
+  billing_address: u.billing_address || '', vat_number: u.vat_number || '' });
 
 export function authenticate(req, res, next) {
   const header = req.headers.authorization || '';

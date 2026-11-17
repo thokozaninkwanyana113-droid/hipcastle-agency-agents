@@ -59,7 +59,7 @@ export function buildChunks() {
     `Email ${s.email}${s.phone ? `, call ${s.phone}` : ''}${s.whatsapp ? `, or WhatsApp https://wa.me/${s.whatsapp}` : ''}. Office hours: ${s.office_hours}. Website: ${canonicalUrl()}. You can book a free 30-minute strategy session on the Contact page — a strategist replies within one business day.`,
     { keywords: 'contact email phone call whatsapp hours reach talk human person strategy session book consultation', link: '/contact' }));
   out.push(chunk('free-session', 'support', 'Is the strategy session really free?',
-    `Yes. The 30-minute strategy session is free and there is no obligation. Request it on the Contact page (or ask the chatbot to put you in touch). We review your goals, then recommend a package with a fixed rand price.`,
+    `Yes. The 30-minute strategy session is free and there is no obligation. Request it on the Contact page (or ask the chatbot to put you in touch). We review your goals, then recommend a package with a fixed rand price.${s.booking_url ? ` You can pick a time straight away on the Contact page (online booking).` : ''}`,
     { keywords: 'free consultation strategy session call meeting obligation quote', link: '/contact' }));
 
   // ---------------------------------------------------------------- services
@@ -136,6 +136,15 @@ ${CARE_TERMS.map((t) => `- ${t}`).join('\n')}`,
   out.push(chunk('payment-issues', 'payments', 'My payment failed or I cancelled it — what now?',
     `No money is taken for a failed or cancelled payment. Go back to your engagement in the portal and press Pay again, optionally with a different method. A new attempt can start once the previous one has finished (or after 30 minutes). If you were charged but the invoice still shows unpaid, open a support ticket with the payment reference and we'll reconcile it.`,
     { keywords: 'payment failed declined error cancelled charged twice double unpaid problem', link: '/portal' }));
+  out.push(chunk('autopay', 'payments', 'Can retainers and care plans be paid automatically each month?',
+    `Yes. When you pay a monthly invoice (retainer or care plan) with PayFast, tick "Pay automatically every month": your card is saved securely by PayFast (we never see it) and the same amount is charged each month, settling that month's invoice automatically — you still get the invoice and a receipt. You can stop automatic payments any time in your client portal; ending the engagement stops them too. Instant EFT (Ozow) and normal EFT are paid manually each month.`,
+    { keywords: 'automatic monthly payment debit order recurring card subscription autopay stop cancel retainer care plan', link: '/portal' }));
+  out.push(chunk('agreement', 'policies', 'Do I sign a contract or service agreement?',
+    `For once-off packages from ${rand(Number(s.agreement_min_cents ?? 1500000))}${s.agreement_for_retainers ? ' and for monthly retainers' : ''}, you review and sign a short, plain-language service agreement in your client portal before the first payment — scope, fees, deliverable approvals, ownership of the work (yours once paid in full), confidentiality and POPIA, cancellation and liability. You sign electronically by typing your name (valid under the Electronic Communications and Transactions Act), and a copy is emailed to you. Smaller packages and care plans are covered by the terms you accept at checkout.`,
+    { keywords: 'contract agreement sign signature terms legal scope ownership intellectual property ip ecta', link: '/terms' }));
+  out.push(chunk('tax-invoice', 'pricing', 'Do I get a proper tax invoice?',
+    `Yes. Every invoice can be viewed and printed (or saved as PDF) from your client portal${s.vat_registered ? ` as a full tax invoice showing our VAT number (${s.vat_no || 'on the invoice'}), your business details and the VAT charged` : ''}. Add your billing address and VAT number in Account settings so they appear on your invoices — SARS requires them on tax invoices over R5 000.`,
+    { keywords: 'tax invoice vat invoice pdf print sars receipt billing address vat number', link: '/account' }));
   out.push(chunk('eft', 'payments', 'Can I pay by normal EFT?',
     `Instant EFT through PayFast or Ozow is fastest and confirms automatically. If you need to pay by normal EFT, contact us for banking details and send proof of payment; we'll mark the invoice paid once it clears.`,
     { keywords: 'eft bank transfer banking details proof of payment manual', link: '/contact' }));
@@ -155,6 +164,9 @@ ${CARE_TERMS.map((t) => `- ${t}`).join('\n')}`,
     { keywords: 'my order status my invoice my project update where is progress account specific', link: '/portal' }));
 
   // ---------------------------------------------------------------- support & policies
+  out.push(chunk('passwords', 'policies', 'How do I give you access to my website or accounts safely?',
+    `${s.secure_share_hint || 'Never send passwords in messages.'} Our system automatically removes passwords, card numbers and ID numbers from messages, tickets, onboarding answers and chat, so please use an invitation (e.g. add hello@ as a user in WordPress, Google, Meta or your hosting) or a one-time password-manager link instead.`,
+    { keywords: 'password login access credentials share safely security bitwarden 1password invite user admin account', link: '/privacy' }));
   out.push(chunk('support', 'support', 'How do I get help as a client?',
     `Open a support ticket from your client portal (Support). Target first-response times: urgent within 4 business hours, high within 1 business day, normal within 2 business days, low within 3 business days. You'll get an email when we reply, and you can rate the help you received once a ticket is resolved. You can also message your team on any engagement.`,
     { keywords: 'support help ticket problem issue bug complaint response time sla', link: '/portal/support' }));

@@ -19,6 +19,9 @@ const FIELD_ORDER = [
   'custom_int1', 'custom_int2', 'custom_int3', 'custom_int4', 'custom_int5',
   'custom_str1', 'custom_str2', 'custom_str3', 'custom_str4', 'custom_str5',
   'email_confirmation', 'confirmation_address', 'payment_method',
+  // Recurring billing (subscriptions) — after the transaction options, per PayFast's attribute order.
+  'subscription_type', 'billing_date', 'recurring_amount', 'frequency', 'cycles',
+  'subscription_notify_email', 'subscription_notify_webhook', 'subscription_notify_buyer',
 ];
 
 /** Signature for an outgoing checkout request (empty fields are excluded). */
@@ -30,7 +33,11 @@ export function checkoutSignature(fields, passphrase) {
   return md5(parts.join('&'));
 }
 
-export function buildCheckout({ reference, amountCents, itemName, description, user, invoiceNumber, returnUrl, cancelUrl, notifyUrl }) {
+/**
+ * @param recurringCents  when set, the payment also creates a monthly subscription (card tokenised);
+ *                        PayFast charges this amount every month from today until cancelled.
+ */
+export function buildCheckout({ reference, amountCents, itemName, description, user, invoiceNumber, returnUrl, cancelUrl, notifyUrl, recurringCents = null }) {
   const cfg = payfastConfig();
   const [first, ...rest] = (user.name || '').trim().split(/\s+/);
   const fields = {
@@ -47,6 +54,13 @@ export function buildCheckout({ reference, amountCents, itemName, description, u
     item_name: itemName.slice(0, 100),
     item_description: description?.slice(0, 255),
     custom_str1: invoiceNumber,
+    ...(recurringCents && {
+      subscription_type: 1,                                  // 1 = subscription
+      billing_date: new Date().toISOString().slice(0, 10),   // first charge today, then monthly
+      recurring_amount: (recurringCents / 100).toFixed(2),
+      frequency: 3,                                          // 3 = monthly
+      cycles: 0,                                             // 0 = until cancelled
+    }),
   };
   for (const k of Object.keys(fields)) if (fields[k] === undefined || fields[k] === '') delete fields[k];
   const ordered = Object.fromEntries(FIELD_ORDER.filter((k) => k in fields).map((k) => [k, fields[k]]));
@@ -92,3 +106,32 @@ export async function isPayfastIp(ip) {
 }
 
 export const PAYFAST_STATUS = { COMPLETE: 'complete', FAILED: 'failed', CANCELLED: 'cancelled', PENDING: 'pending' };
+
+// ---------------------------------------------------------------- Subscriptions API
+// https://api.payfast.co.za — signed with header values + passphrase, keys sorted alphabetically.
+const API = 'https://api.payfast.co.za';
+export function apiSignature(fields, passphrase) {
+  const data = { ...fields };
+  if (passphrase) data.passphrase = passphrase.trim();
+  return md5(Object.keys(data).sort().map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(data[k]).trim())}`).join('&'));
+}
+/** PayFast wants an ISO-8601 timestamp with the local offset, e.g. 2026-11-17T10:00:00+02:00. */
+const isoTimestamp = (d = new Date()) => {
+  const sast = new Date(d.getTime() + 2 * 3600e3);
+  return `${sast.toISOString().slice(0, 19)}+02:00`;
+};
+export function apiHeaders(cfg = payfastConfig(), now = new Date()) {
+  const h = { 'merchant-id': cfg.merchant_id, version: 'v1', timestamp: isoTimestamp(now) };
+  return { ...h, signature: apiSignature(h, cfg.passphrase) };
+}
+async function subscriptionCall(method, token, action) {
+  const cfg = payfastConfig();
+  if (!/^[\w-]{8,64}$/.test(String(token))) throw new Error('Invalid subscription token');
+  const url = `${API}/subscriptions/${encodeURIComponent(token)}/${action}${cfg.host.startsWith('sandbox') ? '?testing=true' : ''}`;
+  const res = await fetch(url, { method, headers: apiHeaders(cfg), signal: AbortSignal.timeout(15_000) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`PayFast ${action} failed (${res.status}): ${body?.data?.message || body?.message || 'unknown error'}`);
+  return body;
+}
+export const cancelSubscription = (token) => subscriptionCall('PUT', token, 'cancel');
+export const fetchSubscription = (token) => subscriptionCall('GET', token, 'fetch');

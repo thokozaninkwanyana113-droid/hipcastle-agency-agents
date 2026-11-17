@@ -1,8 +1,8 @@
 import { api } from './api.js';
 
 /** Start a gateway payment for an invoice. PayFast/Ozow require a browser form POST to their site. */
-export async function startPayment(invoiceId, gateway, navigate) {
-  const res = await api('/payments/checkout', { method: 'POST', body: { invoice_id: invoiceId, gateway } });
+export async function startPayment(invoiceId, gateway, navigate, { autopay = false } = {}) {
+  const res = await api('/payments/checkout', { method: 'POST', body: { invoice_id: invoiceId, gateway, autopay } });
   if (res.redirect) return navigate(res.redirect);
   const form = document.createElement('form');
   form.method = res.form.method;

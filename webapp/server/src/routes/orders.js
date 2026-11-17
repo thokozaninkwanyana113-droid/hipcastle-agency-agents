@@ -1,4 +1,9 @@
 import { attributionFrom } from '../analytics.js';
+import { cancelAutopay } from '../payments/autopay.js';
+import { guardFields } from '../guard.js';
+import { agreementSummary, createAgreement, getAgreement, signAgreement } from '../agreements.js';
+import { agreementSigned } from '../email/agreement-notify.js';
+import { invoiceDocument } from '../accounting/invoice-doc.js';
 import { careOfferFor, careUsage, supportEndsAt } from '../careops.js';
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
@@ -43,7 +48,8 @@ r.post('/', body(z.object({
   tier_id: z.number().int().positive(),
   brief: z.string().trim().min(20, 'Please describe your project in at least 20 characters').max(5000),
   covers_order_id: z.number().int().positive().nullable().optional(),
-})), (req, res) => {
+  accept_terms: z.boolean().optional(),
+})), guardFields('brief'), (req, res) => {
   const settings = getSettings();
   if (!settings.orders_enabled) return res.status(503).json({ error: 'We are not taking new online orders right now — please contact us.' });
   const tier = row(db.prepare(`SELECT st.*, s.name AS service_name FROM service_tiers st JOIN services s ON s.id = st.service_id
@@ -74,6 +80,7 @@ r.post('/', body(z.object({
       .run(ref('INV'), o.id, subtotal, vat, subtotal + vat, tier.billing === 'once' ? 'Deposit (50%)' : tier.plan === 'care' ? 'Care plan — first month (in advance)' : 'First month (in advance)');
     return o;
   });
+  createAgreement(order.id, { acceptedAtCheckout: req.body.accept_terms === true, user: req.user, ip: req.ip, agent: req.get('user-agent') });
   logEvent('order.created', `${req.user.name} ordered ${tier.service_name} — ${tier.name} (${order.reference})`, { actor: req.user.id, ref: order.reference });
   onOrderCreated(order.id);
   res.status(201).json(order);
@@ -99,18 +106,63 @@ r.get('/:id', (req, res) => {
     FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.order_id = ? ORDER BY p.created_at DESC, p.id DESC`).all(o.id));
   o.messages = rows(db.prepare(`SELECT m.*, u.name AS author_name, u.role AS author_role
     FROM messages m JOIN users u ON u.id = m.author_id WHERE m.order_id = ? ORDER BY m.created_at, m.id`).all(o.id));
+  o.agreement = agreementSummary(getAgreement(o.id), isStaff(req.user));
   if (o.plan === 'care') o.care_usage = careUsage(o.id);
   else { o.care_offer = careOfferFor(o); o.support_ends_at = supportEndsAt(o); }
   res.json(o);
 });
 
-r.post('/:id/messages', body(z.object({ body: z.string().trim().min(1).max(5000) })), (req, res) => {
+r.post('/:id/messages', body(z.object({ body: z.string().trim().min(1).max(5000) })), guardFields('body'), (req, res) => {
   const o = loadOrder(req, res);
   if (!o) return;
   const m = row(db.prepare(`INSERT INTO messages (order_id, author_id, body) VALUES (?, ?, ?) RETURNING *`)
     .get(o.id, req.user.id, req.body.body));
   onMessage(o.id, req.user, req.body.body);
   res.status(201).json({ ...m, author_name: req.user.name, author_role: req.user.role });
+});
+
+// Service agreement: read and sign (electronic signature under ECTA).
+r.get('/:id/agreement', (req, res) => {
+  const o = loadOrder(req, res);
+  if (!o) return;
+  const a = getAgreement(o.id);
+  if (!a) return res.status(404).json({ error: 'No agreement for this engagement' });
+  res.json({ ...agreementSummary(a, isStaff(req.user)), document: a.document, order_reference: o.reference });
+});
+r.post('/:id/agreement/sign', body(z.object({
+  full_name: z.string().trim().min(3, 'Type your full name to sign').max(120),
+  title: z.string().trim().max(80).optional().default(''),
+  accept: z.literal(true, { message: 'Tick the box to confirm you agree' }),
+})), (req, res) => {
+  const o = loadOrder(req, res);
+  if (!o) return;
+  if (o.user_id !== req.user.id) return res.status(403).json({ error: 'Only the client can sign this agreement' });
+  try {
+    const a = signAgreement(o.id, { user: req.user, full_name: req.body.full_name, title: req.body.title, ip: req.ip, agent: req.get('user-agent') });
+    agreementSigned(o.id);
+    res.json(agreementSummary(a));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Printable invoice / SA tax invoice.
+r.get('/:id/invoices/:invoiceId', (req, res) => {
+  const o = loadOrder(req, res);
+  if (!o) return;
+  const doc = invoiceDocument(id(req.params.invoiceId));
+  if (!doc || doc.order_id !== o.id) return res.status(404).json({ error: 'Invoice not found' });
+  res.json(doc);
+});
+
+// Stop automatic monthly card payments (client or staff).
+r.post('/:id/autopay/cancel', async (req, res) => {
+  const o = loadOrder(req, res);
+  if (!o) return;
+  try {
+    await cancelAutopay(o.id, { actor: req.user.id, reason: `by ${req.user.name}` });
+    res.json(row(db.prepare(`${ORDER_SELECT} WHERE o.id = ?`).get(o.id)));
+  } catch (err) {
+    res.status(502).json({ error: `PayFast could not cancel the subscription right now: ${err.message}. Please try again, or contact us.` });
+  }
 });
 
 r.post('/:id/cancel', (req, res) => {
@@ -143,6 +195,11 @@ r.patch('/:id', requireRole('admin', 'staff'), body(z.object({
   db.prepare(`UPDATE orders SET status = ?, progress = ?, assigned_to = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(b.status ?? o.status, progress, b.assigned_to !== undefined ? b.assigned_to : o.assigned_to,
       b.due_date !== undefined ? b.due_date : o.due_date, o.id);
+  // Ending an engagement stops its automatic monthly payments.
+  if (['cancelled', 'completed'].includes(b.status) && o.autopay_status === 'active') {
+    cancelAutopay(o.id, { actor: req.user.id, reason: `engagement ${b.status}` })
+      .catch((err) => logEvent('autopay.cancel_failed', `${o.reference}: could not cancel PayFast subscription — cancel it in the PayFast dashboard (${err.message})`, { ref: o.reference, level: 'error' }));
+  }
   // A project marked completed by hand counts as delivered: starts its free-support window (and care offer).
   if (b.status === 'completed') db.prepare("UPDATE orders SET delivered_at = COALESCE(delivered_at, datetime('now')) WHERE id = ?").run(o.id);
   if (b.status && b.status !== o.status) onOrderStatus(o.id, b.status);
@@ -161,7 +218,7 @@ const detail = (o) => ({ milestones: P.milestonesOf(o.id), onboarding: P.onboard
 // Client (or staff on their behalf) answers onboarding questions / confirms checklist items.
 r.post('/:id/onboarding', body(z.object({
   responses: z.array(z.object({ key: z.string().max(60), response: z.string().max(4000) })).min(1).max(40),
-})), (req, res) => {
+})), guardFields('responses[].response'), (req, res) => {
   const o = loadOrder(req, res);
   if (!o) return;
   if (o.status === 'cancelled') return res.status(409).json({ error: 'This engagement is cancelled' });

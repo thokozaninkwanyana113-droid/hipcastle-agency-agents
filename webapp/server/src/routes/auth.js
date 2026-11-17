@@ -56,6 +56,8 @@ r.patch('/me', authenticate, body(z.object({
   name: z.string().trim().min(2).max(100).optional(),
   company: z.string().trim().max(150).optional(),
   phone: z.string().trim().max(40).optional(),
+  billing_address: z.string().trim().max(300).optional(),
+  vat_number: z.string().trim().regex(/^(4\d{9})?$/, { message: 'SA VAT numbers are 10 digits starting with 4' }).optional(),
   currentPassword: z.string().optional(),
   newPassword: password.optional(),
 })), (req, res) => {
@@ -68,8 +70,8 @@ r.patch('/me', authenticate, body(z.object({
     }
     hash = bcrypt.hashSync(b.newPassword, 10);
   }
-  let updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, password_hash = ? WHERE id = ? RETURNING *')
-    .get(b.name ?? u.name, b.company ?? u.company, b.phone ?? u.phone, hash, u.id));
+  let updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, billing_address = ?, vat_number = ?, password_hash = ? WHERE id = ? RETURNING *')
+    .get(b.name ?? u.name, b.company ?? u.company, b.phone ?? u.phone, b.billing_address ?? u.billing_address, b.vat_number ?? u.vat_number, hash, u.id));
   if (b.newPassword) {
     // A new password signs out every other session; this one gets a fresh token.
     updated = revokeSessions(u.id);

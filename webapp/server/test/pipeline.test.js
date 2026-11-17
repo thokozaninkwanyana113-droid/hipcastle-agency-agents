@@ -140,6 +140,7 @@ test('project pipeline: onboarding → approvals with revision limits → launch
 test('retainer pipeline: setup + monthly cycles with invoices', async () => {
   const tier = await tierOf('marketing', 'growth');
   const order = (await call('POST', '/orders', { token: client, body: { tier_id: tier.id, brief: 'Grow our Instagram and local SEO in Gauteng.' } })).data;
+  await call('POST', `/orders/${order.id}/agreement/sign`, { token: client, body: { full_name: 'Demo Client', accept: true } });
   await payFirstInvoice(order.id, client);
   let d = (await call('GET', `/orders/${order.id}`, { token: client })).data;
   assert.equal(d.pipeline_kind, 'retainer');

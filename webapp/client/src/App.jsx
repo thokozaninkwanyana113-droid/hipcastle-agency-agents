@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import RedactionNotice from './components/RedactionNotice.jsx';
 import { trackPage } from './analytics.js';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from './components/Header.jsx';
@@ -18,6 +19,7 @@ const Checkout = lazy(() => import('./pages/Checkout.jsx'));
 const Portal = lazy(() => import('./pages/Portal.jsx'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Account = lazy(() => import('./pages/Account.jsx'));
+const InvoiceView = lazy(() => import('./pages/InvoiceView.jsx'));
 const CommandCentre = lazy(() => import('./pages/admin/CommandCentre.jsx'));
 import Testimonials from './pages/Testimonials.jsx';
 import Blog from './pages/Blog.jsx';
@@ -81,6 +83,7 @@ export default function App() {
           <Route path="/checkout/:tierId" element={<RequireAuth><Checkout /></RequireAuth>} />
           <Route path="/portal" element={<RequireAuth><Portal /></RequireAuth>} />
           <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/portal/orders/:id/invoices/:invoiceId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
           <Route path="/portal/support" element={<RequireAuth><SupportList /></RequireAuth>} />
           <Route path="/portal/support/:id" element={<RequireAuth><SupportTicket /></RequireAuth>} />
@@ -92,6 +95,7 @@ export default function App() {
       </main>
       {!pathname.startsWith('/admin') && <Footer />}
       {CHAT_PAGES.includes(pathname) ? <ChatWidget /> : <WhatsAppButton />}
+      <RedactionNotice />
     </div>
   );
 }

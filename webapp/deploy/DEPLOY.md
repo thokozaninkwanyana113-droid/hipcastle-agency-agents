@@ -60,6 +60,7 @@ The workflow [`.github/workflows/deploy-fly.yml`](../../.github/workflows/deploy
    - `FLY_API_TOKEN`: the org token
    - `ADMIN_PASSWORD`: the password for `admin@hipcastle.agency`, at least 10 characters (the server refuses to start in production without it)
    - optional: `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` to turn on Cloudflare Turnstile bot protection
+   - optional: `XERO_CLIENT_ID` and `XERO_CLIENT_SECRET` to sync invoices and payments to Xero (then Command Centre → Integrations → Connect Xero)
    - recommended: `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` for off-site backups (repository *variables* `BACKUP_S3_REGION` / `BACKUP_S3_ENDPOINT` for AWS Cape Town or Cloudflare R2), and `ALERT_WEBHOOK_URL` for chat alerts
    - optional: `ANTHROPIC_API_KEY` to switch the homepage assistant from FAQ mode to AI answers (repository *variables* `CHATBOT_MODEL` and `CHATBOT_EFFORT` tune it)
    - optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, PayFast and Ozow keys (they can be added later; just re-run the workflow)

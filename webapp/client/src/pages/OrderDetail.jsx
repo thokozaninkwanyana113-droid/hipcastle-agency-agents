@@ -1,4 +1,5 @@
 import { CareSection, CareUsage } from '../components/Care.jsx';
+import AgreementPanel from '../components/AgreementPanel.jsx';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -97,6 +98,8 @@ export default function OrderDetail() {
           </div>
         )}
 
+        <AgreementPanel order={o} canSign={isClient} onSigned={reload} />
+
         {o.care_usage && <div className="card"><CareUsage usage={o.care_usage} /></div>}
 
         {o.status === 'completed' && isClient && <FeedbackPanel order={o} onSaved={reload} />}
@@ -133,19 +136,30 @@ export default function OrderDetail() {
           </div>
           <div className="card">
             <h2>Invoices</h2>
+            {o.autopay_status === 'active' && (
+              <div className="autopay">
+                <span>🔁 <strong>Automatic monthly payments on</strong> — {moneyExact(o.autopay_amount_cents)} charged to your card via PayFast each month{o.autopay_since && ` since ${date(o.autopay_since)}`}.</span>
+                {(isClient || isStaff) && <button className="btn btn--text btn--sm" disabled={busy} onClick={() => {
+                  if (window.confirm('Stop automatic monthly payments? Future invoices will need to be paid manually.')) run(() => api(`/orders/${o.id}/autopay/cancel`, { method: 'POST' }));
+                }}>Stop automatic payments</button>}
+              </div>
+            )}
+            {o.autopay_status === 'cancelled' && <p className="muted small">Automatic payments were stopped — monthly invoices are paid manually.</p>}
             {outstanding.length > 0 && <p className="muted small">{money(outstanding.reduce((a, i) => a + i.amount_cents, 0))} outstanding</p>}
             <ul className="invoices">
               {o.invoices.map((inv) => (
                 <li key={inv.id}>
                   <div>
-                    <strong>{inv.number}</strong>{inv.description && <span className="muted"> · {inv.description}</span>}
+                    <strong><Link to={`/portal/orders/${o.id}/invoices/${inv.id}`} title="View / print invoice">{inv.number}</Link></strong>{inv.description && <span className="muted"> · {inv.description}</span>}
                     <small>Issued {date(inv.issued_at)} · due {date(inv.due_at)}{inv.vat_cents > 0 && ` · incl. VAT ${moneyExact(inv.vat_cents)}`}</small>
                   </div>
                   <div className="invoices__side">
                     <span>{moneyExact(inv.amount_cents)}</span>
                     <Status value={inv.status} />
                   </div>
-                  {inv.status === 'unpaid' && o.user_id === user.id && <div className="invoices__pay"><PayButton invoice={inv} onError={setActionError} /></div>}
+                  {inv.status === 'unpaid' && o.user_id === user.id && (o.agreement?.requires_signature && o.agreement.status !== 'signed'
+                    ? <div className="invoices__pay"><a className="btn btn--outline btn--sm" href="#agreement">Sign the agreement to pay</a></div>
+                    : <div className="invoices__pay"><PayButton invoice={inv} order={o} onError={setActionError} /></div>)}
                 </li>
               ))}
             </ul>

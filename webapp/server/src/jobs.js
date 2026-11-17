@@ -12,6 +12,7 @@ import { slaDigest } from './email/support-notify.js';
 import { offerCarePlans } from './careops.js';
 import { offsiteConfig, uploadBackup } from './offsite.js';
 import { pruneVisitors } from './analytics.js';
+import { syncAccounting } from './accounting/sync.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -90,6 +91,11 @@ const definitions = [
     id: 'care-offers', name: 'Care plan offers', every: 6 * HOUR,
     description: 'Seven days before a delivered project’s free post-launch support ends, emails the client the matching care plans (once per project).',
     run: () => offerCarePlans(),
+  },
+  {
+    id: 'accounting-sync', name: 'Accounting sync (Xero)', every: 15 * MIN,
+    description: 'Pushes new invoices, payments and voided invoices to Xero once each (contacts created as needed). Failures retry up to 5 times and alert the team.',
+    run: () => syncAccounting(),
   },
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,
