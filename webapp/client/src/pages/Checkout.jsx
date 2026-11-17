@@ -49,8 +49,8 @@ export default function Checkout() {
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
-      const order = await api('/orders', { method: 'POST', body: { tier_id: tier.id, brief, covers_order_id: care && covers ? Number(covers) : null } });
-      navigate(`/portal/orders/${order.id}?new=1`);
+      const order = await api('/orders', { method: 'POST', body: { tier_id: tier.id, brief, covers_order_id: care && covers ? Number(covers) : null, accept_terms: agree } });
+      navigate(`/portal/orders/${order.id}?new=1#agreement`);
     } catch (e2) { setErr(e2.fields?.brief ? { message: e2.fields.brief } : e2); setBusy(false); }
   };
 

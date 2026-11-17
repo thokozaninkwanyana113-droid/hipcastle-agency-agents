@@ -8,6 +8,9 @@ import { availableGateways, notifyBase, ozowConfig, payfastConfig, siteUrl } fro
 import * as payfast from '../payments/payfast.js';
 import * as ozow from '../payments/ozow.js';
 import { applyPaymentStatus, findPayment, newReference } from '../payments/service.js';
+import { activateAutopay, applyRecurringCharge, orderByToken } from '../payments/autopay.js';
+import { startNextCycle } from '../pipeline.js';
+import { agreementBlocksPayment } from '../agreements.js';
 
 const r = Router();
 const formBody = express.text({ type: 'application/x-www-form-urlencoded', limit: '50kb' });
@@ -20,12 +23,16 @@ r.post('/checkout', authenticate, body(z.object({
   invoice_id: z.number().int().positive(),
   gateway: z.enum(['payfast', 'ozow', 'simulated']),
   force: z.boolean().optional(),
+  autopay: z.boolean().optional().default(false),
 })), (req, res) => {
-  const inv = row(db.prepare(`SELECT i.*, o.user_id, o.reference AS order_ref, s.name AS service_name, st.name AS tier_name
+  const inv = row(db.prepare(`SELECT i.*, o.user_id, o.reference AS order_ref, o.autopay_status, st.billing, s.name AS service_name, st.name AS tier_name
     FROM invoices i JOIN orders o ON o.id = i.order_id JOIN service_tiers st ON st.id = o.tier_id
     JOIN services s ON s.id = st.service_id WHERE i.id = ?`).get(req.body.invoice_id));
   if (!inv || (inv.user_id !== req.user.id && !isStaff(req.user))) return res.status(404).json({ error: 'Invoice not found' });
   if (inv.status !== 'unpaid') return res.status(409).json({ error: `Invoice is already ${inv.status}` });
+  if (agreementBlocksPayment(inv.order_id)) {
+    return res.status(409).json({ error: 'Please review and sign the service agreement before paying.', code: 'agreement_required' });
+  }
   // Prevent double payments: refuse a new checkout while another one for this invoice may still complete.
   const inFlight = db.prepare(`SELECT reference FROM payments WHERE invoice_id = ? AND status IN ('initiated','pending')
     AND created_at > datetime('now','-30 minutes')`).get(inv.id);
@@ -36,6 +43,13 @@ r.post('/checkout', authenticate, body(z.object({
     return res.status(400).json({ error: 'That payment method is not available right now' });
   }
 
+  // Automatic monthly payments: PayFast card subscriptions, for monthly engagements only.
+  if (req.body.autopay) {
+    if (req.body.gateway !== 'payfast') return res.status(400).json({ error: 'Automatic monthly payments are only available with PayFast (card).' });
+    if (inv.billing !== 'monthly') return res.status(400).json({ error: 'Automatic payments are for monthly retainers and care plans.' });
+    if (inv.autopay_status === 'active') return res.status(409).json({ error: 'Automatic monthly payments are already on for this engagement.' });
+    if (inv.user_id !== req.user.id) return res.status(403).json({ error: 'Only the client can set up automatic payments.' });
+  }
   const reference = newReference();
   const gateway = req.body.gateway;
   db.prepare(`INSERT INTO payments (reference, invoice_id, user_id, gateway, amount_cents, is_test) VALUES (?, ?, ?, ?, ?, ?)`)
@@ -52,7 +66,9 @@ r.post('/checkout', authenticate, body(z.object({
       reference, amountCents: inv.amount_cents, itemName, description: `${inv.number} — ${inv.description || inv.order_ref}`,
       user: req.user, invoiceNumber: inv.number,
       returnUrl: back(), cancelUrl: back('cancelled'), notifyUrl: `${notifyBase()}/api/payments/payfast/notify`,
+      recurringCents: req.body.autopay ? inv.amount_cents : null,
     });
+    if (req.body.autopay) db.prepare("UPDATE payments SET status_message = 'autopay requested' WHERE reference = ?").run(reference);
     return res.status(201).json({ reference, gateway, form });
   }
 
@@ -109,14 +125,28 @@ r.post('/payfast/notify', formBody, async (req, res) => {
   try {
     const cfg = payfastConfig();
     if (!payfast.verifyItnSignature(itn)) return fail('invalid signature');
-    const p = ref && findPayment(ref);
-    if (!p || p.gateway !== 'payfast') return fail('unknown payment reference');
     if (itn.data.merchant_id !== cfg.merchant_id) return fail('merchant mismatch');
+    const first = ref && findPayment(ref);
+    // Monthly charges of an active subscription (carry the token; the first payment is already settled).
+    const subOrder = orderByToken(itn.data.token);
+    if (subOrder && (!first || first.status === 'complete')) {
+      if (cfg.checkIp && !(await payfast.isPayfastIp(req.ip))) return fail(`untrusted source IP ${req.ip}`);
+      if (cfg.validateRemote && !(await payfast.validateWithPayfast(itn.paramString))) return fail('PayFast server validation failed');
+      const result = await applyRecurringCharge(subOrder, itn.data, { startNextCycle });
+      return logEvent('payment.itn', `PayFast subscription ITN ${itn.data.payment_status} for ${subOrder.reference}: ${result}`, { ref: subOrder.reference });
+    }
+    const p = first;
+    if (!p || p.gateway !== 'payfast') return fail('unknown payment reference');
     if (Math.abs(Number(itn.data.amount_gross) * 100 - p.amount_cents) > 1) return fail(`amount mismatch (${itn.data.amount_gross})`);
     if (cfg.checkIp && !(await payfast.isPayfastIp(req.ip))) return fail(`untrusted source IP ${req.ip}`);
     if (cfg.validateRemote && !(await payfast.validateWithPayfast(itn.paramString))) return fail('PayFast server validation failed');
     const status = payfast.PAYFAST_STATUS[itn.data.payment_status] || 'pending';
     applyPaymentStatus(p, status, { txnId: itn.data.pf_payment_id, message: itn.data.payment_status, raw: itn.data });
+    // First payment of a subscription: remember the token so later monthly charges settle invoices automatically.
+    if (status === 'complete' && itn.data.token) {
+      const inv = row(db.prepare('SELECT order_id, amount_cents FROM invoices WHERE id = ?').get(p.invoice_id));
+      activateAutopay(inv.order_id, itn.data.token, Math.round(Number(itn.data.recurring_amount || itn.data.amount_gross) * 100) || inv.amount_cents);
+    }
     logEvent('payment.itn', `PayFast ITN ${itn.data.payment_status} for ${ref}`, { ref });
   } catch (err) {
     fail(err.message);

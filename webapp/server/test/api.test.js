@@ -109,6 +109,11 @@ test('client journey with VAT, PayFast ITN and Ozow notification', async () => {
   const design = (await call('GET', '/services/design')).data;
   const growth = design.tiers.find((t) => t.tier === 'growth');
   const order = (await call('POST', '/orders', { token, body: { tier_id: growth.id, brief: 'Full rebrand for our logistics company.' } })).data;
+  // R24 000 package: the service agreement must be signed before paying.
+  const pre = (await call('GET', `/orders/${order.id}`, { token })).data;
+  assert.equal(pre.agreement.requires_signature, true);
+  assert.equal((await call('POST', '/payments/checkout', { token, body: { invoice_id: pre.invoices[0].id, gateway: 'payfast' } })).data.code, 'agreement_required');
+  assert.equal((await call('POST', `/orders/${order.id}/agreement/sign`, { token, body: { full_name: 'Demo Client', accept: true } })).status, 200);
   const detail = (await call('GET', `/orders/${order.id}`, { token })).data;
   const inv = detail.invoices[0];
   assert.equal(inv.subtotal_cents, growth.price_cents / 2);

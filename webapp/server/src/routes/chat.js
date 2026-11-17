@@ -3,6 +3,7 @@ import { db, row, rows } from '../db.js';
 import { body, z } from '../validate.js';
 import { botCheck } from '../botcheck.js';
 import { attributionFrom } from '../analytics.js';
+import { guardFields } from '../guard.js';
 import { logEvent } from '../events.js';
 import { chatHandoff } from '../email/support-notify.js';
 import { answer, chatMode, getOrCreateSession, SUGGESTIONS, transcript } from '../chat.js';
@@ -36,7 +37,7 @@ r.post('/chat', body(z.object({
   session_id: z.string().max(64).optional().default(''),
   message: z.string().trim().min(1).max(800, 'Please keep messages under 800 characters'),
   page: z.string().max(200).optional().default('/'),
-})), async (req, res) => {
+})), guardFields('message'), async (req, res) => {
   const session = getOrCreateSession(req.body.session_id, { ip: req.ip, page: req.body.page });
   if (session.message_count >= 60) return res.status(429).json({ error: 'This conversation is very long — please start a new chat or contact us directly.' });
   res.set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -67,7 +68,7 @@ r.post('/chat/:sid/handoff', botCheck('chat handoff'), body(z.object({
   preferred_contact: z.enum(['email', 'phone', 'whatsapp']).optional().default('email'),
   note: z.string().trim().max(1000).optional().default(''),
   consent: z.literal(true, { message: 'Please agree to be contacted' }),
-})), (req, res) => {
+})), guardFields('note'), (req, res) => {
   const session = row(db.prepare('SELECT * FROM chat_sessions WHERE id = ?').get(req.params.sid));
   if (!session) return res.status(404).json({ error: 'Chat not found' });
   if (session.handoff_lead_id) return res.json({ ok: true, lead_id: session.handoff_lead_id });

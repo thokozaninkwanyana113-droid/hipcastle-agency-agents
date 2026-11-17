@@ -1,4 +1,5 @@
 // Engagement delivery pipeline UI — shared by the client portal and staff (Command Centre) views.
+import { useSite } from '../context/SiteContext.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
@@ -53,6 +54,7 @@ export function OnboardingPanel({ order, items, canEdit, isStaff, onSaved }) {
   const [open, setOpen] = useState(!complete);
   const questions = items.filter((i) => i.kind === 'question');
   const checklist = items.filter((i) => i.kind !== 'question');
+  const site = useSite();
 
   const save = async (e) => {
     e.preventDefault();
@@ -103,6 +105,7 @@ export function OnboardingPanel({ order, items, canEdit, isStaff, onSaved }) {
           <h3>About your business & goals</h3>
           {questions.map(row)}
           <h3 className="mt">Access & assets</h3>
+          <p className="secure-hint">🔐 {site.secure_share_hint || 'Never send passwords in messages — invite us as a user, or share a one-time link from a password manager.'}</p>
           {checklist.map(row)}
           {canEdit && <button className="btn btn--primary" disabled={state.busy}>{state.busy ? 'Saving…' : 'Save onboarding'}</button>}
         </form>

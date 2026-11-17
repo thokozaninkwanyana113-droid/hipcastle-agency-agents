@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT    NOT NULL DEFAULT 'client' CHECK (role IN ('client','staff','admin')),
   token_version INTEGER NOT NULL DEFAULT 0,             -- bump to sign out every session
   attribution   TEXT,                                   -- first-touch JSON when the account was created
+  billing_address TEXT,                                 -- shown on tax invoices
+  vat_number    TEXT,                                   -- client's VAT number (required on tax invoices over R5 000)
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -108,7 +110,11 @@ CREATE TABLE IF NOT EXISTS orders (
   nps_comment   TEXT,
   feedback_at   TEXT,
   covers_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
-  attribution   TEXT,                      -- first-touch JSON of the client when ordering -- care plans: the delivered project being looked after
+  attribution   TEXT,                      -- first-touch JSON of the client when ordering
+  payfast_token TEXT,                      -- PayFast subscription token (automatic monthly card payments)
+  autopay_status TEXT CHECK (autopay_status IN ('active','cancelled')),
+  autopay_amount_cents INTEGER,             -- amount PayFast charges each month (incl. VAT)
+  autopay_since TEXT, -- care plans: the delivered project being looked after
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -215,6 +221,7 @@ CREATE TABLE IF NOT EXISTS payments (
   needs_refund   INTEGER NOT NULL DEFAULT 0,        -- duplicate payment on an already-paid invoice
   refunded_at    TEXT,
   refund_note    TEXT,
+  is_recurring   INTEGER NOT NULL DEFAULT 0,        -- charged automatically by a PayFast subscription
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -375,6 +382,49 @@ CREATE TABLE IF NOT EXISTS analytics_visitors (
   PRIMARY KEY (day, hash)
 );
 
+-- Service agreements (ECTA: electronic signatures are valid for these contracts). The document text is
+-- frozen at creation and its SHA-256 recorded at signing, with who, when and from where.
+CREATE TABLE IF NOT EXISTS agreements (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id      INTEGER NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  version       TEXT NOT NULL,
+  document      TEXT NOT NULL,
+  doc_hash      TEXT NOT NULL,
+  requires_signature INTEGER NOT NULL DEFAULT 1,
+  status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','signed')),
+  method        TEXT CHECK (method IN ('checkout','signature')),
+  signer_name   TEXT,
+  signer_title  TEXT,
+  signer_email  TEXT,
+  signer_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  signed_at     TEXT,
+  signer_ip     TEXT,
+  signer_agent  TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Connected third-party services (e.g. Xero). Tokens are encrypted (AES-256-GCM) with a key derived from JWT_SECRET.
+CREATE TABLE IF NOT EXISTS integrations (
+  provider   TEXT PRIMARY KEY,
+  data       TEXT NOT NULL,                       -- encrypted JSON
+  label      TEXT,                                -- e.g. the Xero organisation name
+  connected_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- What has been pushed to the accounting system (idempotent sync).
+CREATE TABLE IF NOT EXISTS accounting_sync (
+  provider    TEXT NOT NULL,
+  entity      TEXT NOT NULL CHECK (entity IN ('contact','invoice','payment','void')),
+  entity_id   INTEGER NOT NULL,
+  external_id TEXT,
+  status      TEXT NOT NULL DEFAULT 'synced' CHECK (status IN ('synced','failed')),
+  error       TEXT,
+  meta        TEXT,                               -- e.g. the accounting system's invoice total
+  attempts    INTEGER NOT NULL DEFAULT 1,
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (provider, entity, entity_id)
+);
+
 -- Care plans: hands-on time logged against the monthly allowance
 CREATE TABLE IF NOT EXISTS care_time (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -389,6 +439,8 @@ CREATE TABLE IF NOT EXISTS care_time (
 CREATE INDEX IF NOT EXISTS idx_care_time_order ON care_time(order_id, cycle);
 CREATE INDEX IF NOT EXISTS idx_service_tiers_plan ON service_tiers(plan);
 
+CREATE INDEX IF NOT EXISTS idx_orders_payfast_token ON orders(payfast_token);
+CREATE INDEX IF NOT EXISTS idx_payments_txn ON payments(gateway_txn_id);
 CREATE INDEX IF NOT EXISTS idx_emails_status ON emails(status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_emails_created ON emails(created_at);
 CREATE INDEX IF NOT EXISTS idx_tiers_service   ON service_tiers(service_id);

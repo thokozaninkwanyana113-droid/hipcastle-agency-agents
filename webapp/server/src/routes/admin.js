@@ -22,6 +22,8 @@ import { TEMPLATES } from '../email/templates.js';
 import * as P from '../pipeline.js';
 import { PLAYBOOKS, STAGES, buildPlan, REVISIONS } from '../playbooks.js';
 
+export const BOOKING_HOSTS = /(^|\.)(cal\.com|calendly\.com|outlook\.office365\.com|outlook\.office\.com|bookings\.cloud\.microsoft)$/;
+
 const r = Router();
 r.use(authenticate, requireRole('admin', 'staff'));
 
@@ -167,6 +169,7 @@ function dbSize() {
 function warnings() {
   const w = [];
   const s = getSettings();
+  if (s.vat_registered && !s.vat_no) w.push({ level: 'error', message: 'VAT registered but no VAT number set — invoices cannot be valid tax invoices. Add it in Settings.' });
   if (!offsiteConfig().enabled) w.push({ level: 'warn', message: 'Off-site backups are off: set BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY so a lost disk doesn’t lose your data.' });
   if (!process.env.JWT_SECRET) w.push({ level: 'error', message: 'JWT_SECRET is not set — sessions use an insecure development secret.' });
   if (process.env.NODE_ENV !== 'production' && !process.env.SITE_URL) w.push({ level: 'info', message: `Development mode: SEO tags point to ${canonicalUrl()}, payment returns use ${siteUrl()}.` });
@@ -284,6 +287,14 @@ r.put('/settings', requireRole('admin'), body(z.object({
   billing_email: z.string().trim().email(),
   emails_enabled: z.boolean(),
   seo_default_description: z.string().trim().min(50).max(300),
+  xero_sales_account: z.string().trim().regex(/^[\w.-]{1,10}$/, 'Use the account code from your Xero chart of accounts'),
+  xero_bank_account: z.string().trim().regex(/^[\w.-]{1,10}$/, 'Use the account code from your Xero chart of accounts'),
+  xero_tax_type: z.string().trim().regex(/^[A-Z0-9]{2,20}$/, 'A Xero tax type code, e.g. OUTPUT'),
+  accounting_sync_from: z.string().trim().regex(/^(\d{4}-\d{2}-\d{2})?$/, 'Use YYYY-MM-DD or leave blank'),
+  booking_url: z.union([z.literal(''), webUrl().refine((v) => BOOKING_HOSTS.test(new URL(v).hostname), { message: 'Use a Cal.com, Calendly or Microsoft Bookings link' })]),
+  agreement_min_cents: z.number().int().min(0).max(100000000),
+  agreement_for_retainers: z.boolean(),
+  secure_share_hint: z.string().trim().min(20).max(300),
 }).partial()), (req, res) => {
   const before = getSettings();
   const out = updateSettings(req.body);

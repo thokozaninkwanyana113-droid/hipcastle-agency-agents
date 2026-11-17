@@ -31,6 +31,7 @@ export const TEMPLATES = {
           `We’ve received your request for a free strategy session${service ? ` about ${service}` : ''}. A Hipcastle strategist will contact you by ${lead.preferred_contact === 'whatsapp' ? 'WhatsApp' : lead.preferred_contact || 'email'} within one business day.`,
           'Here’s what happens next:',
           { list: ['We review your goals and business', 'A 30-minute discovery call (Google Meet, Teams, phone or WhatsApp)', 'A tailored recommendation with a fixed rand price', 'You pay the deposit securely online and we kick off'] },
+          ...(s.booking_url ? [{ p: 'Skip the back-and-forth — choose a time for your call now:' }, { button: 'Pick a time for my free session', href: s.booking_url }] : []),
           ...(chat ? [{ p: 'In a hurry? Chat to us on WhatsApp:' }, { button: 'Chat on WhatsApp', href: chat }] : []),
           { p: 'While you wait, our free guides may help:' },
           { button: 'Read our guides for SA entrepreneurs', href: '/blog' },
@@ -434,7 +435,9 @@ export const TEMPLATES = {
         `Hi ${first(user.name)}, here’s what your team is working on this month:`,
         { list: milestones.map((m) => m.title.replace(/ \(month \d+\)$/, '')) },
         { table: invoiceTable(invoice) },
-        { button: 'View plan & pay invoice', href: `/portal/orders/${order.id}` },
+        ...(order.autopay_status === 'active'
+          ? [{ note: 'No action needed: this invoice is paid automatically from your card on file (PayFast). You’ll get a receipt.' }, { button: 'View this month’s plan', href: `/portal/orders/${order.id}` }]
+          : [{ button: 'View plan & pay invoice', href: `/portal/orders/${order.id}` }, { p: 'Tip: switch on automatic monthly payments when you pay, so you never have to remember.' }]),
       ],
       reason: 'Billing and project update for your Hipcastle retainer.',
       billing: true,
@@ -614,6 +617,25 @@ export const TEMPLATES = {
     }),
     sample: { lead: { name: 'Sipho Ndlovu', email: 'sipho@example.com', phone: '', preferred_contact: 'email', message: 'Can you build a booking system for my salon?' },
       transcript: [{ role: 'user', content: 'Do you build booking systems?' }, { role: 'assistant', content: 'Yes — our Web & App Development packages…' }] },
+  },
+  'agreement.signed': {
+    audience: 'Client & Team', description: 'Copy of a signed service agreement',
+    build: ({ user, order, agreement, team }) => ({
+      subject: `${team ? '✍️ Signed: ' : 'Your signed agreement — '}${order.reference} (${order.service_name} — ${order.tier_name})`,
+      preheader: `Signed by ${agreement.signer_name} on ${agreement.signed_at} SAST/UTC.`,
+      heading: team ? `${user.name} signed the service agreement` : 'Your service agreement is signed',
+      blocks: [
+        ...(team ? [] : [`Thanks, ${first(user.name)}. Here’s a copy for your records. You can now pay the first invoice and we’ll get started.`]),
+        { table: [['Engagement', `${order.reference} — ${order.service_name} (${order.tier_name})`], ['Signed by', `${agreement.signer_name}${agreement.signer_title ? `, ${agreement.signer_title}` : ''}`],
+          ['Signed at (UTC)', agreement.signed_at], ['Document fingerprint (SHA-256)', agreement.doc_hash.slice(0, 32) + '…'], ['Version', agreement.version]] },
+        { quote: agreement.document },
+        { button: team ? 'Open in Command Centre' : 'Go to your engagement', href: `/portal/orders/${order.id}` },
+      ],
+      signoff: !team,
+      reason: 'Contract record for your Hipcastle engagement.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-1E1AC5', service_name: 'Software Engineering', tier_name: 'Growth' },
+      agreement: { signer_name: 'Thandi Mokoena', signer_title: 'Owner', signed_at: '2026-11-17 09:30:00', doc_hash: 'a3f1c2…'.padEnd(64, '0'), version: '2026-11', document: 'SERVICE AGREEMENT — HC-1E1AC5\n\n1. PARTIES …' } },
   },
   'system.alert': {
     audience: 'Team', description: 'Something broke: server error, crashed job or failed backup (throttled)',

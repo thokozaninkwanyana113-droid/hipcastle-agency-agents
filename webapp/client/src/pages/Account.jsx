@@ -6,13 +6,13 @@ import Seo from '../components/Seo.jsx';
 
 export default function Account() {
   const { user, setUser } = useAuth();
-  const [form, setForm] = useState({ name: user.name, company: user.company || '', phone: user.phone || '', currentPassword: '', newPassword: '' });
+  const [form, setForm] = useState({ name: user.name, company: user.company || '', phone: user.phone || '', billing_address: user.billing_address || '', vat_number: user.vat_number || '', currentPassword: '', newPassword: '' });
   const [state, setState] = useState({ msg: '', error: '', fields: {} });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
-    const body = { name: form.name, company: form.company, phone: form.phone };
+    const body = { name: form.name, company: form.company, phone: form.phone, billing_address: form.billing_address, vat_number: form.vat_number.replace(/\s/g, '') };
     if (form.newPassword) Object.assign(body, { currentPassword: form.currentPassword, newPassword: form.newPassword });
     try {
       const { token, ...u } = await api('/auth/me', { method: 'PATCH', body });
@@ -42,6 +42,8 @@ export default function Account() {
         <Field label="Name" error={state.fields.name}><input className="input" value={form.name} onChange={set('name')} /></Field>
         <Field label="Company"><input className="input" value={form.company} onChange={set('company')} /></Field>
         <Field label="Phone"><input className="input" value={form.phone} onChange={set('phone')} /></Field>
+        <Field label="Billing address" hint="Shown on your tax invoices (required by SARS on invoices over R5 000)."><textarea className="input" rows={2} maxLength={300} value={form.billing_address} onChange={set('billing_address')} /></Field>
+        <Field label="Your VAT number (if VAT registered)" error={state.fields.vat_number}><input className="input" inputMode="numeric" placeholder="4xxxxxxxxx" value={form.vat_number} onChange={set('vat_number')} /></Field>
         <hr />
         <Field label="Current password"><input className="input" type="password" autoComplete="current-password" value={form.currentPassword} onChange={set('currentPassword')} /></Field>
         <Field label="New password" error={state.fields.newPassword} hint="Leave blank to keep your current password"><input className="input" type="password" autoComplete="new-password" value={form.newPassword} onChange={set('newPassword')} /></Field>

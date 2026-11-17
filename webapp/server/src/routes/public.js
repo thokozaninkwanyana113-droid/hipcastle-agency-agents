@@ -16,6 +16,7 @@ import { confirmUrl, verifyConfirm, verifyUnsubscribe } from '../email/mailer.js
 import express from 'express';
 import { CARE, CARE_EXTRA_HOUR_CENTS, CARE_TERMS } from '../care.js';
 import { attributionFrom, classify, isBot, track } from '../analytics.js';
+import { guardFields } from '../guard.js';
 import { canonicalUrl } from '../urls.js';
 
 const REPO_ROOT = process.env.AGENTS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -186,7 +187,7 @@ r.post('/leads', botCheck('contact'), body(z.object({
   source: z.string().trim().max(60).optional().default(''),
   message: z.string().trim().min(10, 'Please tell us a little more (at least 10 characters)').max(5000),
   consent: z.literal(true, { message: 'Please agree to be contacted' }),
-})), (req, res) => {
+})), guardFields('message'), (req, res) => {
   const b = req.body;
   const svc = b.service ? db.prepare('SELECT id, name FROM services WHERE slug = ?').get(b.service) : null;
   const attr = attributionFrom(req, new URL(canonicalUrl()).hostname);

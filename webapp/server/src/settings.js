@@ -3,7 +3,19 @@
 import { db } from './db.js';
 
 export const DEFAULT_SETTINGS = {
-  catalog_prices_version: 1,                 // see PRICE_REVISION in catalog.js
+  catalog_prices_version: 1,
+  // Accounting (Xero) — account codes from your chart of accounts
+  xero_sales_account: '200',                 // revenue account for sales
+  xero_bank_account: '090',                  // bank account that receives PayFast/Ozow payouts
+  xero_tax_type: 'OUTPUT',                   // Xero tax type for standard-rated (15%) sales; NONE when not VAT registered
+  accounting_sync_from: '',
+  // Booking: Cal.com, Calendly or Microsoft Bookings page for the free strategy session
+  booking_url: '',
+  // Service agreements: signature required before paying for once-off packages from this amount, and for monthly retainers
+  agreement_min_cents: 1500000,
+  agreement_for_retainers: true,
+  // Credential guard: what clients are told instead of sending passwords
+  secure_share_hint: 'Never send passwords in messages. Invite us as a user, or share a one-time link from a password manager (Bitwarden Send or 1Password) that expires.',                  // only sync invoices issued on/after this date (YYYY-MM-DD); blank = all                 // see PRICE_REVISION in catalog.js
   business_name: 'Hipcastle Agency',
   legal_name: 'Hipcastle Agency (Pty) Ltd',
   tagline: 'Specialist teams for South African entrepreneurs',

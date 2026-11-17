@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payments.js';
 import chatRoutes from './routes/chat.js';
 import supportRoutes from './routes/support.js';
+import integrationRoutes, { integrationsAdmin } from './routes/integrations.js';
 import { metricsMiddleware, recordError } from './events.js';
 import { db } from './db.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
@@ -19,13 +20,16 @@ import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXm
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
+  // Never serialise secrets, whatever a query selects (o.*, u.*): subscription tokens, password hashes.
+  const SECRET_KEYS = new Set(['payfast_token', 'password_hash']);
+  app.set('json replacer', (k, v) => (SECRET_KEYS.has(k) ? undefined : v));
   app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1));
   app.use(helmet({
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
         'script-src': ["'self'", 'https://challenges.cloudflare.com'],
-        'frame-src': ['https://challenges.cloudflare.com'],
+        'frame-src': ['https://challenges.cloudflare.com', 'https://cal.com', 'https://app.cal.com', 'https://calendly.com'],
         'connect-src': ["'self'", 'https://challenges.cloudflare.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
@@ -80,6 +84,8 @@ export function createApp() {
   app.use('/api/orders', orderRoutes);
   app.use('/api/payments', paymentRoutes);
   app.use('/api/support', supportRoutes);
+  app.use('/api/admin/integrations', integrationsAdmin);
+  app.use('/api', integrationRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 

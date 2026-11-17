@@ -18,12 +18,13 @@ import Playbooks from './Playbooks.jsx';
 import { Conversations, SupportDesk } from './CustomerCare.jsx';
 import CarePlans from './CarePlans.jsx';
 import Growth from './Growth.jsx';
+import Integrations from './Integrations.jsx';
 
 const NAV = [
   ['Monitor', [['', 'Overview', '📊'], ['growth', 'Growth & acquisition', '📈'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️']]],
   ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['support', 'Support desk', '🎧'], ['care', 'Care plans', '🛟'], ['conversations', 'Assistant chats', '💬'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
-  ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
+  ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['integrations', 'Integrations', '🔌'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
 ];
 
 export default function CommandCentre() {
@@ -73,6 +74,7 @@ export default function CommandCentre() {
           <Route path="subscribers" element={<Subscribers />} />
           <Route path="seo" element={<SeoCentre />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="integrations" element={<Integrations />} />
         </Routes>
       </div>
     </div>

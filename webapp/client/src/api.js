@@ -20,6 +20,8 @@ export async function api(path, { method = 'GET', body } = {}) {
     headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }), ...(method !== 'GET' && attributionHeader() && { 'X-Attribution': attributionHeader() }) },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  const redacted = res.headers.get('X-Content-Redacted');
+  if (redacted) window.dispatchEvent(new CustomEvent('hipcastle:redacted', { detail: redacted.split(',') }));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'Request failed', res.status, data.fields);
   return data;

@@ -248,6 +248,37 @@ Invoices are marked paid **only** after a verified server-to-server notification
   - `/llms.txt` and `/llms-full.txt` give AI assistants a factual summary of services, prices, FAQs and articles.
 - `/sitemap.xml` (about 190 URLs), `/blog/rss.xml`, a 1200×630 social image, a web manifest, and an SEO audit in the Command Centre.
 
+## Business services: billing, accounting, booking, agreements, credential safety
+
+**Automatic monthly payments (PayFast Subscriptions).**
+- **Opting in:** when a client pays a retainer or care-plan invoice with PayFast, they can tick *Pay automatically every month*. PayFast tokenises the card, and the checkout is signed with the subscription fields (monthly, until cancelled).
+- **Monthly charges:** each charge arrives as an ITN carrying the subscription token. It settles that order's oldest unpaid invoice, and starts the month's cycle early if PayFast charged first.
+- **Exceptions:** duplicates, mismatched amounts and charges with nothing due are logged and alerted, never silently kept.
+- **Stopping:** clients or staff stop automatic payments from the order page through the PayFast API (PUT `/subscriptions/{token}/cancel`, signed headers). Cancelling or completing an engagement stops them too.
+- **Setup:** recurring billing must be enabled on your PayFast merchant account. Instant EFT (Ozow) is paid manually each month.
+- **Security:** the subscription token is never sent to the browser.
+
+**Accounting.**
+- **Tax invoices:** every invoice has a printable page that you can save as a PDF from the browser. When VAT-registered it is a SARS-compliant *Tax Invoice* with the supplier's and recipient's names, addresses and VAT numbers, the serial number, the date, and the VAT charged. Clients add their billing address and VAT number in Account settings.
+- **Xero:** go to Command Centre → **Integrations** → *Connect Xero*. This uses OAuth 2 with Xero's granular scopes, and the tokens are stored AES-256-GCM encrypted.
+  - The **accounting-sync** job then pushes contacts, invoices (`ACCREC`, authorised), payments (to your bank account code) and voids, once each. Failures retry up to 5 times and are shown on the page.
+  - Account codes and the tax type are settings.
+- **Exports without Xero:** a Xero import CSV and a Sage/general CSV for any date range.
+
+**Booking.** Set a Cal.com, Calendly or Microsoft Bookings link in Integrations. It appears on the Contact page (embedded for Cal.com and Calendly) and in the enquiry auto-reply.
+
+**Service agreements.**
+- **When required:** once-off packages from R15 000, and monthly retainers. Both thresholds are configurable.
+- **What the client sees:** a plain-language agreement generated from the package, the brief and the standard terms (scope, fees, approvals, IP, POPIA operator terms, cancellation and CPA, liability, ECTA). It must be signed before the first payment.
+- **Audit trail:** the client signs by typing their name. The system records their account, email, time, IP address, browser, and the SHA-256 of the exact text. The client and the team get a copy by email.
+- **Smaller orders:** the terms accepted at checkout are recorded as an acceptance.
+- **Before launch:** have `server/src/agreements.js` reviewed by an attorney.
+
+**Credential guard.**
+- **What it removes:** passwords, card numbers (Luhn-checked), SA ID numbers (checksum and date) and API or private keys.
+- **Where:** messages, tickets, onboarding answers, enquiries and chat, before anything is stored or sent to the AI.
+- **What happens next:** the user sees why, together with the secure-sharing guidance (a setting), and an activity event is logged. Keep client logins in a team password manager such as Bitwarden Teams or 1Password Business.
+
 ## Launch hardening: backups, alerts, CI, analytics
 
 **Off-site backups.** The daily backup job always writes a local snapshot (latest 7 kept). When `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID` and `BACKUP_S3_SECRET_ACCESS_KEY` are set, it also gzips the snapshot and uploads it to S3-compatible storage. That can be AWS S3 in Cape Town (`BACKUP_S3_REGION=af-south-1`), or Cloudflare R2 or Backblaze B2 (set `BACKUP_S3_ENDPOINT`). The latest 30 copies are kept (`BACKUP_S3_KEEP`). A failed upload alerts the team. Command Centre → System warns while off-site backups are off.
@@ -329,7 +360,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 66 API integration tests, run against an in-memory database. They cover:
+There are 75 API integration tests, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation
@@ -378,6 +409,7 @@ users ─< tickets ─< ticket_messages     chat_sessions ─< chat_messages (�
 - [ ] Have the Privacy and Terms pages reviewed by your legal adviser. Register your Information Officer with the Information Regulator.
 - [ ] Create a Google Business Profile with the same name, address and phone, and submit `/sitemap.xml` in Google Search Console.
 - [ ] Review the care plan prices and included hours in Command Centre → Services & pricing, and decide who on the team owns care work.
+- [ ] Enable recurring billing on your PayFast account; create a Xero Web app and connect it (Integrations); set your booking link; have the service agreement reviewed by an attorney; set up a team password manager.
 - [ ] Create an S3/R2/B2 bucket and add the `BACKUP_S3_*` secrets; run Command Centre → System → Database backup once and check the file arrives.
 - [ ] Set up a free uptime monitor on `/api/health` and (optionally) `ALERT_WEBHOOK_URL` for chat alerts.
 - [ ] Optional: add `ANTHROPIC_API_KEY` to switch the assistant to AI answers, then check Command Centre → Assistant chats.

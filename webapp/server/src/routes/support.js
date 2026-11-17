@@ -7,6 +7,7 @@ import { authenticate, isStaff, requireRole } from '../auth.js';
 import { logEvent } from '../events.js';
 import * as mail from '../email/support-notify.js';
 import { carePriorityFor, careUsage, logCareTime } from '../careops.js';
+import { guardFields } from '../guard.js';
 
 const r = Router();
 r.use(authenticate);
@@ -53,7 +54,7 @@ r.post('/', body(z.object({
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   order_id: z.number().int().positive().nullable().optional(),
   body: z.string().trim().min(10, 'Describe the issue (at least 10 characters)').max(5000),
-})), (req, res) => {
+})), guardFields('subject', 'body'), (req, res) => {
   const b = req.body;
   if (b.order_id && !db.prepare('SELECT 1 FROM orders WHERE id = ? AND (user_id = ? OR ? = 1)').get(b.order_id, req.user.id, isStaff(req.user) ? 1 : 0)) {
     return res.status(400).json({ error: 'That engagement is not on your account' });
@@ -81,7 +82,7 @@ r.get('/:id', (req, res) => {
 r.post('/:id/messages', body(z.object({
   body: z.string().trim().min(1).max(5000),
   internal: z.boolean().optional().default(false),
-})), (req, res) => {
+})), guardFields('body'), (req, res) => {
   const t = load(req, res);
   if (!t) return;
   const staff = isStaff(req.user);
