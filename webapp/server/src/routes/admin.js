@@ -13,6 +13,7 @@ import { seoAudit } from '../seo.js';
 import { chatMode, MODEL as CHAT_MODEL } from '../chat.js';
 import { offsiteConfig } from '../offsite.js';
 import { growthReport } from '../analytics.js';
+import { communicationsPlan, TOUCHPOINTS } from '../communications.js';
 import { careBoard, careUsage, logCareTime, loadCareOrder } from '../careops.js';
 import { buildChunks, knowledgeText, knowledgeVersion } from '../kb.js';
 import { canonicalUrl } from '../urls.js';
@@ -444,6 +445,19 @@ r.get('/export/:kind', requireRole('admin'), (req, res) => {
 
 // Growth: traffic, sources and the acquisition funnel
 r.get('/growth', (req, res) => res.json(growthReport(Math.min(365, Math.max(7, Number(req.query.days) || 30)))));
+
+// Communications plan: every touchpoint, 30-day volumes, and switches for the optional ones.
+r.get('/communications', (_req, res) => res.json(communicationsPlan()));
+r.patch('/communications/:id', requireRole('admin'), body(z.object({ enabled: z.boolean() })), (req, res) => {
+  const tp = TOUCHPOINTS[req.params.id];
+  if (!tp) return res.status(404).json({ error: 'Unknown touchpoint' });
+  if (tp.essential) return res.status(400).json({ error: 'Essential messages (receipts, security, replies the client is waiting for) cannot be switched off' });
+  const off = new Set(getSettings().comms_disabled || []);
+  if (req.body.enabled) off.delete(req.params.id); else off.add(req.params.id);
+  updateSettings({ comms_disabled: [...off] });
+  logEvent('settings.updated', `Communication "${req.params.id}" ${req.body.enabled ? 'switched on' : 'switched off'}`, { actor: req.user.id, level: 'warn' });
+  res.json(communicationsPlan());
+});
 
 // Care plans
 r.get('/care', (_req, res) => res.json(careBoard()));

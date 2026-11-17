@@ -248,6 +248,39 @@ Invoices are marked paid **only** after a verified server-to-server notification
   - `/llms.txt` and `/llms-full.txt` give AI assistants a factual summary of services, prices, FAQs and articles.
 - `/sitemap.xml` (about 190 URLs), `/blog/rss.xml`, a 1200×630 social image, a web manifest, and an SEO audit in the Command Centre.
 
+## AEO & GEO for service pages
+
+Every service page leads with an **answer-first summary**: one 40–90-word paragraph with the price range, packages and timelines, written to be quoted by Google, ChatGPT, Perplexity and voice assistants. Below it are **key facts** and a **last updated** date.
+
+**Structured data.** One source (`server/src/service-seo.js`) is shared by the crawler-rendered page and the React app:
+
+| Type | Contents |
+|---|---|
+| `WebPage` | `dateModified`, plus `speakable` pointing at the answer |
+| `Service` | Areas served (South Africa and its nine provinces), business audience, `AggregateOffer`, and an offer catalogue that includes the care plans |
+| `HowTo` | The delivery process |
+| `FAQPage` | Ten question-led FAQs (price, inclusions, timeline, which package, aftercare, payment, contract, location, getting started, POPIA) |
+
+**Crawler-rendered pages** also carry a package comparison table, the process steps and the aftercare options.
+
+**Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
+
+## Communications plan
+
+The written plan is in [`COMMUNICATIONS.md`](COMMUNICATIONS.md); the system enforces it through `server/src/communications.js`.
+
+**Touchpoints.** Every automated message is a touchpoint with a stage, audience, trigger and timing.
+
+**Business hours.** Nudges and digests are held for SA business hours: Mon–Fri 08:00–17:00 SAST, excluding public holidays (calculated, including Easter dates).
+
+**Follow-ups** (the `comms-followups` job):
+- one follow-up to enquiries with no order after 3 days
+- payment nudges at 24 hours and 3 days (2 at most)
+- a Monday progress update for active projects
+- a daily team digest of enquiries waiting more than a business day
+
+**Command Centre → Communications plan** lists every message with its 30-day volume and a preview, and switches optional ones off. Essential messages (receipts, security, replies) can't be switched off.
+
 ## Business services: billing, accounting, booking, agreements, credential safety
 
 **Automatic monthly payments (PayFast Subscriptions).**
@@ -360,7 +393,7 @@ See [`.env.example`](.env.example) for every setting.
 npm test
 ```
 
-There are 75 API integration tests, run against an in-memory database. They cover:
+There are 83 API integration tests, run against an in-memory database. They cover:
 - 3 rand tiers per service
 - FAQs and reviews on service pages
 - Lead consent and testimonial moderation

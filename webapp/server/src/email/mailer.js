@@ -2,6 +2,7 @@
 // @hipcastle.agency (Google Workspace, Microsoft 365, Zoho Mail, Brevo, Amazon SES, cPanel mail…).
 // With no SMTP_HOST configured, emails are rendered and stored as "logged" so they can be previewed
 // in the Command Centre without sending anything.
+import { nextBusinessSlot, touchpointEnabled, TOUCHPOINTS } from '../communications.js';
 import nodemailer from 'nodemailer';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { db, row, rows } from '../db.js';
@@ -92,6 +93,9 @@ export function sendEmail(template, to, data = {}, { name = null, ref = null, te
     const s = getSettings();
     if (!to) return null;
     if (!team && !s.emails_enabled && template !== 'auth.reset' && template !== 'system.test') return null;
+    if (!touchpointEnabled(template, s)) return null; // switched off in the communications plan
+    // Nudges and digests wait for SA business hours; transactional messages go now.
+    const holdUntil = TOUCHPOINTS[template]?.businessHours ? nextBusinessSlot() : null;
     const r = renderTemplate(template, { ...data, to });
     const replyTo = r.replyTo || (r.billing ? s.billing_email : s.email);
     const headers = {};
@@ -99,9 +103,9 @@ export function sendEmail(template, to, data = {}, { name = null, ref = null, te
       headers['List-Unsubscribe'] = `<${r.unsub}>, <mailto:${s.email}?subject=unsubscribe>`;
       headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
     }
-    const { id } = db.prepare(`INSERT INTO emails (template, to_email, to_name, reply_to, subject, html, text, headers, ref)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
-      .get(template, to.toLowerCase(), name, replyTo, r.subject, r.html, r.text, Object.keys(headers).length ? JSON.stringify(headers) : null, ref);
+    const { id } = db.prepare(`INSERT INTO emails (template, to_email, to_name, reply_to, subject, html, text, headers, ref, next_attempt_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+      .get(template, to.toLowerCase(), name, replyTo, r.subject, r.html, r.text, Object.keys(headers).length ? JSON.stringify(headers) : null, ref, holdUntil);
     setImmediate(() => processQueue().catch(() => {}));
     return id;
   } catch (err) {

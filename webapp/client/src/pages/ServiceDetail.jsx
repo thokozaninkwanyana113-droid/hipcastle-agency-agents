@@ -1,13 +1,12 @@
-import { siteUrl } from '../siteUrl.js';
 import { Link, useParams } from 'react-router-dom';
 import TierCard from '../components/TierCard.jsx';
 import { CareSection } from '../components/Care.jsx';
 import { ErrorBox, Loader } from '../components/ui.jsx';
 import { useFetch } from '../useFetch.js';
 import NotFound from './NotFound.jsx';
-import Seo, { breadcrumbSchema, faqSchema } from '../components/Seo.jsx';
+import Seo, { breadcrumbSchema } from '../components/Seo.jsx';
 import { Faq, TestimonialCard } from '../components/Testimonials.jsx';
-import { money } from '../format.js';
+import { date, money } from '../format.js';
 import DeliveryJourney from '../components/DeliveryJourney.jsx';
 
 export default function ServiceDetail() {
@@ -19,16 +18,11 @@ export default function ServiceDetail() {
 
   const allFeatures = [...new Set(s.tiers.flatMap((t) => t.features))];
   const from = money(s.tiers[0].price_cents);
-  const serviceSchema = {
-    '@context': 'https://schema.org', '@type': 'Service', name: s.name, serviceType: s.name, description: s.description,
-    areaServed: { '@type': 'Country', name: 'South Africa' }, provider: { '@id': siteUrl('/#organization') },
-    hasOfferCatalog: { '@type': 'OfferCatalog', name: `${s.name} packages`, itemListElement: s.tiers.map((t) => ({
-      '@type': 'Offer', name: `${s.name} — ${t.name}`, price: (t.price_cents / 100).toFixed(2), priceCurrency: 'ZAR', description: t.summary })) },
-  };
+  // Structured data comes from the server (same as the crawler-rendered page): WebPage, Service, HowTo, FAQPage.
   return (
     <>
       <Seo title={`${s.name} in South Africa | From ${from}`} description={`${s.tagline} ${s.name} packages from ${from}. Essential, Growth & Enterprise tiers for SA businesses.`.slice(0, 160)}
-        schema={[serviceSchema, faqSchema(s.faqs), breadcrumbSchema([{ name: 'Services', path: '/services' }, { name: s.name, path: `/services/${s.slug}` }])]} />
+        schema={[...(s.schema || []), breadcrumbSchema([{ name: 'Services', path: '/services' }, { name: s.name, path: `/services/${s.slug}` }])]} />
       <section className="page-header page-header--service">
         <div className="container">
           <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/services">Services</Link> / <span>{s.name}</span></nav>
@@ -38,6 +32,21 @@ export default function ServiceDetail() {
           <ul className="outcomes">{s.outcomes.map((o) => <li key={o}>✓ {o}</li>)}</ul>
         </div>
       </section>
+
+      {s.answer && (
+        <section className="section section--tight" aria-labelledby="answer-h">
+          <div className="container">
+            <div className="answer-box">
+              <h2 id="answer-h" className="answer-box__title">Quick answer</h2>
+              <p className="answer-box__text">{s.answer}</p>
+              <dl className="answer-box__facts">
+                {s.facts.map((f) => <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
+              </dl>
+              <p className="answer-box__meta">Last updated <time dateTime={s.updated_at}>{date(s.updated_at)}</time> · <a href={`/services/${s.slug}.md`}>Plain-text version</a></p>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="section">
         <div className="container">

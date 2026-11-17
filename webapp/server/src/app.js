@@ -15,7 +15,7 @@ import integrationRoutes, { integrationsAdmin } from './routes/integrations.js';
 import { metricsMiddleware, recordError } from './events.js';
 import { db } from './db.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
-import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml } from './seo.js';
+import { DIST, hasClientBuild, llmsTxt, renderPage, robotsTxt, rssXml, sitemapXml, serviceMarkdownBySlug } from './seo.js';
 
 export function createApp() {
   const app = express();
@@ -96,6 +96,12 @@ export function createApp() {
   app.get('/llms.txt', text('text/plain; charset=utf-8', () => llmsTxt()));
   app.get('/llms-full.txt', text('text/plain; charset=utf-8', () => llmsTxt({ full: true })));
   app.get(['/blog/rss.xml', '/rss.xml'], text('application/rss+xml', rssXml));
+  // Markdown versions of service pages for AI assistants and crawlers (GEO).
+  app.get(/^\/services\/([a-z0-9-]+)\.md$/, (req, res) => {
+    const md = serviceMarkdownBySlug(req.params[0]);
+    if (!md) return res.status(404).type('text/plain').send('Not found');
+    res.type('text/markdown; charset=utf-8').set('Cache-Control', 'public, max-age=3600').send(md);
+  });
 
   // Built React client with server-rendered SEO head + content snapshot.
   if (hasClientBuild()) {

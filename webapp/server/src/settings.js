@@ -40,6 +40,7 @@ export const DEFAULT_SETTINGS = {
   payfast_enabled: true,
   ozow_enabled: true,
   jobs_disabled: [],
+  comms_disabled: [],                        // optional touchpoints switched off (see communications.js)
   social: {
     facebook: 'https://www.facebook.com/hipcastleagency',
     instagram: 'https://www.instagram.com/hipcastleagency',

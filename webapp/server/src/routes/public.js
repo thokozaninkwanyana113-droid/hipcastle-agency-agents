@@ -15,6 +15,7 @@ import { sendEmail } from '../email/mailer.js';
 import { confirmUrl, verifyConfirm, verifyUnsubscribe } from '../email/mailer.js';
 import express from 'express';
 import { CARE, CARE_EXTRA_HOUR_CENTS, CARE_TERMS } from '../care.js';
+import { serviceSeo } from '../service-seo.js';
 import { attributionFrom, classify, isBot, track } from '../analytics.js';
 import { guardFields } from '../guard.js';
 import { canonicalUrl } from '../urls.js';
@@ -45,6 +46,7 @@ r.get('/services/:slug', (req, res) => {
   s.tiers = tiersFor(s.id);
   s.faqs = serviceFaqs(s);
   s.journey = journey(s.slug, s.tiers);
+  { const seo = serviceSeo(s); Object.assign(s, { answer: seo.answer, facts: seo.facts, updated_at: seo.updated_at, schema: seo.schema }); s.faqs = seo.faqs; }
   s.care = careFor(s);
   s.testimonials = rows(db.prepare(`SELECT id, author, role, company, location, quote, rating FROM testimonials
     WHERE status = 'approved' AND service_id = ? ORDER BY is_featured DESC, id DESC LIMIT 3`).all(s.id));
