@@ -12,6 +12,7 @@ import { generalFaqs, serviceFaqs, rand, billingText } from './content.js';
 import { canonicalUrl as siteUrl } from './urls.js';
 import { buildChunks, CATEGORIES } from './kb.js';
 import { CARE, CARE_TERMS } from './care.js';
+import { serviceMarkdown, serviceSeo } from './service-seo.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const DIST = resolve(here, '../../client/dist');
@@ -175,19 +176,26 @@ export function resolvePage(pathname) {
     const v = row(db.prepare('SELECT * FROM services WHERE slug = ? AND is_active = 1').get(parts[1]), ['outcomes']);
     if (!v) return notFound(page, s);
     v.tiers = tiersFor(v.id);
-    const faqs = serviceFaqs(v);
+    const seo = serviceSeo(v);
     const from = rand(v.tiers[0].price_cents);
+    const features = [...new Set(v.tiers.flatMap((t) => t.features))];
     Object.assign(page, {
       title: titled(`${v.name} in South Africa | From ${from}`),
-      description: clip(`${v.tagline} Packages from ${from} ${billingText(v.tiers[0].billing)}, priced in rand for SA businesses.`, 160),
-      schema: [org, breadcrumbs(base, [{ name: 'Services', path: '/services' }, { name: v.name, path: `/services/${v.slug}` }]), {
-        '@context': 'https://schema.org', '@type': 'Service', '@id': `${base}/services/${v.slug}#service`,
-        name: v.name, serviceType: v.name, description: v.description, provider: { '@id': `${base}/#organization` },
-        areaServed: { '@type': 'Country', name: 'South Africa' }, url: `${base}/services/${v.slug}`,
-        hasOfferCatalog: { '@type': 'OfferCatalog', name: `${v.name} packages`, itemListElement: v.tiers.map((t) => offer(base, v, t)) },
-      }, faqPage(faqs)],
-      body: `<h1>${esc(v.name)} in South Africa</h1><p>${esc(v.description)}</p><h2>Outcomes</h2><ul>${v.outcomes.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>
-        <h2>${esc(v.name)} packages and pricing</h2>${tierList(v, v.tiers)}${faqHtml(faqs)}`,
+      description: clip(`${v.name} from ${from} ${billingText(v.tiers[0].billing)}. ${v.tagline} Fixed rand prices, delivered across South Africa.`, 160),
+      markdown: `/services/${v.slug}.md`,
+      modified: seo.updated_at,
+      schema: [org, breadcrumbs(base, [{ name: 'Services', path: '/services' }, { name: v.name, path: `/services/${v.slug}` }]), ...seo.schema],
+      body: `<article><h1>${esc(v.name)} in South Africa</h1>
+        <section class="answer-box"><h2>Quick answer</h2><p class="answer-box__text">${esc(seo.answer)}</p>
+          <dl>${seo.facts.map((f) => `<dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd>`).join('')}</dl>
+          <p><small>Last updated <time datetime="${seo.updated_at}">${seo.updated_at}</time></small></p></section>
+        <p>${esc(v.description)}</p><h2>Outcomes</h2><ul>${v.outcomes.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>
+        <h2>${esc(v.name)} packages and pricing</h2>${tierList(v, v.tiers)}
+        <table><caption>${esc(v.name)} packages compared</caption><thead><tr><th scope="col">Included</th>${v.tiers.map((t) => `<th scope="col">${esc(t.name)} (${esc(rand(t.price_cents))} ${billingText(t.billing)})</th>`).join('')}</tr></thead>
+          <tbody>${features.map((f) => `<tr><th scope="row">${esc(f)}</th>${v.tiers.map((t) => `<td>${t.features.includes(f) ? 'Yes' : '—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+        ${seo.process ? `<h2>How ${esc(v.name.toLowerCase())} works</h2><ol>${seo.process.stages.map((st) => `<li><strong>${esc(st.label)}</strong>: ${esc(st.steps.map((x) => x.title).join('; '))}</li>`).join('')}</ol>` : ''}
+        ${seo.care.length ? `<h2>Aftercare: ${esc(CARE[v.slug]?.title || 'Care plans')}</h2><ul>${seo.care.map((t) => `<li>${esc(t.name)} — ${esc(rand(t.price_cents))} per month: ${esc(t.features.slice(0, 3).join(', '))}</li>`).join('')}</ul><p><a href="/care#${v.slug}">Compare care plans</a></p>` : ''}
+        ${faqHtml(seo.faqs)}<p><a href="/contact">Book a free strategy session</a></p></article>`,
     });
   } else if (parts[0] === 'pricing') {
     const svcs = services();
@@ -351,6 +359,8 @@ export function renderHead(page) {
     `<meta name="robots" content="${page.robots}" data-seo>`,
     page.status === 200 ? `<link rel="canonical" href="${esc(url)}" data-seo>` : '',
     `<link rel="alternate" hreflang="en-ZA" href="${esc(url)}" data-seo>`,
+    page.markdown ? `<link rel="alternate" type="text/markdown" href="${esc(base + page.markdown)}" title="Markdown version for AI assistants" data-seo>` : '',
+    page.modified ? `<meta property="article:modified_time" content="${esc(page.modified)}" data-seo>` : '',
     `<meta property="og:type" content="${page.type}" data-seo>`,
     `<meta property="og:site_name" content="${esc(s.business_name)}" data-seo>`,
     `<meta property="og:title" content="${esc(page.title)}" data-seo>`,
@@ -423,7 +433,7 @@ export function llmsTxt({ full = false } = {}) {
   ];
   for (const v of svcs) {
     const tiers = tiersFor(v.id);
-    lines.push(`- [${v.name}](${base}/services/${v.slug}): ${v.tagline} ${tiers.map((t) => `${t.name} ${rand(t.price_cents)} ${billingText(t.billing)}`).join('; ')}.`);
+    lines.push(`- [${v.name}](${base}/services/${v.slug}.md): ${v.tagline} ${tiers.map((t) => `${t.name} ${rand(t.price_cents)} ${billingText(t.billing)}`).join('; ')}.`);
     if (full) {
       lines.push('', `### ${v.name}`, '', v.description, '');
       for (const t of tiers) lines.push(`- **${t.name}** — ${rand(t.price_cents)} ${billingText(t.billing)}${t.billing === 'once' ? `, about ${t.delivery_days} days` : ''}. ${t.summary} Includes: ${t.features.join('; ')}.`);
@@ -515,4 +525,12 @@ export function seoAudit() {
     summary: { pages: pages.length, with_issues: pages.filter((p) => p.issues.length).length, sitemap_urls: (sitemapXml().match(/<url>/g) || []).length },
     links: { sitemap: '/sitemap.xml', robots: '/robots.txt', llms: '/llms.txt', llms_full: '/llms-full.txt', rss: '/blog/rss.xml' },
   };
+}
+
+/** Markdown version of a live service page (null if unknown/hidden). */
+export function serviceMarkdownBySlug(slug) {
+  const v = row(db.prepare('SELECT * FROM services WHERE slug = ? AND is_active = 1').get(slug), ['outcomes']);
+  if (!v) return null;
+  v.tiers = tiersFor(v.id);
+  return serviceMarkdown(v);
 }

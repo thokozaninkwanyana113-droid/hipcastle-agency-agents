@@ -13,6 +13,7 @@ import { offerCarePlans } from './careops.js';
 import { offsiteConfig, uploadBackup } from './offsite.js';
 import { pruneVisitors } from './analytics.js';
 import { syncAccounting } from './accounting/sync.js';
+import { runFollowUps } from './comms-jobs.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -96,6 +97,11 @@ const definitions = [
     id: 'accounting-sync', name: 'Accounting sync (Xero)', every: 15 * MIN,
     description: 'Pushes new invoices, payments and voided invoices to Xero once each (contacts created as needed). Failures retry up to 5 times and alert the team.',
     run: () => syncAccounting(),
+  },
+  {
+    id: 'comms-followups', name: 'Communications follow-ups', every: HOUR,
+    description: 'From the communications plan: one follow-up to enquiries with no order after 3 days, payment nudges 24 hours and 3 days after an unpaid order, Monday progress updates for active projects, and a daily team digest of enquiries waiting over a business day. Held for SA business hours.',
+    run: () => runFollowUps(),
   },
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,

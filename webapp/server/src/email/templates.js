@@ -475,6 +475,74 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Sizwe Dlamini' }, order: { reference: 'HC-1E1AC5', service_name: 'Design & Brand', tier_name: 'Growth', nps_score: 9, nps_comment: 'Brilliant team.' } },
   },
+  // ------------------------------------------------------------------ Communications plan: follow-ups
+  'lead.followup': {
+    audience: 'Prospect', description: 'Follow-up 3 days after an enquiry with no order',
+    build: ({ lead, service, packages }) => {
+      const s = getSettings();
+      return {
+        subject: `${first(lead.name)}, anything we can help you decide?`,
+        preheader: 'Prices, timelines and a free 30-minute call — no obligation.',
+        heading: 'Still thinking it over?',
+        blocks: [
+          `Hi ${first(lead.name)}, thanks again for getting in touch${service ? ` about ${service}` : ''}. If you’re weighing up options, here’s what most South African founders ask us at this stage:`,
+          ...(packages?.length ? [{ table: packages.map((p) => [p.name, `${rand(p.price_cents)} ${p.billing === 'monthly' ? '/ month' : 'once-off'} — ${p.summary}`]) }] : []),
+          { list: ['Fixed rand prices — no surprise quotes', 'Pay by card or instant EFT; projects start with a 50% deposit', 'Every milestone visible in your client portal'] },
+          ...(s.booking_url ? [{ button: 'Pick a time for a free call', href: s.booking_url }] : [{ button: 'Book a free strategy session', href: '/contact' }]),
+          { p: 'Just reply to this email if you have a question — a person on our team will answer.' },
+        ],
+        reason: 'You’re receiving this once because you sent us an enquiry. We won’t follow up again unless you ask us to.',
+      };
+    },
+    sample: { lead: { name: 'Thandi Mokoena' }, service: 'Software Engineering', packages: [{ name: 'Essential', price_cents: 950000, billing: 'once', summary: 'A fast, mobile-first business website.' }, { name: 'Growth', price_cents: 3500000, billing: 'once', summary: 'A complete online store or web app.' }] },
+  },
+  'lead.stale': {
+    audience: 'Team', description: 'Enquiries still “new” after one business day',
+    build: ({ leads }) => ({
+      subject: `⏳ ${leads.length} enquir${leads.length === 1 ? 'y has' : 'ies have'} waited more than a business day`,
+      preheader: leads.map((l) => l.name).join(', '),
+      heading: 'Speed to lead: these people are waiting',
+      blocks: [{ table: leads.map((l) => [l.name, `${l.service_name || 'General'} · ${l.preferred_contact || 'email'} · since ${l.created_at}`]) },
+        { note: 'Enquiries contacted within a day convert far better. Mark each lead as contacted once you’ve replied.' }, { button: 'Open Leads & CRM', href: '/admin/leads' }],
+      signoff: false,
+    }),
+    sample: { leads: [{ name: 'Sipho Ndlovu', service_name: 'Digital Marketing & SEO', preferred_contact: 'whatsapp', created_at: '2026-11-16 09:12' }] },
+  },
+  'order.unpaid': {
+    audience: 'Client', description: 'Order placed but the first invoice (or agreement) is still outstanding',
+    build: ({ user, order, invoice, needsSignature, attempt }) => ({
+      subject: attempt > 1 ? `Your ${order.service_name} project is ready to start, ${first(user.name)}` : `Finish setting up ${order.reference}`,
+      preheader: needsSignature ? 'Sign the agreement and pay the first invoice to get started.' : `Pay ${rand(invoice.amount_cents)} to get started.`,
+      heading: 'One step to get started',
+      blocks: [
+        `Hi ${first(user.name)}, your ${order.service_name} (${order.tier_name}) order is reserved. To book your kick-off we just need:`,
+        { list: [...(needsSignature ? ['Sign the service agreement (2 minutes, in your portal)'] : []), `Pay invoice ${invoice.number}: ${rand(invoice.amount_cents)} by card, instant EFT, SnapScan or Zapper`] },
+        { button: needsSignature ? 'Review, sign & pay' : 'Pay securely now', href: `/portal/orders/${order.id}` },
+        'Questions about scope or payment? Reply to this email and a person will help. Changed your mind? You can cancel the order in your portal at no cost.',
+      ],
+      reason: 'Order update for your Hipcastle account.',
+      billing: true,
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-1E1AC5', service_name: 'Software Engineering', tier_name: 'Growth' }, invoice: { number: 'INV-9F21AA', amount_cents: 1750000 }, needsSignature: true, attempt: 1 },
+  },
+  'project.weekly': {
+    audience: 'Client', description: 'Monday progress update for active projects',
+    build: ({ user, order, done, next, waiting }) => ({
+      subject: `Weekly update: ${order.service_name} is ${order.progress}% complete`,
+      preheader: waiting.length ? `${waiting.length} thing${waiting.length === 1 ? '' : 's'} waiting on you.` : `Next up: ${next[0]?.title || 'handover'}.`,
+      heading: `Your project this week — ${order.progress}% done`,
+      blocks: [
+        `Hi ${first(user.name)}, here’s where ${order.reference} stands.`,
+        ...(done.length ? [{ p: 'Completed in the last week:' }, { list: done.map((m) => m.title) }] : []),
+        ...(next.length ? [{ p: 'Coming up next:' }, { list: next.map((m) => `${m.title}${m.due_date ? ` — due ${m.due_date}` : ''}`) }] : []),
+        ...(waiting.length ? [{ note: `Waiting on you: ${waiting.join('; ')}. Your quick reply keeps the timeline on track.` }] : []),
+        { button: 'Open your project', href: `/portal/orders/${order.id}` },
+      ],
+      reason: 'Weekly project update for your Hipcastle engagement.',
+    }),
+    sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-1E1AC5', service_name: 'Software Engineering', progress: 45 },
+      done: [{ title: 'Wireframes & design system' }], next: [{ title: 'Build sprints', due_date: '2026-12-01' }], waiting: ['Approve the homepage design'] },
+  },
   // ------------------------------------------------------------------ Care plans
   'care.offer': {
     audience: 'Client', description: 'Free post-launch support ends in 7 days — offer a care plan',

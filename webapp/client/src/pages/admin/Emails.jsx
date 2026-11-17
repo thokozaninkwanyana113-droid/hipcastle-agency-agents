@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ErrorBox, Loader } from '../../components/ui.jsx';
@@ -50,6 +51,9 @@ export default function Emails() {
   const run = async (key, fn) => { setBusy(key); setMsg(null); try { await fn(); } catch (e) { setMsg({ error: true, text: e.message }); } finally { setBusy(''); reload(); reloadInfo(); } };
   const open = (e) => run(`o${e.id}`, async () => { const full = await api(`/admin/emails/${e.id}`); setPreview({ title: full.subject, html: full.html, text: full.text }); });
   const openTpl = (t) => run(`t${t.id}`, async () => { const r = await api(`/admin/email-templates/${t.id}/preview`); setPreview({ title: `${r.subject} (sample)`, html: r.html, text: r.text }); });
+  // Deep link from the Communications plan: /admin/emails?preview=<template>
+  const [params] = useSearchParams();
+  useEffect(() => { const t = params.get('preview'); if (t) openTpl({ id: t }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const verify = () => run('verify', async () => { const r = await api('/admin/emails/verify', { method: 'POST' }); setMsg({ error: !r.ok, text: r.message }); });
   const test = (e) => { e.preventDefault(); run('test', async () => { const r = await api('/admin/emails/test', { method: 'POST', body: { to: testTo } }); setMsg({ error: r.status === 'failed', text: r.status === 'sent' ? `Test email sent to ${testTo} ✓` : r.status === 'logged' ? 'Test email logged (SMTP not configured) — open it below to preview.' : `Status: ${r.status} ${r.last_error || ''}` }); }); };
   const retry = (e) => run(`r${e.id}`, () => api(`/admin/emails/${e.id}/retry`, { method: 'POST' }));
