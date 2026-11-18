@@ -251,6 +251,14 @@ test('domain: canonical URLs default to https://www.hipcastle.agency', async () 
   assert.equal(site.social.linkedin, 'https://www.linkedin.com/company/hipcastle-agency');
   assert.equal(site.social.instagram, 'https://www.instagram.com/hipcastleagency');
   assert.equal(site.notify_email, undefined, 'internal inboxes are not public');
+  // Only the public allowlist (plus computed fields) is exposed — nothing internal leaks.
+  const { PUBLIC_SETTING_KEYS } = await import('../src/settings.js');
+  const allowed = new Set([...PUBLIC_SETTING_KEYS, 'site_url', 'payment_methods', 'provinces', 'turnstile_site_key']);
+  assert.deepEqual(Object.keys(site).filter((k) => !allowed.has(k)), []);
+  for (const k of ['billing_email', 'xero_sales_account', 'xero_bank_account', 'xero_tax_type', 'accounting_sync_from', 'agreement_min_cents',
+    'agreement_for_retainers', 'comms_disabled', 'jobs_disabled', 'catalog_prices_version', 'emails_enabled', 'payfast_enabled', 'ozow_enabled']) {
+    assert.equal(site[k], undefined, `${k} is not public`);
+  }
 });
 
 test('emails: transactional emails are queued, branded and logged', async () => {

@@ -72,9 +72,18 @@ export function updateSettings(patch) {
 }
 
 /** Settings safe to expose publicly. */
+/**
+ * Settings safe to expose publicly — an allowlist, so new internal settings (accounting codes,
+ * thresholds, job and message switches, internal inboxes) are private by default.
+ */
+export const PUBLIC_SETTING_KEYS = [
+  'business_name', 'legal_name', 'tagline', 'website', 'email', 'phone', 'whatsapp',
+  'address_locality', 'address_region', 'street_address', 'postal_code', 'company_reg_no', 'vat_no', 'vat_registered', 'vat_rate',
+  'office_hours', 'announcement', 'orders_enabled', 'social', 'seo_default_description', 'booking_url', 'secure_share_hint',
+];
 export function publicSettings() {
-  const { jobs_disabled, notify_email, billing_email, emails_enabled, ...rest } = getSettings();
-  return rest;
+  const s = getSettings();
+  return Object.fromEntries(PUBLIC_SETTING_KEYS.filter((k) => k in s).map((k) => [k, s[k]]));
 }
 
 /** Compute VAT on an amount in cents according to current settings. */
