@@ -438,6 +438,39 @@ CREATE TABLE IF NOT EXISTS operator_actions (
 CREATE INDEX IF NOT EXISTS idx_operator_actions_status ON operator_actions(status, area);
 CREATE INDEX IF NOT EXISTS idx_operator_actions_dedupe ON operator_actions(dedupe_key);
 
+-- Design studio: creative brief, AI/Figma/uploaded concepts, client picks and the brand kit
+CREATE TABLE IF NOT EXISTS design_projects (
+  order_id     INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+  brief        TEXT NOT NULL DEFAULT '{}',       -- JSON: business_name, scope, personality, audience, likes, industry, notes
+  directions   TEXT NOT NULL DEFAULT '[]',       -- JSON: [{name, idea, palette[hex], fonts{heading,body}, prompt}]
+  directions_by TEXT CHECK (directions_by IN ('ai','rules','staff')),
+  figma_url    TEXT,
+  figma_meta   TEXT,                             -- JSON: name, last_modified, thumbnail, frames[]
+  checks       TEXT NOT NULL DEFAULT '{}',       -- JSON: designer_refined, trademark_checked, trademark_note
+  kit_released_at TEXT,
+  generations  INTEGER NOT NULL DEFAULT 0,       -- AI images generated (cost control)
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS design_assets (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  direction    INTEGER,                          -- index into directions (concepts)
+  kind         TEXT NOT NULL DEFAULT 'concept' CHECK (kind IN ('concept','final')),
+  variant      TEXT CHECK (variant IN ('primary','mono_dark','mono_light','icon','other')),
+  title        TEXT NOT NULL,
+  mime         TEXT NOT NULL CHECK (mime IN ('image/svg+xml','image/png','image/jpeg','image/webp')),
+  data         BLOB NOT NULL,
+  bytes        INTEGER NOT NULL,
+  source       TEXT NOT NULL CHECK (source IN ('recraft','figma','upload','derived')),
+  prompt       TEXT,
+  shared       INTEGER NOT NULL DEFAULT 0,       -- visible to the client
+  client_pick  INTEGER NOT NULL DEFAULT 0,
+  client_comment TEXT,
+  created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_design_assets_order ON design_assets(order_id, kind);
+
 -- Connected third-party services (e.g. Xero). Tokens are encrypted (AES-256-GCM) with a key derived from JWT_SECRET.
 CREATE TABLE IF NOT EXISTS integrations (
   provider   TEXT PRIMARY KEY,

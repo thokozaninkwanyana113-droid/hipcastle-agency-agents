@@ -265,6 +265,30 @@ Every service page leads with an **answer-first summary**: one 40–90-word para
 
 **Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
 
+## Design studio: logo & brand identity delivery
+
+Every **Design & Brand** engagement page has a design studio. Staff use the full studio; the client sees only what staff share.
+
+1. **Creative brief.** Built from the client's onboarding answers (personality, audience, likes) and editable.
+2. **Concept directions.** Three distinct directions, each with an idea, a palette, Google Fonts and an image prompt. Claude writes them when `ANTHROPIC_API_KEY` is set; otherwise a starter set is matched to the brand personality.
+3. **Concepts**, from any of three sources:
+   - **Recraft AI:** editable vector SVG logos, using `RECRAFT_API_TOKEN` and `RECRAFT_MODEL` (default `recraftv4_1_vector`, about US$0.08 each). There's a cap per engagement, `DESIGN_MAX_AI_IMAGES` (default 48).
+   - **Figma:** link the designer's file. With `FIGMA_TOKEN`, list its frames and import them as SVG or PNG.
+   - **Uploads:** SVG, PNG, JPEG or WebP, up to 3 MB.
+4. **Client review.** Staff share the chosen concepts. This sends the *Design concepts* step for approval and emails the client. The client stars favourites, comments, then approves or asks for changes, which uses up revision rounds.
+5. **Final files.** Promote a concept to final, or upload the refined SVG. The system can make one-colour versions (black, and white for dark backgrounds) automatically.
+6. **Quality gate.** The brand kit can't be released until staff confirm that:
+   - a designer refined the logo (AI concepts are never delivered as-is)
+   - a CIPC trade mark search was done
+7. **Brand kit.** Releasing it submits the *Final files* step. The client gets SVG files and PNGs at 512, 1024 and 2048 px (rendered in the browser), the palette as HEX, RGB and approximate CMYK, fonts, usage rules and tips for Canva and printers.
+
+**Safety**
+- Every SVG is sanitised (scripts, event handlers and external links are removed).
+- Files are served only to staff and the engagement's client, with a sandboxing CSP.
+- The client never sees AI prompts or sources.
+
+**Canva** isn't connected through its API. Canva Connect needs each user to sign in with OAuth, and filling brand templates requires Canva Enterprise. The brand kit files import into a Canva Brand Kit by hand instead.
+
 ## The Operator: internal business-management agent
 
 **Command Centre → Operator** is the agency's back-office manager for a solopreneur. Every weekday from 07:30 SAST, and whenever you press **Run now**, it:
