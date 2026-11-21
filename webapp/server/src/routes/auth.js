@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { db, row } from '../db.js';
 import { body, z } from '../validate.js';
 import { authenticate, publicUser, revokeSessions, signToken } from '../auth.js';
+import { waNumber } from '../integrations/meta.js';
 import { botCheck } from '../botcheck.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { logEvent } from '../events.js';
@@ -56,6 +57,7 @@ r.patch('/me', authenticate, body(z.object({
   name: z.string().trim().min(2).max(100).optional(),
   company: z.string().trim().max(150).optional(),
   phone: z.string().trim().max(40).optional(),
+  whatsapp_opt_in: z.boolean().optional(),
   billing_address: z.string().trim().max(300).optional(),
   vat_number: z.string().trim().regex(/^(4\d{9})?$/, { message: 'SA VAT numbers are 10 digits starting with 4' }).optional(),
   currentPassword: z.string().optional(),
@@ -70,8 +72,9 @@ r.patch('/me', authenticate, body(z.object({
     }
     hash = bcrypt.hashSync(b.newPassword, 10);
   }
-  let updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, billing_address = ?, vat_number = ?, password_hash = ? WHERE id = ? RETURNING *')
-    .get(b.name ?? u.name, b.company ?? u.company, b.phone ?? u.phone, b.billing_address ?? u.billing_address, b.vat_number ?? u.vat_number, hash, u.id));
+  if (b.whatsapp_opt_in && !waNumber(b.phone ?? u.phone)) return res.status(400).json({ error: 'Add a valid mobile number to get WhatsApp updates', fields: { phone: 'e.g. 082 123 4567' } });
+  let updated = row(db.prepare('UPDATE users SET name = ?, company = ?, phone = ?, billing_address = ?, vat_number = ?, password_hash = ?, whatsapp_opt_in = ? WHERE id = ? RETURNING *')
+    .get(b.name ?? u.name, b.company ?? u.company, b.phone ?? u.phone, b.billing_address ?? u.billing_address, b.vat_number ?? u.vat_number, hash, b.whatsapp_opt_in !== undefined ? (b.whatsapp_opt_in ? 1 : 0) : u.whatsapp_opt_in, u.id));
   if (b.newPassword) {
     // A new password signs out every other session; this one gets a fresh token.
     updated = revokeSessions(u.id);

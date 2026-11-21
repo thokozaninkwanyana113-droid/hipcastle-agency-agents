@@ -6,13 +6,13 @@ import Seo from '../components/Seo.jsx';
 
 export default function Account() {
   const { user, setUser } = useAuth();
-  const [form, setForm] = useState({ name: user.name, company: user.company || '', phone: user.phone || '', billing_address: user.billing_address || '', vat_number: user.vat_number || '', currentPassword: '', newPassword: '' });
+  const [form, setForm] = useState({ name: user.name, company: user.company || '', phone: user.phone || '', billing_address: user.billing_address || '', vat_number: user.vat_number || '', whatsapp_opt_in: Boolean(user.whatsapp_opt_in), currentPassword: '', newPassword: '' });
   const [state, setState] = useState({ msg: '', error: '', fields: {} });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
-    const body = { name: form.name, company: form.company, phone: form.phone, billing_address: form.billing_address, vat_number: form.vat_number.replace(/\s/g, '') };
+    const body = { name: form.name, company: form.company, phone: form.phone, whatsapp_opt_in: form.whatsapp_opt_in, billing_address: form.billing_address, vat_number: form.vat_number.replace(/\s/g, '') };
     if (form.newPassword) Object.assign(body, { currentPassword: form.currentPassword, newPassword: form.newPassword });
     try {
       const { token, ...u } = await api('/auth/me', { method: 'PATCH', body });
@@ -41,7 +41,8 @@ export default function Account() {
         {state.msg && <div className="alert alert--success">{state.msg}</div>}
         <Field label="Name" error={state.fields.name}><input className="input" value={form.name} onChange={set('name')} /></Field>
         <Field label="Company"><input className="input" value={form.company} onChange={set('company')} /></Field>
-        <Field label="Phone"><input className="input" value={form.phone} onChange={set('phone')} /></Field>
+        <Field label="Mobile number" error={state.fields.phone}><input className="input" type="tel" value={form.phone} onChange={set('phone')} /></Field>
+        <label className="check"><input type="checkbox" checked={form.whatsapp_opt_in} onChange={(e) => setForm({ ...form, whatsapp_opt_in: e.target.checked })} /> Also send me approval requests, invoices and support replies on WhatsApp. You can switch this off any time; emails still come too.</label>
         <Field label="Billing address" hint="Shown on your tax invoices (required by SARS on invoices over R5 000)."><textarea className="input" rows={2} maxLength={300} value={form.billing_address} onChange={set('billing_address')} /></Field>
         <Field label="Your VAT number (if VAT registered)" error={state.fields.vat_number}><input className="input" inputMode="numeric" placeholder="4xxxxxxxxx" value={form.vat_number} onChange={set('vat_number')} /></Field>
         <hr />

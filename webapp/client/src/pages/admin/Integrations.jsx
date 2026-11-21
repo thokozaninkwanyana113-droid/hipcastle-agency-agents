@@ -1,4 +1,5 @@
-// Command Centre → Integrations: Xero, accountant exports, booking, agreements and the credential guard.
+// Command Centre → Integrations: delivery integrations, Xero, accountant exports, booking, agreements,
+// the credential guard and the government tender feed.
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, getToken } from '../../api.js';
@@ -6,6 +7,53 @@ import { ErrorBox, Loader } from '../../components/ui.jsx';
 import { useFetch } from '../../useFetch.js';
 import { dateTime } from '../../format.js';
 import { PanelHead } from './shared.jsx';
+
+/** Delivery integrations: one card per service, with status, cost, what it does and how to set it up. */
+function DeliveryIntegrations({ services }) {
+  const ready = services.filter((s) => s.configured).length;
+  return (
+    <section className="card">
+      <h3>🔌 Delivery integrations <small className="muted">· {ready} of {services.length} ready</small></h3>
+      <p className="muted small">These power client reports and alerts on each engagement (link them on the engagement page). Secrets are set on the server (e.g. <code>fly secrets set NAME=value</code>), never pasted into the app or chat.</p>
+      <div className="integration-grid">
+        {services.map((s) => (
+          <details key={s.id} className="integration-tile">
+            <summary>
+              <span><strong>{s.name}</strong><small className="muted"> {s.services.join(' · ')}</small></span>
+              <span className={`status status--${s.configured ? 'paid' : 'pending'}`}>{s.configured ? 'Ready' : 'Not set up'}</span>
+            </summary>
+            <p className="small">{s.what}</p>
+            <p className="small muted">Cost: {s.cost}</p>
+            {s.env.length > 0 && <p className="small">Secrets: {s.env.map((e) => <code key={e}>{e}</code>).reduce((a, b) => [a, ', ', b])}</p>}
+            <ol className="setup-steps small">{s.setup.map((step) => <li key={step}>{step}</li>)}</ol>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TenderBrowser() {
+  const [q, setQ] = useState('');
+  const { data, error, reload } = useFetch(`/admin/integrations/tenders?q=${encodeURIComponent(q)}`);
+  return (
+    <section className="card">
+      <h3>📑 Open government tenders</h3>
+      <p className="muted small">From the National Treasury eTender Portal, refreshed daily. Matches for Sales &amp; Tenders clients are emailed to the team.</p>
+      <div className="filters-row"><input className="input input--sm" placeholder="Search title, description or buyer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && reload()} /></div>
+      <ErrorBox error={error} />
+      {data?.length ? (
+        <div className="table-wrap"><table className="table">
+          <thead><tr><th>Closes</th><th>Tender</th><th>Buyer</th></tr></thead>
+          <tbody>{data.slice(0, 50).map((t) => (
+            <tr key={t.ocid}><td className="nowrap">{t.closing_at ? dateTime(t.closing_at) : '—'}</td>
+              <td><a href={t.url} target="_blank" rel="noreferrer">{t.title}</a>{t.description && <div className="muted small">{t.description.slice(0, 160)}</div>}</td><td>{t.buyer}</td></tr>
+          ))}</tbody>
+        </table></div>
+      ) : <p className="empty">No open tenders loaded yet — they arrive with the daily “Government tenders” job (Command Centre → System &amp; processes).</p>}
+    </section>
+  );
+}
 
 function Download({ kind, label }) {
   const [from, setFrom] = useState(`${new Date().getFullYear()}-03-01`); // SA tax year starts 1 March
@@ -71,6 +119,8 @@ export default function Integrations() {
       {msg.ok && <div className="alert alert--success">{msg.ok}</div>}
       {msg.err && <div className="alert alert--error">{msg.err}</div>}
 
+      {data.services && <DeliveryIntegrations services={data.services} />}
+
       <div className="card integration">
         <div className="integration__head">
           <div><h3>📒 Xero — accounting</h3><p className="muted small">Pushes every invoice (as a tax invoice), payment and void to Xero, with the client as a contact. Your accountant reconciles PayFast/Ozow payouts against them in Xero.</p></div>
@@ -133,6 +183,7 @@ export default function Integrations() {
           <button className="btn btn--primary" disabled={busy}>Save settings</button>
         </form>
       )}
+      <TenderBrowser />
     </>
   );
 }

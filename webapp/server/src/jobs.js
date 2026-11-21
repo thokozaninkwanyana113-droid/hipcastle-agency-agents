@@ -15,6 +15,7 @@ import { pruneVisitors } from './analytics.js';
 import { syncAccounting } from './accounting/sync.js';
 import { runFollowUps } from './comms-jobs.js';
 import { scheduledRun as operatorRun } from './operator/agent.js';
+import { runIntegrationMonitor, runMailboxSync, runReports, runTenders } from './integrations/jobs.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -108,6 +109,26 @@ const definitions = [
     id: 'operator-daily', name: 'Operator daily review', every: HOUR,
     description: 'The Operator reviews sales, marketing, advertising, finance, delivery, support and retention once each weekday from 07:30 SAST, prepares actions for approval and emails the team its brief.',
     run: () => operatorRun(),
+  },
+  {
+    id: 'site-monitor', name: 'Website monitoring', every: 5 * MIN,
+    description: 'Checks every linked client website: uptime, response time and TLS certificate expiry. Alerts the team after two failed checks and when the site recovers.',
+    run: () => runIntegrationMonitor(),
+  },
+  {
+    id: 'integration-reports', name: 'Client reports (integrations)', every: 6 * HOUR,
+    description: 'Refreshes monthly PageSpeed, GitHub, Search Console, GA4 and Meta ads reports for linked engagements, and tender matches daily.',
+    run: () => runReports(),
+  },
+  {
+    id: 'tenders-sync', name: 'Government tenders (eTenders)', every: 24 * HOUR,
+    description: 'Collects new tenders from the National Treasury eTender Portal and emails the team matches for Sales & Tenders clients.',
+    run: () => runTenders(),
+  },
+  {
+    id: 'mailbox-sync', name: 'Microsoft 365 inbox', every: 15 * MIN,
+    description: 'Logs replies from leads and clients in the shared inbox against their records (only when Microsoft 365 is configured).',
+    run: () => runMailboxSync(),
   },
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,

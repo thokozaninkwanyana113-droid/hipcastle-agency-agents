@@ -107,6 +107,7 @@ export function sendEmail(template, to, data = {}, { name = null, ref = null, te
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
       .get(template, to.toLowerCase(), name, replyTo, r.subject, r.html, r.text, Object.keys(headers).length ? JSON.stringify(headers) : null, ref, holdUntil);
     setImmediate(() => processQueue().catch(() => {}));
+    if (!team) setImmediate(() => import('../integrations/whatsapp.js').then((w) => w.mirrorToWhatsapp(template, to, data, ref)).catch(() => {}));
     return id;
   } catch (err) {
     logEvent('email.error', `Could not queue ${template} to ${to}: ${err.message}`, { level: 'error' });

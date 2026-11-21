@@ -1215,3 +1215,29 @@ html, body { overflow-x: clip; }
 .design-finals li { display: flex; gap: .75rem; align-items: center; }
 .brand-kit { margin-top: 1.5rem; border-top: 1px solid var(--line, #e5e7eb); padding-top: 1rem; }
 .palette-table td { vertical-align: middle; }
+
+/* Delivery integrations */
+.integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: .75rem; margin-top: .75rem; }
+.integration-tile { border: 1px solid var(--line, #e5e7eb); border-radius: 10px; padding: .75rem 1rem; }
+.integration-tile summary { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start; cursor: pointer; list-style: none; }
+.integration-tile summary small { display: block; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.report { border: 1px solid var(--line, #e5e7eb); border-radius: 12px; padding: 1rem; }
+.report header { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin-bottom: .5rem; }
+.report header h3 { margin: 0; font-size: 1rem; flex: 1 1 100%; }
+.report header button { margin-left: auto; }
+.scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-bottom: .5rem; }
+.score { text-align: center; border-radius: 10px; padding: .5rem .25rem; background: #f4f4f5; }
+.score strong { display: block; font-size: 1.4rem; }
+.score span { font-size: .75rem; text-transform: capitalize; }
+.score--good { background: #e3f6ea; color: #0d5c2e; }
+.score--ok { background: #fdf1d8; color: #7a4b00; }
+.score--bad { background: #fde3e1; color: #8a1c12; }
+.delta { display: block; font-size: .75rem; }
+.delta--up { color: #0d7a3a; }
+.delta--down { color: #b3261e; }
+.table--compact td, .table--compact th { padding: .35rem .5rem; font-size: .85rem; }
+.report .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: 0 0 .75rem; }
+.report .kpi { min-width: 0; padding: .6rem .75rem; border-radius: 10px; }
+.report .kpi span { font-size: .7rem; letter-spacing: .04em; }
+.report .kpi strong { font-size: 1.15rem; overflow-wrap: anywhere; }

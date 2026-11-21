@@ -14,6 +14,7 @@ import supportRoutes from './routes/support.js';
 import integrationRoutes, { integrationsAdmin } from './routes/integrations.js';
 import operatorAdmin from './routes/operator.js';
 import designRoutes from './routes/design.js';
+import engagementRoutes from './routes/engagements.js';
 import { metricsMiddleware, recordError } from './events.js';
 import { db } from './db.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
@@ -87,6 +88,7 @@ export function createApp() {
   app.use('/api/payments', paymentRoutes);
   app.use('/api/support', supportRoutes);
   app.use('/api/design', designRoutes);
+  app.use('/api/engagements', engagementRoutes);
   app.use('/api/admin/integrations', integrationsAdmin);
   app.use('/api/admin/operator', operatorAdmin);
   app.use('/api', integrationRoutes);

@@ -8,6 +8,8 @@ import { authorizeUrl, connect, disconnect, readState, redirectUri, xeroConfigur
 import { resetFailures, syncAccounting, syncStatus } from '../accounting/sync.js';
 import { exportInvoices } from '../accounting/export.js';
 import { getSettings } from '../settings.js';
+import { registry } from '../integrations/registry.js';
+import { rows as allRows } from '../db.js';
 
 const r = Router();
 
@@ -36,7 +38,14 @@ admin.get('/', (_req, res) => {
     xero: { configured: xeroConfigured(), redirect_uri: redirectUri(), ...syncStatus(),
       settings: { xero_sales_account: s.xero_sales_account, xero_bank_account: s.xero_bank_account, xero_tax_type: s.xero_tax_type, accounting_sync_from: s.accounting_sync_from } },
     booking: { url: s.booking_url || null },
+    services: registry(),
   });
+});
+admin.get('/tenders', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase().slice(0, 60);
+  res.json(allRows(db.prepare(`SELECT ocid, title, description, buyer, category, closing_at, url, published_at FROM tenders
+    WHERE (closing_at IS NULL OR closing_at > datetime('now')) AND (? = '' OR lower(title) LIKE ? OR lower(description) LIKE ? OR lower(buyer) LIKE ?) ORDER BY closing_at LIMIT 100`)
+    .all(q, `%${q}%`, `%${q}%`, `%${q}%`)).map((t) => ({ ...t, description: t.description?.slice(0, 400) })));
 });
 admin.post('/xero/connect', (req, res) => {
   if (!xeroConfigured()) return res.status(400).json({ error: 'Add XERO_CLIENT_ID and XERO_CLIENT_SECRET first (see the setup steps on this page).' });

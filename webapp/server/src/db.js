@@ -40,7 +40,7 @@ if (tierCols.length && !tierCols.includes('plan')) {
 
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
-  users: { token_version: 'INTEGER NOT NULL DEFAULT 0', attribution: 'TEXT', billing_address: 'TEXT', vat_number: 'TEXT' },
+  users: { token_version: 'INTEGER NOT NULL DEFAULT 0', attribution: 'TEXT', billing_address: 'TEXT', vat_number: 'TEXT', whatsapp_opt_in: 'INTEGER NOT NULL DEFAULT 0' },
   newsletter_subscribers: { status: "TEXT NOT NULL DEFAULT 'active'", confirmed_at: 'TEXT', confirm_sent_at: 'TEXT' },
   payments: { needs_refund: 'INTEGER NOT NULL DEFAULT 0', refunded_at: 'TEXT', refund_note: 'TEXT', is_recurring: 'INTEGER NOT NULL DEFAULT 0' },
   leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT', attribution: 'TEXT' },

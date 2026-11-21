@@ -265,6 +265,35 @@ Every service page leads with an **answer-first summary**: one 40–90-word para
 
 **Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
 
+## Delivery integrations: results, monitoring and alerts for every service
+
+Command Centre → **Integrations** lists every integration, whether it's set up, what it costs and how to set it up. Staff link each engagement's accounts in **Results & monitoring** on the engagement page. The client sees the results in their portal, refreshed monthly; tender matches refresh daily. Staff can also refresh any report on demand.
+
+| Integration | For | What it does | Secrets |
+|---|---|---|---|
+| **Website monitoring** (built in) | Engineering, care plans | Checks every 5 minutes: uptime %, response time, incidents. Alerts the team after 2 failed checks, again on recovery, and 14/7/2 days before the TLS certificate expires. | none |
+| **Google PageSpeed Insights** | Engineering, QA, SEO | Performance, accessibility, best-practice and SEO scores, Core Web Vitals and what to fix first. | `PAGESPEED_API_KEY` (optional) |
+| **Google Search Console + GA4** | SEO, Paid media | Clicks, impressions, top searches and pages; visitors, channels and conversions, compared with the previous period. Uses one service account, which each client adds to their property, so no OAuth is needed. | `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| **GitHub** | Engineering, Games | Commits, pull requests and releases as live progress. | `GITHUB_TOKEN` (fine-grained, read-only) |
+| **Meta ads** | Paid Advertising | Spend, reach, clicks, CTR, CPC and leads (and cost per lead) by campaign, last 30 days. Read-only. | `META_ACCESS_TOKEN` (system user, `ads_read`); `META_GRAPH_VERSION` (default v25.0) |
+| **WhatsApp Business** | All | Approval requests, invoices and support replies on WhatsApp for clients who opt in on their account page. Email still goes too. | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` |
+| **Microsoft 365 inbox** | Sales, Operations | Every 15 minutes, logs replies from known leads and clients against their records, and marks contacted leads who reply as *qualified*. Mail from strangers is ignored. | `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`, `M365_MAILBOX` |
+| **National Treasury eTenders** | Sales & Tenders | Collects new government tenders daily (public OCDS API) and matches them to each client's keywords. The team gets a daily digest. | none |
+| **Recraft**, **Figma** | Design & Brand | See *Design studio*. | `RECRAFT_API_TOKEN`, `FIGMA_TOKEN` |
+
+**WhatsApp templates.** Create these as *Utility* templates in WhatsApp Manager, in language `en`. The `{{n}}` placeholders are filled in order.
+- `hc_approval_needed`: "Hi {{1}}, *{{2}}* for {{3}} is ready for your approval. Review it here: {{4}}"
+- `hc_invoice_issued`: "Hi {{1}}, invoice {{2}} for {{3}} is ready. View and pay securely: {{4}}"
+- `hc_support_reply`: "Hi {{1}}, we've replied to your support ticket {{2}}. Read it here: {{3}}"
+
+You can override the names with `WHATSAPP_TEMPLATE_APPROVAL`, `WHATSAPP_TEMPLATE_INVOICE` and `WHATSAPP_TEMPLATE_SUPPORT`.
+
+**Not integrated through an API (on purpose):**
+- **Google Ads:** needs an approved developer token. Apply in the Google Ads API Center; until approved, use the GA4 conversion data and the ad platform's own reports.
+- **Google Business Profile:** API access needs Google's approval.
+- **Canva:** per-user OAuth, and template filling needs Enterprise.
+- **TikTok and LinkedIn ads:** app review is needed.
+
 ## Design studio: logo & brand identity delivery
 
 Every **Design & Brand** engagement page has a design studio. Staff use the full studio; the client sees only what staff share.
