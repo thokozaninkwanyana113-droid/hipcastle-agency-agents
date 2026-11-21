@@ -403,6 +403,41 @@ CREATE TABLE IF NOT EXISTS agreements (
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- The Operator: the agency's internal business-management agent (see operator/).
+CREATE TABLE IF NOT EXISTS operator_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  trigger       TEXT NOT NULL CHECK (trigger IN ('schedule','manual')),
+  instruction   TEXT,
+  mode          TEXT NOT NULL CHECK (mode IN ('ai','rules')),
+  status        TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running','done','failed')),
+  brief         TEXT,                                -- Markdown
+  model         TEXT,
+  input_tokens  INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER,
+  actions_proposed INTEGER NOT NULL DEFAULT 0,
+  error         TEXT,
+  actor_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  started_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  finished_at   TEXT
+);
+CREATE TABLE IF NOT EXISTS operator_actions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id      INTEGER REFERENCES operator_runs(id) ON DELETE SET NULL,
+  area        TEXT NOT NULL CHECK (area IN ('sales','marketing','advertising','finance','delivery','support','retention','operations')),
+  kind        TEXT NOT NULL CHECK (kind IN ('email','blog_post','social_posts','ad_campaign','task','call')),
+  priority    INTEGER NOT NULL DEFAULT 2 CHECK (priority BETWEEN 1 AND 3),   -- 1 = do today
+  title       TEXT NOT NULL,
+  rationale   TEXT NOT NULL,
+  payload     TEXT NOT NULL DEFAULT '{}',          -- JSON, depends on kind
+  dedupe_key  TEXT,                                 -- stops the same suggestion being made every day
+  status      TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed','approved','done','dismissed','failed','expired')),
+  result      TEXT,
+  decided_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  decided_at  TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_operator_actions_status ON operator_actions(status, area);
+CREATE INDEX IF NOT EXISTS idx_operator_actions_dedupe ON operator_actions(dedupe_key);
+
 -- Connected third-party services (e.g. Xero). Tokens are encrypted (AES-256-GCM) with a key derived from JWT_SECRET.
 CREATE TABLE IF NOT EXISTS integrations (
   provider   TEXT PRIMARY KEY,

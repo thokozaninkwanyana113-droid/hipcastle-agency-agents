@@ -81,6 +81,12 @@ How Hipcastle communicates with prospects and clients, from first enquiry to aft
 | `care.offer` | Client | Free support ends in 7 days | Once, BH |
 | `care.hours` | Client and team | Care allowance used up | Once a month. Extra work is quoted first |
 
+### Operator (internal agent)
+| Message | To | Trigger | Timing |
+|---|---|---|---|
+| `operator.email` | Prospect or client | An email the Operator drafted, **approved by a person** | When approved |
+| `operator.brief` | Team | Daily Operator review | Weekdays from 07:30 SAST, optional |
+
 ## 4. Human touchpoints (not automated)
 
 | When | Who | What |

@@ -62,10 +62,12 @@ export const TOUCHPOINTS = {
   'newsletter.confirm': T('Newsletter', 'Subscriber', 'Sign-up (double opt-in)', 'Immediately', { essential: true }),
   'newsletter.welcome': T('Newsletter', 'Subscriber', 'Subscription confirmed', 'Immediately'),
   'auth.reset': T('Account', 'Client', 'Password reset requested', 'Immediately', { essential: true }),
+  'operator.email': T('Operator', 'Prospect / Client', 'An Operator draft approved by a person', 'When approved', { essential: true }),
+  'operator.brief': T('Operator', 'Team', 'Daily Operator run', 'Weekdays from 07:30 SAST'),
   'system.alert': T('System', 'Team', 'Error, failed job or backup', 'Immediately (throttled)', { essential: true }),
   'system.test': T('System', 'Admin', 'Test from the Command Centre', 'Immediately', { essential: true }),
 };
-export const STAGES = ['Enquiry', 'Order', 'Onboarding', 'Delivery', 'Billing', 'Support', 'Aftercare', 'Newsletter', 'Account', 'System'];
+export const STAGES = ['Enquiry', 'Order', 'Onboarding', 'Delivery', 'Billing', 'Support', 'Aftercare', 'Newsletter', 'Account', 'Operator', 'System'];
 
 /** Is this touchpoint switched on? Essential ones always are. */
 export function touchpointEnabled(id, s = getSettings()) {

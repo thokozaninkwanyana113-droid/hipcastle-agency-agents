@@ -265,6 +265,42 @@ Every service page leads with an **answer-first summary**: one 40–90-word para
 
 **Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
 
+## The Operator: internal business-management agent
+
+**Command Centre → Operator** is the agency's back-office manager for a solopreneur. Every weekday from 07:30 SAST, and whenever you press **Run now**, it:
+
+1. Reviews the business: enquiries waiting, unpaid orders, overdue invoices, revenue and recurring income, overdue milestones, support tickets past target, client ratings, website traffic and sources, content freshness, and questions the assistant couldn't answer.
+2. Prepares a short list of high-impact actions in these areas: sales, marketing, advertising, finance, delivery, support and retention. The kinds of action are:
+   - emails to leads or clients
+   - complete blog drafts
+   - a week of social posts
+   - ad campaign plans with a UTM tracking link
+   - calls with talking points
+   - tasks
+3. Emails the team a **morning brief** (`operator.brief`).
+
+**You stay in control.**
+- Emails are only sent when a person clicks **Approve & send**. You can edit them first.
+- Ad spend needs an admin. Campaigns are planned to fit **Monthly ad budget**. When you approve one, you get a tracking link, so results show under Growth.
+- Blog posts are saved as drafts and are never published automatically.
+- **Autonomy: Assist** auto-accepts internal work only (tasks, calls, social copy, drafts).
+- Suggestions you dismiss aren't repeated for 14 days. Untouched proposals expire after 10 days.
+- Secrets are stripped from proposals. Customer messages are treated as untrusted data, which protects against prompt injection.
+- Manual runs are limited to 10 a day.
+
+**Modes**
+
+| Mode | When | What it does |
+|---|---|---|
+| AI | `ANTHROPIC_API_KEY` is set | Claude works through read tools (snapshot, lead detail, catalogue, recent posts, past decisions) and validated `propose_*` tools. It writes bespoke drafts and learns from what you approve or dismiss. |
+| Rules | No key, or the AI call fails | Deterministic best-practice checks, with templated drafts. This is free and always available. |
+
+**Settings**
+- Command Centre: on/off, autonomy, monthly ad budget, standing focus.
+- Environment: `OPERATOR_MODEL` (default `claude-opus-5-5`), `OPERATOR_EFFORT` (default `medium`), and `OPERATOR_AI=off` to force rules mode.
+
+**Code:** `server/src/operator/` (`snapshot.js`, `actions.js`, `rules.js`, `agent.js`) and `client/src/pages/admin/Operator.jsx`.
+
 ## Communications plan
 
 The written plan is in [`COMMUNICATIONS.md`](COMMUNICATIONS.md); the system enforces it through `server/src/communications.js`.

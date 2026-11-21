@@ -16,6 +16,20 @@ const invoiceTable = (inv) => [
   ['Due date', inv.due_at],
 ];
 
+/** Minimal Markdown → email blocks (paragraphs and bullet lists; emphasis markers removed). */
+function mdBlocks(md = '') {
+  const out = []; let list = null;
+  const clean = (t) => t.replace(/\*\*|__|`/g, '').replace(/^#+\s*/, '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)').trim();
+  for (const line of String(md).split('\n')) {
+    const m = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
+    if (m) { (list ||= []).push(clean(m[1])); continue; }
+    if (list) { out.push({ list }); list = null; }
+    if (line.trim()) out.push(clean(line));
+  }
+  if (list) out.push({ list });
+  return out;
+}
+
 export const TEMPLATES = {
   // ------------------------------------------------------------------ Leads
   'lead.autoreply': {
@@ -704,6 +718,30 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Thandi Mokoena' }, order: { id: 1, reference: 'HC-1E1AC5', service_name: 'Software Engineering', tier_name: 'Growth' },
       agreement: { signer_name: 'Thandi Mokoena', signer_title: 'Owner', signed_at: '2026-11-17 09:30:00', doc_hash: 'a3f1c2…'.padEnd(64, '0'), version: '2026-11', document: 'SERVICE AGREEMENT — HC-1E1AC5\n\n1. PARTIES …' } },
+  },
+  // ------------------------------------------------------------------ Operator (internal agent)
+  'operator.email': {
+    audience: 'Prospect / Client', description: 'A personal email the Operator drafted and a person approved',
+    build: ({ name, subject, body }) => ({
+      subject,
+      preheader: String(body || '').replace(/\s+/g, ' ').slice(0, 110),
+      heading: subject,
+      blocks: String(body || '').split(/\n{2,}/).map((para) => para.trim()).filter(Boolean),
+      signoff: false,
+      reason: `You're receiving this because you're in touch with ${getSettings().business_name}. Just reply — a person reads every response.`,
+    }),
+    sample: { name: 'Thandi Mokoena', subject: 'Your website enquiry', body: 'Hi Thandi,\n\nThanks for your enquiry about a new website. Would a 30-minute call on Thursday suit you?\n\nThe Hipcastle team' },
+  },
+  'operator.brief': {
+    audience: 'Team', description: "The Operator's morning brief and the actions waiting for approval",
+    build: ({ brief, runId, open }) => ({
+      subject: `☀️ Operator brief: ${open} action${open === 1 ? '' : 's'} waiting for you`,
+      preheader: String(brief || '').split('\n').find((l) => l.trim())?.replace(/[#*_`]/g, '').slice(0, 120) || 'Today at a glance',
+      heading: 'Your morning brief',
+      blocks: [...mdBlocks(brief), { button: 'Review and approve', href: `/admin/operator${runId ? `?run=${runId}` : ''}` }],
+      signoff: false,
+    }),
+    sample: { brief: '**3 people are waiting on you.**\n\n- Reply to Thandi (Sweet Treats)\n- Chase INV-0042 (R4 750, 9 days overdue)\n\nI drafted 2 emails and a blog post.', runId: 1, open: 3 },
   },
   'system.alert': {
     audience: 'Team', description: 'Something broke: server error, crashed job or failed backup (throttled)',

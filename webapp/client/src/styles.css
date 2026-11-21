@@ -1170,3 +1170,20 @@ html, body { overflow-x: clip; }
 .comms-stage h3 { margin-top: 0; }
 .comms-stage td small { display: block; color: var(--muted); }
 .comms-stage tr.is-off td { opacity: .55; }
+
+/* Command Centre → Operator */
+.op-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1rem; margin-bottom: 1.5rem; align-items: start; }
+.op-brief h3 small { font-weight: 400; font-size: .8rem; }
+.op-run { margin-top: 1rem; border-top: 1px solid var(--line, #e5e7eb); padding-top: 1rem; }
+.op-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.op-action { display: flex; flex-direction: column; gap: .5rem; }
+.op-action__head { display: flex; gap: .75rem; align-items: flex-start; }
+.op-action__head h4 { margin: 0 0 .15rem; font-size: 1rem; }
+.op-action__head .status { margin-left: auto; }
+.op-action__area { font-size: 1.4rem; line-height: 1; }
+.op-action__why { margin: 0; font-size: .9rem; color: var(--soft, #4b5563); }
+.op-action .form__actions { margin-top: auto; flex-wrap: wrap; }
+.op-email pre, .op-details { white-space: pre-wrap; font: inherit; font-size: .9rem; margin: 0; background: var(--bg-soft, #f7f7f9); padding: .75rem; border-radius: 8px; max-height: 260px; overflow: auto; }
+.op-list { margin: 0; padding-left: 1.1rem; font-size: .9rem; }
+.op-list li { margin-bottom: .35rem; }
+@media (max-width: 900px) { .op-grid { grid-template-columns: 1fr; } .op-actions { grid-template-columns: 1fr; } }
