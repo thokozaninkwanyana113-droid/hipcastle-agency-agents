@@ -40,7 +40,12 @@ export const DEFAULT_SETTINGS = {
   payfast_enabled: true,
   ozow_enabled: true,
   jobs_disabled: [],
-  comms_disabled: [],                        // optional touchpoints switched off (see communications.js)
+  comms_disabled: [],
+  // The Operator (internal business-management agent)
+  operator_enabled: true,
+  operator_autonomy: 'suggest',              // suggest: everything needs approval · assist: internal drafts/tasks auto-approved (never emails or ad spend)
+  operator_focus: '',                        // optional standing instruction, e.g. "Prioritise web projects in Durban this quarter"
+  operator_monthly_ad_budget: 0,             // rand the Operator may plan ad campaigns around (0 = ask before proposing spend)                        // optional touchpoints switched off (see communications.js)
   social: {
     facebook: 'https://www.facebook.com/hipcastleagency',
     instagram: 'https://www.instagram.com/hipcastleagency',

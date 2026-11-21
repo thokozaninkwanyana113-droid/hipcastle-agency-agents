@@ -14,6 +14,7 @@ import { offsiteConfig, uploadBackup } from './offsite.js';
 import { pruneVisitors } from './analytics.js';
 import { syncAccounting } from './accounting/sync.js';
 import { runFollowUps } from './comms-jobs.js';
+import { scheduledRun as operatorRun } from './operator/agent.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -102,6 +103,11 @@ const definitions = [
     id: 'comms-followups', name: 'Communications follow-ups', every: HOUR,
     description: 'From the communications plan: one follow-up to enquiries with no order after 3 days, payment nudges 24 hours and 3 days after an unpaid order, Monday progress updates for active projects, and a daily team digest of enquiries waiting over a business day. Held for SA business hours.',
     run: () => runFollowUps(),
+  },
+  {
+    id: 'operator-daily', name: 'Operator daily review', every: HOUR,
+    description: 'The Operator reviews sales, marketing, advertising, finance, delivery, support and retention once each weekday from 07:30 SAST, prepares actions for approval and emails the team its brief.',
+    run: () => operatorRun(),
   },
   {
     id: 'chat-retention', name: 'Chat transcript retention', every: 24 * HOUR,

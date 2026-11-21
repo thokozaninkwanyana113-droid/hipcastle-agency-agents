@@ -12,6 +12,7 @@ import paymentRoutes from './routes/payments.js';
 import chatRoutes from './routes/chat.js';
 import supportRoutes from './routes/support.js';
 import integrationRoutes, { integrationsAdmin } from './routes/integrations.js';
+import operatorAdmin from './routes/operator.js';
 import { metricsMiddleware, recordError } from './events.js';
 import { db } from './db.js';
 import { canonicalHostRedirect, canonicalUrl } from './urls.js';
@@ -85,6 +86,7 @@ export function createApp() {
   app.use('/api/payments', paymentRoutes);
   app.use('/api/support', supportRoutes);
   app.use('/api/admin/integrations', integrationsAdmin);
+  app.use('/api/admin/operator', operatorAdmin);
   app.use('/api', integrationRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));

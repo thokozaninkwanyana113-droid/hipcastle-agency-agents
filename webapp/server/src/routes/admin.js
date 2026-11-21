@@ -296,6 +296,10 @@ r.put('/settings', requireRole('admin'), body(z.object({
   agreement_min_cents: z.number().int().min(0).max(100000000),
   agreement_for_retainers: z.boolean(),
   secure_share_hint: z.string().trim().min(20).max(300),
+  operator_enabled: z.boolean(),
+  operator_autonomy: z.enum(['suggest', 'assist']),
+  operator_focus: z.string().trim().max(500),
+  operator_monthly_ad_budget: z.number().int().min(0).max(1000000),
 }).partial()), (req, res) => {
   const before = getSettings();
   const out = updateSettings(req.body);

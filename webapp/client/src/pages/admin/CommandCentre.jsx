@@ -20,9 +20,10 @@ import CarePlans from './CarePlans.jsx';
 import Growth from './Growth.jsx';
 import Integrations from './Integrations.jsx';
 import Communications from './Communications.jsx';
+import Operator from './Operator.jsx';
 
 const NAV = [
-  ['Monitor', [['', 'Overview', '📊'], ['growth', 'Growth & acquisition', '📈'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️'], ['communications', 'Communications plan', '📣']]],
+  ['Monitor', [['', 'Overview', '📊'], ['operator', 'Operator', '🧭'], ['growth', 'Growth & acquisition', '📈'], ['system', 'System & processes', '🖥️'], ['activity', 'Activity log', '📜'], ['payments', 'Payments', '💳'], ['emails', 'Emails', '✉️'], ['communications', 'Communications plan', '📣']]],
   ['Operate', [['pipeline', 'Delivery pipeline', '🚦'], ['engagements', 'Engagements', '📁'], ['support', 'Support desk', '🎧'], ['care', 'Care plans', '🛟'], ['conversations', 'Assistant chats', '💬'], ['leads', 'Leads & CRM', '🎯'], ['clients', 'Users & clients', '👥'], ['invoices', 'Invoices', '🧾']]],
   ['Content', [['blog', 'Blog', '✍️'], ['testimonials', 'Testimonials', '⭐'], ['catalog', 'Services & pricing', '🏷️'], ['subscribers', 'Subscribers', '📬']]],
   ['Configure', [['playbooks', 'Delivery playbooks', '📘'], ['integrations', 'Integrations', '🔌'], ['seo', 'SEO, AEO & GEO', '🔎'], ['settings', 'Settings', '⚙️']]],
@@ -54,6 +55,7 @@ export default function CommandCentre() {
         <button className="btn btn--ghost btn--sm cc__menu" onClick={() => setOpen(!open)} aria-expanded={open}>☰ Sections</button>
         <Routes>
           <Route index element={<Overview />} />
+          <Route path="operator" element={<Operator />} />
           <Route path="growth" element={<Growth />} />
           <Route path="system" element={<System />} />
           <Route path="activity" element={<Activity />} />
