@@ -23,6 +23,9 @@ export async function api(path, { method = 'GET', body } = {}) {
   const redacted = res.headers.get('X-Content-Redacted');
   if (redacted) window.dispatchEvent(new CustomEvent('hipcastle:redacted', { detail: redacted.split(',') }));
   const data = await res.json().catch(() => ({}));
+  if (res.status === 403 && data.code === 'mfa_setup_required' && !window.location.pathname.startsWith('/account/security')) {
+    window.location.assign('/account/security?required=1');
+  }
   if (!res.ok) throw new ApiError(data.error || 'Request failed', res.status, data.fields);
   return data;
 }

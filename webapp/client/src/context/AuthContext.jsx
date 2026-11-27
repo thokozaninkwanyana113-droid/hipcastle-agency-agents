@@ -19,7 +19,10 @@ export function AuthProvider({ children }) {
   const value = {
     user, ready, setUser,
     isStaff: user?.role === 'admin' || user?.role === 'staff',
-    login: (email, password) => api('/auth/login', { method: 'POST', body: { email, password } }).then(handle),
+    // Returns the user, or { mfa_required, mfa_token } when a code is needed.
+    login: (email, password) => api('/auth/login', { method: 'POST', body: { email, password } }).then((r) => (r.mfa_required ? r : handle(r))),
+    verifyCode: (mfa_token, code) => api('/auth/login/verify', { method: 'POST', body: { mfa_token, code } }).then(handle),
+    signIn: handle,
     register: (data) => api('/auth/register', { method: 'POST', body: data }).then(handle),
     logout: () => { setToken(null); setUser(null); },
   };

@@ -96,6 +96,11 @@ How Hipcastle communicates with prospects and clients, from first enquiry to aft
 
 **WhatsApp:** clients who opt in on their account page also get `deliverable.ready`, `invoice.issued` and `ticket.reply` on WhatsApp, using pre-approved templates. Email is always sent too.
 
+### Account security
+| Message | To | Trigger | Timing |
+|---|---|---|---|
+| `auth.security` | Account owner | Two-step sign-in turned on/off, reset by an admin, locked after wrong codes, or a recovery code used | Immediately (essential) |
+
 ## 4. Human touchpoints (not automated)
 
 | When | Who | What |

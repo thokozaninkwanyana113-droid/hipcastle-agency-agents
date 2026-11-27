@@ -61,6 +61,7 @@ export const TOUCHPOINTS = {
   // 7. Newsletter, account & system
   'newsletter.confirm': T('Newsletter', 'Subscriber', 'Sign-up (double opt-in)', 'Immediately', { essential: true }),
   'newsletter.welcome': T('Newsletter', 'Subscriber', 'Subscription confirmed', 'Immediately'),
+  'auth.security': T('Account', 'Client / Team', 'Two-step sign-in turned on/off, reset, locked, or recovery code used', 'Immediately', { essential: true }),
   'auth.reset': T('Account', 'Client', 'Password reset requested', 'Immediately', { essential: true }),
   'operator.email': T('Operator', 'Prospect / Client', 'An Operator draft approved by a person', 'When approved', { essential: true }),
   'operator.brief': T('Operator', 'Team', 'Daily Operator run', 'Weekdays from 07:30 SAST'),

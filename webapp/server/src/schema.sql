@@ -9,6 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
   company       TEXT,
   phone         TEXT,
   whatsapp_opt_in INTEGER NOT NULL DEFAULT 0,   -- POPIA: client agreed to WhatsApp updates
+  totp_secret   TEXT,                                   -- two-step sign-in: encrypted authenticator secret
+  totp_pending  TEXT,                                   -- secret being set up (not active until confirmed)
+  totp_enabled_at TEXT,
+  totp_last_step INTEGER NOT NULL DEFAULT 0,             -- last accepted code window (stops replays)
+  recovery_codes TEXT,                                  -- JSON array of SHA-256 hashes (single use)
+  mfa_failures  INTEGER NOT NULL DEFAULT 0,
+  mfa_locked_until TEXT,
   role          TEXT    NOT NULL DEFAULT 'client' CHECK (role IN ('client','staff','admin')),
   token_version INTEGER NOT NULL DEFAULT 0,             -- bump to sign out every session
   attribution   TEXT,                                   -- first-touch JSON when the account was created

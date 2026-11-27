@@ -16,18 +16,53 @@ function useAfterAuth() {
 }
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, verifyCode } = useAuth();
   const done = useAfterAuth();
   const [params] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mfa, setMfa] = useState(null); // { mfa_token } while waiting for the code
+  const [code, setCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setError('');
-    try { done(await login(form.email, form.password)); } catch (err) { setError(err.message); setBusy(false); }
+    try {
+      const r = await login(form.email, form.password);
+      if (r.mfa_required) { setMfa(r); setBusy(false); return; }
+      done(r);
+    } catch (err) { setError(err.message); setBusy(false); }
   };
+  const submitCode = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError('');
+    try { done(await verifyCode(mfa.mfa_token, code)); } catch (err) {
+      setError(err.message); setBusy(false);
+      if (err.status === 401 && /expired/i.test(err.message)) { setMfa(null); setCode(''); }
+    }
+  };
+
+  if (mfa) return (
+    <section className="auth">
+      <Seo title="Two-step sign-in" noindex />
+      <form className="card auth__card form" onSubmit={submitCode}>
+        <h1>🔐 Two-step sign-in</h1>
+        <p className="muted">{useRecovery ? 'Enter one of the recovery codes you saved when you set up two-step sign-in. Each code works once.' : 'Open your authenticator app and enter the 6-digit code for Hipcastle Agency.'}</p>
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
+        <Field label={useRecovery ? 'Recovery code' : '6-digit code'}>
+          <input className="input input--code" autoFocus required autoComplete="one-time-code" inputMode={useRecovery ? 'text' : 'numeric'}
+            pattern={useRecovery ? undefined : '[0-9 ]{6,7}'} maxLength={useRecovery ? 12 : 7} placeholder={useRecovery ? 'abcd-efgh' : '123 456'} value={code} onChange={(e) => setCode(e.target.value)} />
+        </Field>
+        <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Checking…' : 'Verify and sign in'}</button>
+        <p className="center small">
+          <button type="button" className="btn--link" onClick={() => { setUseRecovery(!useRecovery); setCode(''); setError(''); }}>{useRecovery ? 'Use my authenticator app instead' : 'Lost your phone? Use a recovery code'}</button>
+          {' · '}<button type="button" className="btn--link" onClick={() => { setMfa(null); setCode(''); setError(''); }}>Start over</button>
+        </p>
+      </form>
+    </section>
+  );
 
   return (
     <section className="auth">
@@ -35,6 +70,7 @@ export function Login() {
       <form className="card auth__card form" onSubmit={submit}>
         <h1>Welcome back</h1>
         <p className="muted">Sign in to your Hipcastle client portal.</p>
+        {params.get('reset') && <div className="alert alert--success">Password changed. Sign in with your new password and your two-step code.</div>}
         {error && <div className="alert alert--error" role="alert">{error}</div>}
         <Field label="Email"><input className="input" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
         <Field label="Password"><input className="input" type="password" required autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
@@ -125,6 +161,7 @@ export function ResetPassword() {
     setBusy(true); setError('');
     try {
       const r = await api('/auth/reset', { method: 'POST', body: { token, password: pw.password } });
+      if (r.mfa_required) { navigate('/login?reset=1', { replace: true }); return; } // still needs the code step
       setToken(r.token); setUser(r.user);
       navigate(r.user.role === 'client' ? '/portal' : '/admin', { replace: true });
     } catch (err) { setError(err.fields?.password || err.message); setBusy(false); }

@@ -265,6 +265,23 @@ Every service page leads with an **answer-first summary**: one 40–90-word para
 
 **Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
 
+## Two-step sign-in (authenticator app)
+
+Every account can turn on two-step sign-in at **Account → Security**. It's **required for admin and staff**. A team account without it can only open its Security page until it's set up. You can switch this rule off in Command Centre → Integrations → Settings, but it's on by default.
+
+**How it works**
+- **Codes:** standard TOTP (RFC 6238): 6 digits that change every 30 s. It works with Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden and Authy.
+- **Setup:** scan a QR code, or type in the key, then confirm with the first code.
+- **Secrets:** stored encrypted (AES-256-GCM).
+- **Codes accepted:** each code works once (no replays), with ±30 s allowed for clock drift.
+- **Sign-in:** after the right password, the server issues a 5-minute token that can only be exchanged for a session by entering a code.
+- **Brute force:** five wrong codes pause sign-in for 15 minutes and email the account owner.
+- **Recovery codes:** 10 single-use codes, shown once and stored only as hashes. Using one emails a warning. A current code creates a fresh set.
+- **Password reset:** never skips the code step.
+- **Sessions:** turning two-step on signs out every other session. Team sessions last 12 hours; client sessions last 7 days.
+- **Lost phone:** an admin resets the person's two-step sign-in in Command Centre → Users & clients → "Reset (lost phone)". Do this only after confirming who they are, e.g. on a call. It signs them out, emails them, and they set it up again. Admins can't reset their own.
+- **Security emails:** `auth.security` is sent when two-step is turned on or off, reset or locked, or a recovery code is used. These can't be switched off.
+
 ## Delivery integrations: results, monitoring and alerts for every service
 
 Command Centre → **Integrations** lists every integration, whether it's set up, what it costs and how to set it up. Staff link each engagement's accounts in **Results & monitoring** on the engagement page. The client sees the results in their portal, refreshed monthly; tender matches refresh daily. Staff can also refresh any report on demand.

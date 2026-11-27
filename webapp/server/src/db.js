@@ -40,7 +40,9 @@ if (tierCols.length && !tierCols.includes('plan')) {
 
 const MIGRATIONS = {
   invoices: { subtotal_cents: 'INTEGER NOT NULL DEFAULT 0', vat_cents: 'INTEGER NOT NULL DEFAULT 0', description: 'TEXT' },
-  users: { token_version: 'INTEGER NOT NULL DEFAULT 0', attribution: 'TEXT', billing_address: 'TEXT', vat_number: 'TEXT', whatsapp_opt_in: 'INTEGER NOT NULL DEFAULT 0' },
+  users: { token_version: 'INTEGER NOT NULL DEFAULT 0', attribution: 'TEXT', billing_address: 'TEXT', vat_number: 'TEXT', whatsapp_opt_in: 'INTEGER NOT NULL DEFAULT 0',
+    totp_secret: 'TEXT', totp_pending: 'TEXT', totp_enabled_at: 'TEXT', totp_last_step: 'INTEGER NOT NULL DEFAULT 0', recovery_codes: 'TEXT',
+    mfa_failures: 'INTEGER NOT NULL DEFAULT 0', mfa_locked_until: 'TEXT' },
   newsletter_subscribers: { status: "TEXT NOT NULL DEFAULT 'active'", confirmed_at: 'TEXT', confirm_sent_at: 'TEXT' },
   payments: { needs_refund: 'INTEGER NOT NULL DEFAULT 0', refunded_at: 'TEXT', refund_note: 'TEXT', is_recurring: 'INTEGER NOT NULL DEFAULT 0' },
   leads: { province: 'TEXT', preferred_contact: 'TEXT', source: 'TEXT', attribution: 'TEXT' },

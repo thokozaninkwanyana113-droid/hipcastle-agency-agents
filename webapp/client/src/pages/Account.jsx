@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { api, setToken } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -36,6 +37,7 @@ export default function Account() {
       <Seo title="Account settings" noindex />
       <form className="card auth__card form" onSubmit={submit}>
         <h1>Account settings</h1>
+        <p className="alert alert--info">🔐 Two-step sign-in is <strong>{user.two_step ? 'on' : 'off'}</strong>. <Link to="/account/security">{user.two_step ? 'Manage security' : 'Turn it on'}</Link>{!user.two_step && ' — it stops anyone with your password from getting in.'}</p>
         <p className="muted">{user.email}</p>
         {state.error && <div className="alert alert--error">{state.error}</div>}
         {state.msg && <div className="alert alert--success">{state.msg}</div>}

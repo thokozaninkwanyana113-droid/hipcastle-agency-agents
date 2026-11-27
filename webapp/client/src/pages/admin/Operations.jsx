@@ -96,6 +96,11 @@ export function Users() {
   const { user } = useAuth();
   const [role, setRole] = useState('');
   const { data, error, loading, setData } = useFetch(`/admin/users?role=${role}`);
+  const resetTwoStep = async (u) => {
+    if (!window.confirm(`Reset two-step sign-in for ${u.name}? Only do this after confirming who they are (e.g. a call). They'll be signed out and must set it up again.`)) return;
+    try { const updated = await api(`/admin/users/${u.id}/2fa/reset`, { method: 'POST' }); setData(data.map((x) => (x.id === u.id ? { ...x, ...updated } : x))); }
+    catch (e) { window.alert(e.message); }
+  };
   const [err, setErr] = useState(null);
   const change = async (u, r) => {
     if (!window.confirm(`Change ${u.name}'s role to ${r}?`)) return;
@@ -117,7 +122,9 @@ export function Users() {
           <tbody>
             {data?.map((u) => (
               <tr key={u.id}>
-                <td>{u.name}<small>{u.email}{u.phone && ` · ${u.phone}`}</small></td>
+                <td>{u.name}<small>{u.email}{u.phone && ` · ${u.phone}`}</small>
+                  <small>{u.two_step ? '🔐 Two-step on' : u.role !== 'client' ? '⚠️ Two-step not set up' : ''}
+                    {user.role === 'admin' && u.two_step && u.id !== user.id && <> · <button className="btn--link" onClick={() => resetTwoStep(u)}>Reset (lost phone)</button></>}</small></td>
                 <td>{u.company || '—'}</td>
                 <td>{date(u.created_at)}</td>
                 <td>{u.order_count}</td>

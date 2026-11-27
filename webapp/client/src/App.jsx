@@ -19,6 +19,7 @@ const Checkout = lazy(() => import('./pages/Checkout.jsx'));
 const Portal = lazy(() => import('./pages/Portal.jsx'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Account = lazy(() => import('./pages/Account.jsx'));
+const Security = lazy(() => import('./pages/Security.jsx'));
 const InvoiceView = lazy(() => import('./pages/InvoiceView.jsx'));
 const CommandCentre = lazy(() => import('./pages/admin/CommandCentre.jsx'));
 import Testimonials from './pages/Testimonials.jsx';
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/portal/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
           <Route path="/portal/orders/:id/invoices/:invoiceId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+          <Route path="/account/security" element={<RequireAuth><Security /></RequireAuth>} />
           <Route path="/portal/support" element={<RequireAuth><SupportList /></RequireAuth>} />
           <Route path="/portal/support/:id" element={<RequireAuth><SupportTicket /></RequireAuth>} />
           <Route path="/admin/*" element={<RequireAuth staff><CommandCentre /></RequireAuth>} />

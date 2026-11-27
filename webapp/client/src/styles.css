@@ -1241,3 +1241,13 @@ html, body { overflow-x: clip; }
 .report .kpi { min-width: 0; padding: .6rem .75rem; border-radius: 10px; }
 .report .kpi span { font-size: .7rem; letter-spacing: .04em; }
 .report .kpi strong { font-size: 1.15rem; overflow-wrap: anywhere; }
+
+/* Two-step sign-in */
+.input--code { font: 600 1.5rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .3em; text-align: center; }
+.two-step-setup ol { padding-left: 1.2rem; display: grid; gap: .75rem; }
+.two-step-qr { width: 200px; height: 200px; margin: .75rem 0; padding: 8px; background: #fff; border: 1px solid var(--line, #e5e7eb); border-radius: 12px; }
+.two-step-qr svg { width: 100%; height: 100%; display: block; }
+.two-step-key { word-break: break-all; }
+.recovery { border: 2px dashed var(--gold, #f2b33d); border-radius: 12px; padding: 1rem 1.25rem; margin: 1rem 0; background: #fffaf0; }
+.recovery__codes { columns: 2; padding-left: 1.5rem; font-size: 1.05rem; }
+.recovery__codes li { margin-bottom: .35rem; }

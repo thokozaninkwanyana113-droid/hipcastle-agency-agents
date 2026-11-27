@@ -91,6 +91,27 @@ export const TEMPLATES = {
     }),
     sample: { user: { name: 'Sizwe Dlamini' } },
   },
+  'auth.security': {
+    audience: 'Client', description: 'Security alert: two-step sign-in turned on/off, reset, locked or a recovery code used',
+    build: ({ user, event, ip, at, by }) => {
+      const what = {
+        enabled: ['Two-step sign-in is on', 'Two-step sign-in is now protecting your account. Keep your recovery codes somewhere safe — they’re the only way in if you lose your phone.'],
+        disabled: ['Two-step sign-in was turned off', 'Two-step sign-in was turned off for your account. If this wasn’t you, reset your password now and contact us.'],
+        reset: ['Your two-step sign-in was reset', `${by || 'An administrator'} reset two-step sign-in on your account (for example after a lost phone). You’ll be asked to set it up again when you next sign in.`],
+        locked: ['Sign-in paused after wrong codes', 'Someone entered your correct password but five wrong two-step codes, so sign-in is paused for 15 minutes. If this wasn’t you, change your password now.'],
+        recovery_used: ['A recovery code was used', `Someone signed in to your account with a recovery code. You have ${user.recovery_left ?? 'some'} left — create new ones on your Security page if you’re running low.`],
+      }[event] || ['Security change on your account', 'A security setting on your account changed.'];
+      return {
+        subject: `🔐 ${what[0]}`,
+        preheader: what[1].slice(0, 110),
+        heading: what[0],
+        blocks: [`Hi ${first(user.name)},`, what[1], { table: [['When', `${new Date(at || Date.now()).toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' })} SAST`], ...(ip ? [['From IP address', ip]] : [])] },
+          { button: 'Review your security settings', href: '/account/security' }],
+        reason: 'Security notification for your Hipcastle account. These can’t be switched off.',
+      };
+    },
+    sample: { user: { name: 'Thandi Mokoena' }, event: 'enabled', ip: '196.25.1.1', at: '2026-11-27T08:00:00Z' },
+  },
   'auth.reset': {
     audience: 'Client', description: 'Password reset link (valid for 1 hour)',
     build: ({ user, url }) => ({

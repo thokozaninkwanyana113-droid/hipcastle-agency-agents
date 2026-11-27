@@ -104,6 +104,18 @@ r.patch('/users/:id', requireRole('admin'), body(z.object({ role: z.enum(['clien
   res.json(publicUser(u));
 });
 
+// Lost phone: an admin resets a team member's (or client's) two-step sign-in. They set it up again at next sign-in.
+r.post('/users/:id/2fa/reset', requireRole('admin'), (req, res) => {
+  const uid = id(req.params.id);
+  if (uid === req.user.id) return res.status(400).json({ error: 'Ask another admin to reset your own two-step sign-in' });
+  const u = row(db.prepare(`UPDATE users SET totp_secret = NULL, totp_pending = NULL, totp_enabled_at = NULL, recovery_codes = NULL, totp_last_step = 0,
+    mfa_failures = 0, mfa_locked_until = NULL, token_version = token_version + 1 WHERE id = ? RETURNING *`).get(uid));
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  logEvent('auth.mfa_reset', `${req.user.name} reset two-step sign-in for ${u.email}`, { actor: req.user.id, level: 'warn' });
+  sendEmail('auth.security', u.email, { user: u, event: 'reset', by: req.user.name, at: new Date().toISOString() }, { name: u.name });
+  res.json(publicUser(u));
+});
+
 // Invoices
 r.get('/invoices', (req, res) => {
   const status = req.query.status || '';
@@ -296,6 +308,7 @@ r.put('/settings', requireRole('admin'), body(z.object({
   agreement_min_cents: z.number().int().min(0).max(100000000),
   agreement_for_retainers: z.boolean(),
   secure_share_hint: z.string().trim().min(20).max(300),
+  staff_mfa_required: z.boolean(),
   operator_enabled: z.boolean(),
   operator_autonomy: z.enum(['suggest', 'assist']),
   operator_focus: z.string().trim().max(500),

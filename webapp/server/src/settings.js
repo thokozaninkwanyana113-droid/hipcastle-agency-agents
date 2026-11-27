@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS = {
   ozow_enabled: true,
   jobs_disabled: [],
   comms_disabled: [],
+  staff_mfa_required: true,       // admin & staff must use two-step sign-in
   // The Operator (internal business-management agent)
   operator_enabled: true,
   operator_autonomy: 'suggest',              // suggest: everything needs approval · assist: internal drafts/tasks auto-approved (never emails or ad spend)

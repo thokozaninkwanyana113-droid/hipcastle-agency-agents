@@ -92,7 +92,7 @@ export default function Integrations() {
       xero_sales_account: settings.xero_sales_account, xero_bank_account: settings.xero_bank_account, xero_tax_type: settings.xero_tax_type,
       accounting_sync_from: settings.accounting_sync_from, booking_url: settings.booking_url,
       agreement_min: String((settings.agreement_min_cents || 0) / 100), agreement_for_retainers: settings.agreement_for_retainers,
-      secure_share_hint: settings.secure_share_hint,
+      secure_share_hint: settings.secure_share_hint, staff_mfa_required: settings.staff_mfa_required !== false,
     });
   }, [settings]);
   const act = async (fn, ok) => {
@@ -180,6 +180,9 @@ export default function Integrations() {
           <h4>🔐 Credential guard</h4>
           <label className="field"><span className="field__label">What clients are told when a password, card or ID number is removed</span><textarea className="input" rows={2} value={form.secure_share_hint} onChange={set('secure_share_hint')} /></label>
           <p className="muted small">Your team should keep client logins in a shared password manager vault (Bitwarden Teams or 1Password Business), never in email, WhatsApp or this system.</p>
+          <h4>🔐 Two-step sign-in</h4>
+          <label className="checkbox"><input type="checkbox" checked={!!form.staff_mfa_required} onChange={set('staff_mfa_required')} /><span>Require two-step sign-in for admin and staff accounts (recommended)</span></label>
+          <p className="muted small">Team members without it can only open their Security page until they set it up. Clients can turn it on for themselves.</p>
           <button className="btn btn--primary" disabled={busy}>Save settings</button>
         </form>
       )}
