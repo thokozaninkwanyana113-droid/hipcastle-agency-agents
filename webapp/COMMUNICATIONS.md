@@ -87,6 +87,15 @@ How Hipcastle communicates with prospects and clients, from first enquiry to aft
 | `operator.email` | Prospect or client | An email the Operator drafted, **approved by a person** | When approved |
 | `operator.brief` | Team | Daily Operator review | Weekdays from 07:30 SAST, optional |
 
+### Monitoring & tenders (team)
+| Message | To | Trigger | Timing |
+|---|---|---|---|
+| `site.down` / `site.recovered` | Team | A monitored client site fails two checks in a row / comes back | Immediately |
+| `site.ssl` | Team | A client's TLS certificate expires in 14, 7 or 2 days | Immediately |
+| `tenders.digest` | Team | New government tenders match a Sales & Tenders client's keywords | Daily, business hours |
+
+**WhatsApp:** clients who opt in on their account page also get `deliverable.ready`, `invoice.issued` and `ticket.reply` on WhatsApp, using pre-approved templates. Email is always sent too.
+
 ## 4. Human touchpoints (not automated)
 
 | When | Who | What |

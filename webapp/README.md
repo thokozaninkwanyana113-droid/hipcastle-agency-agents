@@ -265,6 +265,59 @@ Every service page leads with an **answer-first summary**: one 40–90-word para
 
 **Markdown for AI.** Every service has a clean Markdown version at `/services/<slug>.md`. It is linked with `rel="alternate" type="text/markdown"` and listed in `llms.txt`.
 
+## Delivery integrations: results, monitoring and alerts for every service
+
+Command Centre → **Integrations** lists every integration, whether it's set up, what it costs and how to set it up. Staff link each engagement's accounts in **Results & monitoring** on the engagement page. The client sees the results in their portal, refreshed monthly; tender matches refresh daily. Staff can also refresh any report on demand.
+
+| Integration | For | What it does | Secrets |
+|---|---|---|---|
+| **Website monitoring** (built in) | Engineering, care plans | Checks every 5 minutes: uptime %, response time, incidents. Alerts the team after 2 failed checks, again on recovery, and 14/7/2 days before the TLS certificate expires. | none |
+| **Google PageSpeed Insights** | Engineering, QA, SEO | Performance, accessibility, best-practice and SEO scores, Core Web Vitals and what to fix first. | `PAGESPEED_API_KEY` (needed in practice: the keyless quota is shared and usually used up) |
+| **Google Search Console + GA4** | SEO, Paid media | Clicks, impressions, top searches and pages; visitors, channels and conversions, compared with the previous period. Uses one service account, which each client adds to their property, so no OAuth is needed. | `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| **GitHub** | Engineering, Games | Commits, pull requests and releases as live progress. | `GITHUB_TOKEN` (fine-grained, read-only) |
+| **Meta ads** | Paid Advertising | Spend, reach, clicks, CTR, CPC and leads (and cost per lead) by campaign, last 30 days. Read-only. | `META_ACCESS_TOKEN` (system user, `ads_read`); `META_GRAPH_VERSION` (default v25.0) |
+| **WhatsApp Business** | All | Approval requests, invoices and support replies on WhatsApp for clients who opt in on their account page. Email still goes too. | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` |
+| **Microsoft 365 inbox** | Sales, Operations | Every 15 minutes, logs replies from known leads and clients against their records, and marks contacted leads who reply as *qualified*. Mail from strangers is ignored. | `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`, `M365_MAILBOX` |
+| **National Treasury eTenders** | Sales & Tenders | Collects new government tenders daily (public OCDS API) and matches them to each client's keywords. The team gets a daily digest. | none |
+| **Recraft**, **Figma** | Design & Brand | See *Design studio*. | `RECRAFT_API_TOKEN`, `FIGMA_TOKEN` |
+
+**WhatsApp templates.** Create these as *Utility* templates in WhatsApp Manager, in language `en`. The `{{n}}` placeholders are filled in order.
+- `hc_approval_needed`: "Hi {{1}}, *{{2}}* for {{3}} is ready for your approval. Review it here: {{4}}"
+- `hc_invoice_issued`: "Hi {{1}}, invoice {{2}} for {{3}} is ready. View and pay securely: {{4}}"
+- `hc_support_reply`: "Hi {{1}}, we've replied to your support ticket {{2}}. Read it here: {{3}}"
+
+You can override the names with `WHATSAPP_TEMPLATE_APPROVAL`, `WHATSAPP_TEMPLATE_INVOICE` and `WHATSAPP_TEMPLATE_SUPPORT`.
+
+**Not integrated through an API (on purpose):**
+- **Google Ads:** needs an approved developer token. Apply in the Google Ads API Center; until approved, use the GA4 conversion data and the ad platform's own reports.
+- **Google Business Profile:** API access needs Google's approval.
+- **Canva:** per-user OAuth, and template filling needs Enterprise.
+- **TikTok and LinkedIn ads:** app review is needed.
+
+## Design studio: logo & brand identity delivery
+
+Every **Design & Brand** engagement page has a design studio. Staff use the full studio; the client sees only what staff share.
+
+1. **Creative brief.** Built from the client's onboarding answers (personality, audience, likes) and editable.
+2. **Concept directions.** Three distinct directions, each with an idea, a palette, Google Fonts and an image prompt. Claude writes them when `ANTHROPIC_API_KEY` is set; otherwise a starter set is matched to the brand personality.
+3. **Concepts**, from any of three sources:
+   - **Recraft AI:** editable vector SVG logos, using `RECRAFT_API_TOKEN` and `RECRAFT_MODEL` (default `recraftv4_1_vector`, about US$0.08 each). There's a cap per engagement, `DESIGN_MAX_AI_IMAGES` (default 48).
+   - **Figma:** link the designer's file. With `FIGMA_TOKEN`, list its frames and import them as SVG or PNG.
+   - **Uploads:** SVG, PNG, JPEG or WebP, up to 3 MB.
+4. **Client review.** Staff share the chosen concepts. This sends the *Design concepts* step for approval and emails the client. The client stars favourites, comments, then approves or asks for changes, which uses up revision rounds.
+5. **Final files.** Promote a concept to final, or upload the refined SVG. The system can make one-colour versions (black, and white for dark backgrounds) automatically.
+6. **Quality gate.** The brand kit can't be released until staff confirm that:
+   - a designer refined the logo (AI concepts are never delivered as-is)
+   - a CIPC trade mark search was done
+7. **Brand kit.** Releasing it submits the *Final files* step. The client gets SVG files and PNGs at 512, 1024 and 2048 px (rendered in the browser), the palette as HEX, RGB and approximate CMYK, fonts, usage rules and tips for Canva and printers.
+
+**Safety**
+- Every SVG is sanitised (scripts, event handlers and external links are removed).
+- Files are served only to staff and the engagement's client, with a sandboxing CSP.
+- The client never sees AI prompts or sources.
+
+**Canva** isn't connected through its API. Canva Connect needs each user to sign in with OAuth, and filling brand templates requires Canva Enterprise. The brand kit files import into a Canva Brand Kit by hand instead.
+
 ## The Operator: internal business-management agent
 
 **Command Centre → Operator** is the agency's back-office manager for a solopreneur. Every weekday from 07:30 SAST, and whenever you press **Run now**, it:

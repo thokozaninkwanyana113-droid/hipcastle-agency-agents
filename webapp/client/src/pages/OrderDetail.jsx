@@ -1,5 +1,7 @@
 import { CareSection, CareUsage } from '../components/Care.jsx';
 import AgreementPanel from '../components/AgreementPanel.jsx';
+import DesignStudio from '../components/DesignStudio.jsx';
+import EngagementReports from '../components/EngagementReports.jsx';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -119,6 +121,9 @@ export default function OrderDetail() {
         {o.onboarding?.length > 0 && o.status !== 'cancelled' && (
           <OnboardingPanel order={o} items={o.onboarding} canEdit={isClient || isStaff} isStaff={isStaff} onSaved={reload} />
         )}
+
+        {o.service_slug === 'design' && o.status !== 'cancelled' && <DesignStudio order={o} isStaff={isStaff} />}
+        {o.status !== 'cancelled' && o.status !== 'pending' && <EngagementReports order={o} isStaff={isStaff} />}
 
         <section className="card pipeline-card" aria-labelledby="delivery-h">
           <div className="pipeline-card__head">

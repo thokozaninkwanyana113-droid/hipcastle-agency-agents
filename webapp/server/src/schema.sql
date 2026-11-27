@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT    NOT NULL,
   company       TEXT,
   phone         TEXT,
+  whatsapp_opt_in INTEGER NOT NULL DEFAULT 0,   -- POPIA: client agreed to WhatsApp updates
   role          TEXT    NOT NULL DEFAULT 'client' CHECK (role IN ('client','staff','admin')),
   token_version INTEGER NOT NULL DEFAULT 0,             -- bump to sign out every session
   attribution   TEXT,                                   -- first-touch JSON when the account was created
@@ -437,6 +438,116 @@ CREATE TABLE IF NOT EXISTS operator_actions (
 );
 CREATE INDEX IF NOT EXISTS idx_operator_actions_status ON operator_actions(status, area);
 CREATE INDEX IF NOT EXISTS idx_operator_actions_dedupe ON operator_actions(dedupe_key);
+
+-- Design studio: creative brief, AI/Figma/uploaded concepts, client picks and the brand kit
+CREATE TABLE IF NOT EXISTS design_projects (
+  order_id     INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+  brief        TEXT NOT NULL DEFAULT '{}',       -- JSON: business_name, scope, personality, audience, likes, industry, notes
+  directions   TEXT NOT NULL DEFAULT '[]',       -- JSON: [{name, idea, palette[hex], fonts{heading,body}, prompt}]
+  directions_by TEXT CHECK (directions_by IN ('ai','rules','staff')),
+  figma_url    TEXT,
+  figma_meta   TEXT,                             -- JSON: name, last_modified, thumbnail, frames[]
+  checks       TEXT NOT NULL DEFAULT '{}',       -- JSON: designer_refined, trademark_checked, trademark_note
+  kit_released_at TEXT,
+  generations  INTEGER NOT NULL DEFAULT 0,       -- AI images generated (cost control)
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS design_assets (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  direction    INTEGER,                          -- index into directions (concepts)
+  kind         TEXT NOT NULL DEFAULT 'concept' CHECK (kind IN ('concept','final')),
+  variant      TEXT CHECK (variant IN ('primary','mono_dark','mono_light','icon','other')),
+  title        TEXT NOT NULL,
+  mime         TEXT NOT NULL CHECK (mime IN ('image/svg+xml','image/png','image/jpeg','image/webp')),
+  data         BLOB NOT NULL,
+  bytes        INTEGER NOT NULL,
+  source       TEXT NOT NULL CHECK (source IN ('recraft','figma','upload','derived')),
+  prompt       TEXT,
+  shared       INTEGER NOT NULL DEFAULT 0,       -- visible to the client
+  client_pick  INTEGER NOT NULL DEFAULT 0,
+  client_comment TEXT,
+  created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_design_assets_order ON design_assets(order_id, kind);
+
+-- Delivery integrations: per-engagement links (repo, site, Search Console, GA4, ad account),
+-- generated reports, site monitoring, tenders and inbound email
+CREATE TABLE IF NOT EXISTS engagement_links (
+  order_id      INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+  site_url      TEXT,                     -- monitored & PageSpeed-tested
+  github_repo   TEXT,                     -- owner/name
+  gsc_property  TEXT,                     -- https://example.co.za/ or sc-domain:example.co.za
+  ga4_property  TEXT,                     -- numeric property id
+  meta_ad_account TEXT,                   -- numeric ad account id (without act_)
+  tender_keywords TEXT,                   -- comma-separated (Sales & Tenders clients)
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS engagement_reports (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id   INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  provider   TEXT NOT NULL CHECK (provider IN ('pagespeed','github','search_console','ga4','meta_ads','monitor','tenders')),
+  data       TEXT NOT NULL,               -- JSON summary shown in the portal
+  error      TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_reports_order ON engagement_reports(order_id, provider, id);
+CREATE TABLE IF NOT EXISTS site_checks (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id    INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  ok          INTEGER NOT NULL,
+  status_code INTEGER,
+  ms          INTEGER,
+  error       TEXT,
+  ssl_days    INTEGER,                    -- days until the TLS certificate expires
+  checked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_site_checks ON site_checks(order_id, id);
+CREATE TABLE IF NOT EXISTS site_incidents (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id    INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  started_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at TEXT,
+  cause       TEXT
+);
+CREATE TABLE IF NOT EXISTS tenders (
+  ocid        TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  description TEXT,
+  buyer       TEXT,
+  category    TEXT,
+  province    TEXT,
+  closing_at  TEXT,
+  url         TEXT,
+  published_at TEXT,
+  seen_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_tenders_closing ON tenders(closing_at);
+CREATE TABLE IF NOT EXISTS inbound_emails (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  graph_id    TEXT NOT NULL UNIQUE,
+  from_email  TEXT NOT NULL,
+  from_name   TEXT,
+  subject     TEXT,
+  preview     TEXT,
+  received_at TEXT NOT NULL,
+  lead_id     INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+  user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  to_phone    TEXT NOT NULL,
+  template    TEXT NOT NULL,
+  touchpoint  TEXT NOT NULL,
+  status      TEXT NOT NULL CHECK (status IN ('sent','failed')),
+  wa_id       TEXT,
+  error       TEXT,
+  ref         TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- Connected third-party services (e.g. Xero). Tokens are encrypted (AES-256-GCM) with a key derived from JWT_SECRET.
 CREATE TABLE IF NOT EXISTS integrations (

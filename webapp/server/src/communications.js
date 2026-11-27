@@ -64,6 +64,10 @@ export const TOUCHPOINTS = {
   'auth.reset': T('Account', 'Client', 'Password reset requested', 'Immediately', { essential: true }),
   'operator.email': T('Operator', 'Prospect / Client', 'An Operator draft approved by a person', 'When approved', { essential: true }),
   'operator.brief': T('Operator', 'Team', 'Daily Operator run', 'Weekdays from 07:30 SAST'),
+  'site.down': T('System', 'Team', 'Monitored client website down (2 failed checks)', 'Immediately', { essential: true }),
+  'site.recovered': T('System', 'Team', 'Monitored client website back up', 'Immediately'),
+  'site.ssl': T('System', 'Team', 'Client TLS certificate expires in 14, 7 or 2 days', 'Immediately'),
+  'tenders.digest': T('Operator', 'Team', 'New government tenders match a client’s keywords', 'Daily, business hours', { businessHours: true }),
   'system.alert': T('System', 'Team', 'Error, failed job or backup', 'Immediately (throttled)', { essential: true }),
   'system.test': T('System', 'Admin', 'Test from the Command Centre', 'Immediately', { essential: true }),
 };

@@ -743,6 +743,53 @@ export const TEMPLATES = {
     }),
     sample: { brief: '**3 people are waiting on you.**\n\n- Reply to Thandi (Sweet Treats)\n- Chase INV-0042 (R4 750, 9 days overdue)\n\nI drafted 2 emails and a blog post.', runId: 1, open: 3 },
   },
+  // ------------------------------------------------------------------ Delivery integrations
+  'site.down': {
+    audience: 'Team', description: 'A monitored client website is down (two failed checks in a row)',
+    build: ({ site, check }) => ({
+      subject: `🔴 ${site.reference}: ${new URL(site.site_url).hostname} is down`,
+      preheader: check.error || 'The site is not responding.',
+      heading: 'A client website is down',
+      blocks: [{ table: [['Site', site.site_url], ['Engagement', site.reference], ['Error', check.error || '—'], ['Response time', `${check.ms} ms`]] },
+        { note: 'Check hosting, DNS and the TLS certificate. If it’s a care-plan client, log your time on their support ticket.' }, { button: 'Open the engagement', href: `/portal/orders/${site.order_id}` }],
+      signoff: false,
+    }),
+    sample: { site: { order_id: 1, reference: 'HC-1E1AC5', site_url: 'https://example.co.za' }, check: { error: 'Timed out after 20 s', ms: 20000 } },
+  },
+  'site.recovered': {
+    audience: 'Team', description: 'A monitored client website is back up',
+    build: ({ site, incident }) => ({
+      subject: `🟢 ${site.reference}: ${new URL(site.site_url).hostname} is back up`,
+      preheader: `Down since ${incident.started_at} UTC.`,
+      heading: 'Site recovered',
+      blocks: [{ table: [['Site', site.site_url], ['Down since', `${incident.started_at} UTC`], ['Cause', incident.cause || '—']] }, { p: 'Let the client know what happened and what was done, if they noticed.' }],
+      signoff: false,
+    }),
+    sample: { site: { order_id: 1, reference: 'HC-1E1AC5', site_url: 'https://example.co.za' }, incident: { started_at: '2026-11-21 06:10:00', cause: 'HTTP 502' } },
+  },
+  'site.ssl': {
+    audience: 'Team', description: 'A client site’s TLS certificate expires soon',
+    build: ({ site, days }) => ({
+      subject: `🔒 ${site.reference}: certificate for ${new URL(site.site_url).hostname} expires in ${days} day${days === 1 ? '' : 's'}`,
+      preheader: 'Renew it before visitors see a security warning.',
+      heading: 'Certificate expiring soon',
+      blocks: [{ table: [['Site', site.site_url], ['Expires in', `${days} day(s)`]] }, { note: 'Most hosts renew automatically — if this keeps appearing, the renewal is failing. Check the hosting panel or Let’s Encrypt logs.' }],
+      signoff: false,
+    }),
+    sample: { site: { order_id: 1, reference: 'HC-1E1AC5', site_url: 'https://example.co.za' }, days: 7 },
+  },
+  'tenders.digest': {
+    audience: 'Team', description: 'New government tenders matching Sales & Tenders clients’ keywords',
+    build: ({ groups }) => ({
+      subject: `📑 ${groups.reduce((n, g) => n + g.tenders.length, 0)} new tender match(es) for your clients`,
+      preheader: groups.map((g) => g.client).join(', '),
+      heading: 'New tenders worth a look',
+      blocks: groups.flatMap((g) => [{ p: `${g.client} (${g.reference}) — keywords: ${g.keywords}` },
+        { table: g.tenders.map((t) => [t.closing_at ? `Closes ${t.closing_at.slice(0, 10)}` : 'Open', `${t.title}${t.description ? ` — ${t.description.slice(0, 120)}` : ''} (${t.buyer || 'unknown buyer'})`]) }]).concat([{ note: 'Check eligibility (CSD, B-BBEE, CIDB) before preparing a bid. Documents are on the eTender Portal.' }]),
+      signoff: false,
+    }),
+    sample: { groups: [{ client: 'Khumalo Security', reference: 'HC-5A2B10', keywords: 'security, guarding', tenders: [{ title: 'SCM/12/2026 Security services', description: 'Provision of guarding services for 36 months', buyer: 'City of Tshwane', closing_at: '2026-12-05T11:00:00Z' }] }] },
+  },
   'system.alert': {
     audience: 'Team', description: 'Something broke: server error, crashed job or failed backup (throttled)',
     build: ({ subject, details, at }) => ({
