@@ -1,6 +1,8 @@
 // Website monitoring for care-plan and hosting clients: uptime every few minutes, response time and
 // TLS certificate expiry. Built in, so there's no extra subscription to pay for.
 import { connect } from 'node:tls';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { db, rows } from '../db.js';
 import { rawFetch } from './http.js';
 
@@ -14,10 +16,25 @@ let tlsDays = (host) => new Promise((resolve) => {
 });
 export function setTlsCheck(fn) { tlsDays = fn; }
 
+// Only public internet addresses may be checked (no SSRF into the server's own network).
+const PRIVATE = [/^127\./, /^10\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^169\.254\./, /^0\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^::1$/, /^::$/, /^f[cd][0-9a-f]{2}:/i, /^fe[89ab][0-9a-f]:/i, /^::ffff:(127|10|192\.168|169\.254)\./i];
+let resolver = (host) => lookup(host, { all: true });
+export function setResolver(fn) { resolver = fn; }
+export async function assertPublicUrl(url) {
+  const u = new URL(url);
+  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Only http(s) sites can be monitored');
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  if (/^(localhost|.*\.internal|.*\.local)$/i.test(host)) throw new Error('Private address — not monitored');
+  const addrs = isIP(host) ? [{ address: host }] : await resolver(host);
+  if (!addrs.length || addrs.some((a) => PRIVATE.some((re) => re.test(a.address)))) throw new Error('Private address — not monitored');
+}
+
 export async function checkSite(url) {
   const start = Date.now();
   try {
-    const res = await rawFetch(url, { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(20_000), headers: { 'User-Agent': 'HipcastleMonitor/1.0 (+uptime check)' } });
+    await assertPublicUrl(url);
+    // Redirects are not followed (a redirect could point inside the network); a 3xx still means "up".
+    const res = await rawFetch(url, { method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(20_000), headers: { 'User-Agent': 'HipcastleMonitor/1.0 (+uptime check)' } });
     const ms = Date.now() - start;
     const host = new URL(url).hostname;
     const ssl = url.startsWith('https:') ? await tlsDays(host) : null;

@@ -19,7 +19,8 @@ export async function runIntegrationMonitor() {
 export const runReports = () => refreshDueReports();
 
 export async function runTenders() {
-  const added = await syncTenders();
+  const { added, failed } = await syncTenders();
+  if (failed.length) logEvent('integration.tenders_partial', `eTenders API could not serve ${failed.length} request(s): ${failed.join(', ')}`.slice(0, 300), { level: 'warn' });
   const clients = rows(db.prepare(`SELECT l.order_id, l.tender_keywords, o.reference, COALESCE(u.company, u.name) AS client FROM engagement_links l
     JOIN orders o ON o.id = l.order_id JOIN users u ON u.id = o.user_id WHERE l.tender_keywords IS NOT NULL AND o.status IN ('active','in_review','completed')`).all());
   const groups = [];
@@ -28,7 +29,7 @@ export async function runTenders() {
     if (fresh.length) groups.push({ client: c.client, reference: c.reference, keywords: c.tender_keywords, tenders: fresh });
   }
   if (groups.length) notifyTeam('tenders.digest', { groups });
-  return `${added} new tender(s); ${groups.reduce((n, g) => n + g.tenders.length, 0)} match(es) for ${groups.length} client(s)`;
+  return `${added} new tender(s); ${groups.reduce((n, g) => n + g.tenders.length, 0)} match(es) for ${groups.length} client(s)${failed.length ? `; ${failed.length} API request(s) failed and were skipped` : ''}`;
 }
 
 export async function runMailboxSync() {

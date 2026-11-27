@@ -8,7 +8,7 @@ import { matchTenders } from './etenders.js';
 import { uptimeSummary } from './monitor.js';
 
 export const PROVIDERS = {
-  pagespeed: { label: 'Speed & quality (PageSpeed)', link: 'site_url', ready: () => true, run: (l) => pageSpeed(l.site_url) },
+  pagespeed: { label: 'Speed & quality (PageSpeed)', link: 'site_url', ready: () => Boolean(process.env.PAGESPEED_API_KEY), run: (l) => pageSpeed(l.site_url) },
   github: { label: 'Development activity (GitHub)', link: 'github_repo', ready: githubConfigured, run: (l) => repoActivity(l.github_repo) },
   search_console: { label: 'Google Search (Search Console)', link: 'gsc_property', ready: googleConfigured, run: (l) => searchConsole(l.gsc_property) },
   ga4: { label: 'Website visitors (Google Analytics)', link: 'ga4_property', ready: googleConfigured, run: (l) => ga4(l.ga4_property) },

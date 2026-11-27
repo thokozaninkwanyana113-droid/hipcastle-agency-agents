@@ -272,7 +272,7 @@ Command Centre → **Integrations** lists every integration, whether it's set up
 | Integration | For | What it does | Secrets |
 |---|---|---|---|
 | **Website monitoring** (built in) | Engineering, care plans | Checks every 5 minutes: uptime %, response time, incidents. Alerts the team after 2 failed checks, again on recovery, and 14/7/2 days before the TLS certificate expires. | none |
-| **Google PageSpeed Insights** | Engineering, QA, SEO | Performance, accessibility, best-practice and SEO scores, Core Web Vitals and what to fix first. | `PAGESPEED_API_KEY` (optional) |
+| **Google PageSpeed Insights** | Engineering, QA, SEO | Performance, accessibility, best-practice and SEO scores, Core Web Vitals and what to fix first. | `PAGESPEED_API_KEY` (needed in practice: the keyless quota is shared and usually used up) |
 | **Google Search Console + GA4** | SEO, Paid media | Clicks, impressions, top searches and pages; visitors, channels and conversions, compared with the previous period. Uses one service account, which each client adds to their property, so no OAuth is needed. | `GOOGLE_SERVICE_ACCOUNT_JSON` |
 | **GitHub** | Engineering, Games | Commits, pull requests and releases as live progress. | `GITHUB_TOKEN` (fine-grained, read-only) |
 | **Meta ads** | Paid Advertising | Spend, reach, clicks, CTR, CPC and leads (and cost per lead) by campaign, last 30 days. Read-only. | `META_ACCESS_TOKEN` (system user, `ads_read`); `META_GRAPH_VERSION` (default v25.0) |

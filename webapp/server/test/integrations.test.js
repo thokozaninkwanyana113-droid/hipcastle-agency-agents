@@ -8,6 +8,7 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 20
 process.env.SITE_URL = 'https://hipcastle.test';
 process.env.GOOGLE_SERVICE_ACCOUNT_JSON = Buffer.from(JSON.stringify({ client_email: 'reports@hipcastle.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) })).toString('base64');
 process.env.GITHUB_TOKEN = 'gh-test';
+process.env.PAGESPEED_API_KEY = 'ps-test';
 process.env.META_ACCESS_TOKEN = 'meta-test';
 process.env.WHATSAPP_TOKEN = 'wa-test';
 process.env.WHATSAPP_PHONE_NUMBER_ID = '1234567890';
@@ -17,7 +18,7 @@ const { createApp } = await import('../src/app.js');
 const { seed } = await import('../src/seed.js');
 const { db } = await import('../src/db.js');
 const { setIntegrationFetch } = await import('../src/integrations/http.js');
-const { setTlsCheck } = await import('../src/integrations/monitor.js');
+const { setTlsCheck, setResolver, checkSite } = await import('../src/integrations/monitor.js');
 const { runIntegrationMonitor, runTenders, runMailboxSync } = await import('../src/integrations/jobs.js');
 const { refreshDueReports } = await import('../src/integrations/reports.js');
 const { waNumber } = await import('../src/integrations/meta.js');
@@ -47,6 +48,7 @@ before(async () => {
   db.prepare("UPDATE orders SET status = 'active' WHERE id = ?").run(order.id);
 
   setTlsCheck(async () => 7);
+  setResolver(async (host) => [{ address: host.startsWith('internal-') ? '10.0.0.5' : '203.0.113.10' }]);
   setIntegrationFetch(async (url, opts = {}) => {
     const u = String(url); calls.push({ url: u, opts });
     if (u.startsWith('https://ndlovu.example')) return new Response('ok', { status: siteUp ? 200 : 503 });
@@ -218,4 +220,15 @@ test('Command Centre lists every integration with its status', async () => {
   for (const k of ['monitor', 'pagespeed', 'google', 'github', 'meta_ads', 'whatsapp', 'm365', 'etenders', 'recraft', 'figma']) assert.ok(ids.includes(k), k);
   assert.match(d.services.find((s) => s.id === 'google').setup.join(' '), /reports@hipcastle\.iam\.gserviceaccount\.com/);
   assert.equal(JSON.stringify(d).includes('meta-test'), false, 'no secrets in the response');
+});
+
+test('monitoring refuses private and internal addresses (no SSRF)', async () => {
+  for (const u of ['http://127.0.0.1:4000/api/health', 'http://169.254.169.254/latest/meta-data', 'http://localhost/', 'http://hipcastle.internal/', 'http://[::1]/', 'http://internal-db.example/', 'http://192.168.1.1/']) {
+    const r = await checkSite(u);
+    assert.equal(r.ok, false, u);
+    assert.match(r.error, /Private address/, u);
+  }
+  const before = calls.length;
+  await checkSite('http://10.1.2.3/');
+  assert.equal(calls.length, before, 'no request was made');
 });
